@@ -1,0 +1,14 @@
+{
+  "controller_name": "Home Controller",
+  "i2c_bus_num": 1,
+  "modules": [
+    {
+      "address_hex": "0x21",
+      "id": "i2c1-0x21",
+      "name": "Doors",
+      "type": "di"
+    }
+  ],
+  "notes": "",
+  "saved_at": 1771181370
+}
