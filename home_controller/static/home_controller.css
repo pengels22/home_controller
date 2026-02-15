@@ -1,0 +1,268 @@
+:root {
+  --bg: #0f1115;
+  --card: #161a22;
+  --border: rgba(255,255,255,0.08);
+  --text: rgba(255,255,255,0.92);
+  --muted: rgba(255,255,255,0.60);
+}
+
+/* ------------------ Base layout ------------------ */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  background: #0b0d12;
+}
+
+.brand-title { font-weight: 800; font-size: 18px; }
+.brand-sub { margin-top: 2px; font-size: 12px; color: var(--muted); }
+
+.topbar-right { display: flex; gap: 10px; align-items: center; }
+
+.status-pill {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.status-good { outline: 1px solid rgba(46, 204, 113, 0.55); }
+.status-bad  { outline: 1px solid rgba(255, 74, 74, 0.55); }
+
+.btn-link {
+  display: inline-block;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  font-weight: 800;
+  text-decoration: none;
+}
+.btn-link:hover { background: rgba(255,255,255,0.10); }
+
+.container {
+  padding: 18px 22px 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.card {
+  background: #11151d;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-top: 16px;
+}
+
+h2 { margin: 0 0 10px 0; font-size: 16px; }
+.hint { margin-top: 4px; font-size: 11px; color: var(--muted); }
+
+/* ------------------ DIN RAIL MODULE ROW ------------------ */
+
+.modules-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 2px;               /* FINAL desired spacing */
+  overflow-x: auto;
+  padding-top: 6px;       /* keep original clearance */
+  padding-bottom: 10px;
+}
+
+/* ------------------ MODULE CARD ------------------ */
+
+.module-card {
+  flex: 0 0 auto;
+  width: 150px;           /* keep your original size */
+  padding: 6px 6px 8px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.02);
+  margin: 0;              /* prevent accidental outer spacing */
+}
+
+.module-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0px;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.module-title {
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.module-sub {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* ------------------ SVG AREA ------------------ */
+
+.module-svg {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+}
+
+.module-svg svg {
+  width: 100%;
+  max-width: 130px;
+  height: auto;
+  display: block;
+}
+
+/* ------------------ Gear button ------------------ */
+
+.icon-btn {
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  padding: 4px 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.icon-btn:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+/* ------------------ Modal ------------------ */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 18px;
+  z-index: 9999;
+}
+
+.modal {
+  width: min(900px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+  background: #0b0d12;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-title { font-weight: 900; }
+.modal-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.modal-body { padding: 14px 14px 6px; }
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.channels-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.channel-row {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.channel-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.channel-input { width: 100%; }
+
+button {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+button:hover { background: rgba(255,255,255,0.10); }
+button.danger { border-color: rgba(255,74,74,0.45); }
+
+.error-box {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,74,74,0.45);
+  background: rgba(255,74,74,0.10);
+  color: rgba(255,255,255,0.92);
+}
+/* Kill side padding in card */
+.module-card {
+  padding-left: 0px;
+  padding-right: 0px;
+}
+
+/* Let SVG actually fill the card */
+.module-svg svg {
+  width: 100%;
+  max-width: none;   /* <-- this is the main fix */
+}
+
+/* Remove inline SVG baseline spacing */
+.module-svg {
+  line-height: 0;
+}
+/* Test flash effect for SVG LEDs */
+.led-on {
+  filter: drop-shadow(0 0 6px rgba(80, 200, 255, 0.9));
+  opacity: 1;
+}
+
+.led-off {
+  opacity: 0.25;
+}
+.led-on circle {
+  fill: #38d26a;
+  stroke: #167a38;
+}
+
+.led-off circle {
+  fill: #d0d0d0;
+  stroke: #7a7a7a;
+}

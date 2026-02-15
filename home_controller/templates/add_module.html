@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Add Module • Home Controller</title>
+  <link rel="stylesheet" href="/static/home_controller.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-title">Home Controller</div>
+      <div class="brand-sub">Add Module</div>
+    </div>
+
+    <div class="topbar-right">
+      <a class="btn-link" href="/ui">← Back to Modules</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Add Module</h2>
+
+      <div class="form-row">
+        <label for="add_type">Type</label>
+        <select id="add_type">
+          <option value="di">DI</option>
+          <option value="do">DO</option>
+          <option value="aio">AIO</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label for="add_addr">Address</label>
+        <input id="add_addr" placeholder="0x21" />
+        <div class="hint">DI/DO default range: 0x20–0x27</div>
+      </div>
+
+      <div class="form-row">
+        <label for="add_name">Name (optional)</label>
+        <input id="add_name" placeholder="Doors, Lights, etc." />
+      </div>
+
+      <div class="form-actions">
+        <button onclick="addModuleThenGoBack()">Add Module</button>
+      </div>
+
+      <div id="add_error" class="error-box" style="display:none;"></div>
+    </section>
+  </main>
+
+  <script src="/static/home_controller.js"></script>
+</body>
+</html>

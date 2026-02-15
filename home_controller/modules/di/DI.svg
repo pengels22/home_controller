@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1in"
+  height="2.5in"
+  viewBox="0 0 100 250"
+  role="img"
+  aria-label="DI Module (16-channel)">
+
+  <defs>
+    <style>
+      .outer { fill: #e6e6e6; stroke: #b5b5b5; stroke-width: 2; }
+      .title { font: 700 9px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #333; }
+      .small { font: 600 7px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #555; }
+      .lednum { font: 700 6px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #222; text-anchor: middle; dominant-baseline: middle;}
+
+      /* LED states */
+      .led { fill: #cfcfcf; stroke: #8a8a8a; stroke-width: 1; }
+      .led-on { fill: #38d26a; stroke: #1d8f43; }
+      .led-warn { fill: #ffd24a; stroke: #c49a13; }
+      .led-err { fill: #ff4a4a; stroke: #b51f1f; }
+
+      .shine { fill: rgba(255,255,255,0.35); }
+    </style>
+  </defs>
+
+  <!-- Outer module body -->
+  <rect class="outer" x="6" y="6" width="88" height="238" rx="10" ry="10"/>
+
+  <!-- Title -->
+  <text class="title" x="50" y="22" text-anchor="middle">DI MODULE</text>
+
+  <!-- Status LEDs -->
+  <text class="small" x="25" y="42" text-anchor="middle">PWR A</text>
+  <g id="status_pwrA">
+    <circle class="led" cx="25" cy="55" r="7"/>
+    <circle class="shine" cx="23" cy="53" r="2.5"/>
+  </g>
+
+  <text class="small" x="75" y="42" text-anchor="middle">PWR B</text>
+  <g id="status_pwrB">
+    <circle class="led" cx="75" cy="55" r="7"/>
+    <circle class="shine" cx="73" cy="53" r="2.5"/>
+  </g>
+
+  <!-- Columns -->
+  <!-- Left column x=30, right x=70 -->
+  <!-- Rows start y=85, step=16 -->
+
+  <!-- Left LEDs 1–8 -->
+  <g id="ch01"><circle class="led" cx="30" cy="85" r="6"/><text class="lednum" x="30" y="85">1</text></g>
+  <g id="ch02"><circle class="led" cx="30" cy="101" r="6"/><text class="lednum" x="30" y="101">2</text></g>
+  <g id="ch03"><circle class="led" cx="30" cy="117" r="6"/><text class="lednum" x="30" y="117">3</text></g>
+  <g id="ch04"><circle class="led" cx="30" cy="133" r="6"/><text class="lednum" x="30" y="133">4</text></g>
+  <g id="ch05"><circle class="led" cx="30" cy="149" r="6"/><text class="lednum" x="30" y="149">5</text></g>
+  <g id="ch06"><circle class="led" cx="30" cy="165" r="6"/><text class="lednum" x="30" y="165">6</text></g>
+  <g id="ch07"><circle class="led" cx="30" cy="181" r="6"/><text class="lednum" x="30" y="181">7</text></g>
+  <g id="ch08"><circle class="led" cx="30" cy="197" r="6"/><text class="lednum" x="30" y="197">8</text></g>
+
+  <!-- Right LEDs 9–16 -->
+  <g id="ch09"><circle class="led" cx="70" cy="85" r="6"/><text class="lednum" x="70" y="85">9</text></g>
+  <g id="ch10"><circle class="led" cx="70" cy="101" r="6"/><text class="lednum" x="70" y="101">10</text></g>
+  <g id="ch11"><circle class="led" cx="70" cy="117" r="6"/><text class="lednum" x="70" y="117">11</text></g>
+  <g id="ch12"><circle class="led" cx="70" cy="133" r="6"/><text class="lednum" x="70" y="133">12</text></g>
+  <g id="ch13"><circle class="led" cx="70" cy="149" r="6"/><text class="lednum" x="70" y="149">13</text></g>
+  <g id="ch14"><circle class="led" cx="70" cy="165" r="6"/><text class="lednum" x="70" y="165">14</text></g>
+  <g id="ch15"><circle class="led" cx="70" cy="181" r="6"/><text class="lednum" x="70" y="181">15</text></g>
+  <g id="ch16"><circle class="led" cx="70" cy="197" r="6"/><text class="lednum" x="70" y="197">16</text></g>
+
+</svg>

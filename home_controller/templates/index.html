@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Home Controller</title>
+  <link rel="stylesheet" href="/static/home_controller.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-title">Home Controller</div>
+      <div class="brand-sub">Modules Overview</div>
+    </div>
+
+    <div class="topbar-right">
+      <div id="status" class="status-pill">Loading…</div>
+      <a class="btn-link" href="/ui/add">+ Add Module</a>
+      <button class="btn-link" id="test_btn" onclick="toggleTest()">Test</button>
+
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Modules</h2>
+      <div class="hint">Scroll sideways if you have lots of modules.</div>
+      <div id="modules" class="modules-row"></div>
+    </section>
+  </main>
+
+  <!-- Settings Modal -->
+  <div id="modal_backdrop" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" id="modal_title">Module Settings</div>
+          <div class="modal-sub" id="modal_sub">—</div>
+        </div>
+        <button class="icon-btn" onclick="closeModal()" title="Close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <label for="modal_module_name">Module Name</label>
+          <input id="modal_module_name" placeholder="e.g., Doors, Lights, Inputs…" />
+        </div>
+
+        <div class="channels-grid" id="channels_grid"></div>
+
+        <div id="modal_error" class="error-box" style="display:none;"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="danger" onclick="removeFromModal()">Remove Module</button>
+        <div style="flex:1;"></div>
+        <button onclick="closeModal()">Cancel</button>
+        <button onclick="saveModal()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/home_controller.js"></script>
+</body>
+</html>

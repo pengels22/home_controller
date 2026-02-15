@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="170" height="430" viewBox="0 0 170 430"
+     xmlns="http://www.w3.org/2000/svg">
+
+  <defs>
+    <style>
+      .shadow { fill:#000; opacity:0.18; }
+      .card { fill:#eeeeee; stroke:#cfcfcf; stroke-width:2; }
+      .inner { fill:none; stroke:#d7d7d7; stroke-width:2; }
+      .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1a1a1a; }
+      .label { font-family:Arial,Helvetica,sans-serif; font-size:10px; font-weight:700; fill:#2a2a2a; }
+
+      .ledOuter { fill:#e7e7e7; stroke:#9c9c9c; stroke-width:2; }
+      .ledPwr { fill:#39d353; stroke:#222; stroke-width:2; }
+      .ledNet { fill:#2f81f7; stroke:#222; stroke-width:2; }
+
+      .pi { fill:#e5e5e5; stroke:#bdbdbd; stroke-width:2; }
+      .piWindow { fill:#d9d9d9; stroke:#bdbdbd; stroke-width:2; }
+
+      .ipBox { fill:#ffffff; stroke:#8a8a8a; stroke-width:2; }
+      .ipText {
+        font-family:"Courier New",Courier,monospace;
+        font-size:13px;
+        font-weight:700;
+        fill:#111;
+      }
+    </style>
+  </defs>
+
+  <!-- Shadow -->
+  <rect class="shadow" x="10" y="14" width="150" height="402" rx="16"/>
+
+  <!-- Card -->
+  <rect class="card" x="8" y="12" width="150" height="402" rx="16"/>
+
+  <!-- Header -->
+  <text class="title" x="83" y="32" text-anchor="middle">HEAD MODULE</text>
+
+  <!-- Power LEDs -->
+  <text class="label" x="40" y="56">PWR A</text>
+  <circle class="ledOuter" cx="52" cy="72" r="10"/>
+  <circle class="ledPwr" cx="52" cy="72" r="6"/>
+
+  <text class="label" x="96" y="56">NET</text>
+  <circle class="ledOuter" cx="108" cy="72" r="10"/>
+  <circle class="ledNet" cx="108" cy="72" r="6"/>
+
+  <!-- Inner panel -->
+  <rect class="inner" x="22" y="92" width="122" height="300" rx="12"/>
+
+  <!-- Pi enclosure silhouette -->
+  <g transform="translate(30,110)">
+    <rect class="pi" x="0" y="0" width="106" height="88" rx="10"/>
+    <path class="inner" d="M64,0 V12"/>
+    <rect class="piWindow" x="18" y="16" width="50" height="28" rx="6"/>
+    <rect class="inner" x="22" y="20" width="42" height="20" rx="4"/>
+  </g>
+
+  <!-- IP label -->
+  <text class="label" x="34" y="242">IP ADDRESS</text>
+  <rect class="ipBox" x="30" y="252" width="110" height="34" rx="8"/>
+
+  <!-- AUTO-FIT IP TEXT -->
+  <text class="ipText"
+        x="35"
+        y="274"
+        textLength="100"
+        lengthAdjust="spacingAndGlyphs">192.168.1.100</text>
+
+</svg>
