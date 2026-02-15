@@ -27,15 +27,15 @@ backend = HomeControllerBackend()
 # -------------------------
 # Health check
 # -------------------------
+# -------------------------
+# UI entrypoint
+# -------------------------
 
-@app.get("/")
-def root():
-    return jsonify({
-        "service": "home_controller",
-        "status": "running",
-        "controller_name": backend.cfg.controller_name,
-        "modules": len(backend.list_modules())
-    })
+from flask import render_template
+
+@app.get("/ui")
+def ui_index():
+    return render_template("index.html")
 
 
 # -------------------------

@@ -1,0 +1,9 @@
+body {
+    font-family: system-ui, sans-serif;
+    margin: 40px;
+}
+
+button {
+    margin-left: 10px;
+    padding: 4px 10px;
+}
