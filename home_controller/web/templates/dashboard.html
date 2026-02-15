@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Home Controller</h1>
+<div class="card">
+  <div><span class="pill">Status</span> <b>{{ status }}</b></div>
+  <div class="muted">Validator: <code>{{ validator }}</code></div>
+</div>
+
+<div class="card">
+  <h3>Next steps</h3>
+  <ol>
+    <li>Fill in real nets in each module pinmap (AIO/DI/DO).</li>
+    <li>Run the validator until it passes.</li>
+    <li>Add discovery + enrollment logic.</li>
+  </ol>
+</div>
+{% endblock %}

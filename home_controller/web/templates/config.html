@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Config</h1>
+
+<div class="card">
+  <form method="post">
+    <div style="margin-bottom:10px;">
+      <label>Controller Name</label><br/>
+      <input name="controller_name" value="{{ cfg.controller_name }}" />
+    </div>
+    <div style="margin-bottom:10px;">
+      <label>Notes</label><br/>
+      <input name="notes" value="{{ cfg.notes }}" style="width: 420px;" />
+    </div>
+    <button type="submit">Save</button>
+  </form>
+</div>
+
+<div class="card">
+  <div class="muted">Saved in: <code>{{ cfg_path }}</code></div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Module: {{ module_type|upper }}</h1>
+
+<div class="card">
+  <div><b>Pinmap:</b> <code>{{ pinmap_path }}</code></div>
+  <div><b>Variant:</b> <code>{{ pinmap.variant }}</code></div>
+  <div><b>Header:</b> <code>{{ pinmap.header }}</code></div>
+</div>
+
+<div class="card">
+  <h3>Main Header (1–30)</h3>
+  <pre style="white-space: pre-wrap;">{{ pin_lines }}</pre>
+</div>
+
+{% endblock %}

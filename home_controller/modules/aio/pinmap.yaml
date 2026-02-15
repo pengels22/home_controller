@@ -1,0 +1,46 @@
+module_type: "aio"
+variant: "board"
+contract_ref: "../../config/header_30pin_contract.yaml"
+header: "MAIN_30"
+
+pins:
+  # 1–4 power (define once you finalize; placeholders for now)
+  1: { net: "+24V_IN" }
+  2: { net: "+5V" }
+  3: { net: "GND" }
+  4: { net: "GND" }
+
+  # 5–20 are IO1..IO16 (map as your AIO implementation defines)
+  5:  { net: "AIO_IO1" }
+  6:  { net: "AIO_IO2" }
+  7:  { net: "AIO_IO3" }
+  8:  { net: "AIO_IO4" }
+  9:  { net: "AIO_IO5" }
+  10: { net: "AIO_IO6" }
+  11: { net: "AIO_IO7" }
+  12: { net: "AIO_IO8" }
+  13: { net: "AIO_IO9" }
+  14: { net: "AIO_IO10" }
+  15: { net: "AIO_IO11" }
+  16: { net: "AIO_IO12" }
+  17: { net: "AIO_IO13" }
+  18: { net: "AIO_IO14" }
+  19: { net: "AIO_IO15" }
+  20: { net: "AIO_IO16" }
+
+  # 21–30 must match across modules (22 MUST be NC)
+  21: { net: "RESERVED_21" }
+  22: { net: "NC" }
+  23: { net: "RESERVED_23" }
+  24: { net: "RESERVED_24" }
+  25: { net: "RESERVED_25" }
+  26: { net: "RESERVED_26" }
+  27: { net: "RESERVED_27" }
+  28: { net: "RESERVED_28" }
+  29: { net: "RESERVED_29" }
+  30: { net: "RESERVED_30" }
+
+# Optional: document DIP mapping here (fill in once confirmed)
+dip_switches:
+  # example:
+  # DIP1: { signal: "AIO_DIP1", connected_to: "MCP23017.P0" }

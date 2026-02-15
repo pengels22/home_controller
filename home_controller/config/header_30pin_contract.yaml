@@ -1,0 +1,59 @@
+contract_name: "HomeController 30-pin Main Header"
+version: "1.0.0"
+
+rules:
+  power_pins:
+    - 1
+    - 2
+    - 3
+    - 4
+  io_pins_range: { start: 5, end: 20 }   # 16 IO pins
+  reserved_pins:
+    # Pins that must be identical across ALL modules (AIO/DI/DO)
+    - { pin: 21, function: "RESERVED_21" }
+    - { pin: 22, function: "NC" }        # MUST remain no-connect
+    - { pin: 23, function: "RESERVED_23" }
+    - { pin: 24, function: "RESERVED_24" }
+    - { pin: 25, function: "RESERVED_25" }
+    - { pin: 26, function: "RESERVED_26" }
+    - { pin: 27, function: "RESERVED_27" }
+    - { pin: 28, function: "RESERVED_28" }
+    - { pin: 29, function: "RESERVED_29" }
+    - { pin: 30, function: "RESERVED_30" }
+
+pins:
+  # Power block (1–4)
+  1:  { name: "PWR_1",  group: "power",  note: "Power pin 1 (module-defined)" }
+  2:  { name: "PWR_2",  group: "power",  note: "Power pin 2 (module-defined)" }
+  3:  { name: "PWR_3",  group: "power",  note: "Power pin 3 (module-defined)" }
+  4:  { name: "PWR_4",  group: "power",  note: "Power pin 4 (module-defined)" }
+
+  # IO block (5–20) => IO1..IO16
+  5:  { name: "IO1",  group: "io", index: 1 }
+  6:  { name: "IO2",  group: "io", index: 2 }
+  7:  { name: "IO3",  group: "io", index: 3 }
+  8:  { name: "IO4",  group: "io", index: 4 }
+  9:  { name: "IO5",  group: "io", index: 5 }
+  10: { name: "IO6",  group: "io", index: 6 }
+  11: { name: "IO7",  group: "io", index: 7 }
+  12: { name: "IO8",  group: "io", index: 8 }
+  13: { name: "IO9",  group: "io", index: 9 }
+  14: { name: "IO10", group: "io", index: 10 }
+  15: { name: "IO11", group: "io", index: 11 }
+  16: { name: "IO12", group: "io", index: 12 }
+  17: { name: "IO13", group: "io", index: 13 }
+  18: { name: "IO14", group: "io", index: 14 }
+  19: { name: "IO15", group: "io", index: 15 }
+  20: { name: "IO16", group: "io", index: 16 }
+
+  # Reserved block (21–30) must be identical across boards
+  21: { name: "RESERVED_21", group: "reserved" }
+  22: { name: "NC",          group: "reserved", note: "Must be no-connect on ALL boards" }
+  23: { name: "RESERVED_23", group: "reserved" }
+  24: { name: "RESERVED_24", group: "reserved" }
+  25: { name: "RESERVED_25", group: "reserved" }
+  26: { name: "RESERVED_26", group: "reserved" }
+  27: { name: "RESERVED_27", group: "reserved" }
+  28: { name: "RESERVED_28", group: "reserved" }
+  29: { name: "RESERVED_29", group: "reserved" }
+  30: { name: "RESERVED_30", group: "reserved" }

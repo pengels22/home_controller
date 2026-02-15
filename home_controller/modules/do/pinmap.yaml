@@ -1,0 +1,40 @@
+module_type: "do"
+variant: "board"
+contract_ref: "../../config/header_30pin_contract.yaml"
+header: "MAIN_30"
+
+pins:
+  1: { net: "+24V_IN" }
+  2: { net: "+5V" }
+  3: { net: "GND" }
+  4: { net: "GND" }
+
+  5:  { net: "DO_IO1" }
+  6:  { net: "DO_IO2" }
+  7:  { net: "DO_IO3" }
+  8:  { net: "DO_IO4" }
+  9:  { net: "DO_IO5" }
+  10: { net: "DO_IO6" }
+  11: { net: "DO_IO7" }
+  12: { net: "DO_IO8" }
+  13: { net: "DO_IO9" }
+  14: { net: "DO_IO10" }
+  15: { net: "DO_IO11" }
+  16: { net: "DO_IO12" }
+  17: { net: "DO_IO13" }
+  18: { net: "DO_IO14" }
+  19: { net: "DO_IO15" }
+  20: { net: "DO_IO16" }
+
+  21: { net: "RESERVED_21" }
+  22: { net: "NC" }
+  23: { net: "RESERVED_23" }
+  24: { net: "RESERVED_24" }
+  25: { net: "RESERVED_25" }
+  26: { net: "RESERVED_26" }
+  27: { net: "RESERVED_27" }
+  28: { net: "RESERVED_28" }
+  29: { net: "RESERVED_29" }
+  30: { net: "RESERVED_30" }
+
+dip_switches: {}
