@@ -71,10 +71,13 @@
   </main>
 
   <script>
+    let currentModuleId = null;
+
     async function fetchModules(){
       const r = await fetch('/api/gui/modules');
       const mods = await r.json();
       const sel = document.getElementById('moduleSelect');
+      const prev = currentModuleId;
       sel.innerHTML = '';
       mods.forEach(m => {
         const opt = document.createElement('option');
@@ -82,36 +85,80 @@
         opt.text = `Slot ${m.slot}: ${m.type.toUpperCase()} ${m.name ? '- ' + m.name : ''} (${m.address})`;
         sel.appendChild(opt);
       });
-      if(mods.length) sel.selectedIndex = 0;
+      if(mods.length){
+        // preserve previous selection if possible
+        const idx = Array.from(sel.options).findIndex(o => o.value === prev);
+        if(idx >= 0) sel.selectedIndex = idx;
+        else sel.selectedIndex = 0;
+        currentModuleId = sel.value;
+      }
       await updateModuleInfo();
     }
 
     async function updateModuleInfo(){
       const sel = document.getElementById('moduleSelect');
       const id = sel.value; if(!id) return;
+      currentModuleId = id;
       const r = await fetch('/api/gui/modules');
       const mods = await r.json();
       const m = mods.find(x=>x.id===id);
       const info = document.getElementById('moduleInfo');
       info.textContent = `Type: ${m.type.toUpperCase()} | Address: ${m.address} | Present: ${m.present}`;
+      // populate write pane depending on type
+      const writePane = document.getElementById('writePane');
+      writePane.innerHTML = '';
 
-      // populate channel selector
-      const chSel = document.getElementById('channelSelect');
-      chSel.innerHTML = '';
-      const total = (m.channels_out || m.channels_in || 0) || (m.type==='aio'?8:0);
-      for(let i=1;i<=total;i++){
-        const o = document.createElement('option'); o.value = i; o.text = i; chSel.appendChild(o);
-      }
+      if(m.type === 'do'){
+        // For DO we show 16 rows with On/Off dropdowns that auto-write on change
+        const wrapper = document.createElement('div');
+        wrapper.style.display = 'grid';
+        wrapper.style.gridTemplateColumns = 'repeat(2,1fr)';
+        wrapper.style.gap = '6px';
 
-      const val = document.getElementById('valueInput');
-      if(m.type==='do') val.value = '1';
-      else if(m.type==='aio') val.value = '12.0';
-      else val.value = '';
+        // Read current module state to default dropdowns
+        const state = await (async ()=>{ const rr = await fetch('/api/gui/action', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({module_id:id, action:'read'})}); return await rr.json(); })();
+        const channelsState = (state && state.channels) ? state.channels : {};
 
-      // If AIO, auto-read and show channels
-      if(m.type==='aio'){
+        for(let ch=1; ch<=16; ch++){
+          const row = document.createElement('div'); row.style.display = 'flex'; row.style.alignItems='center'; row.style.gap='8px';
+          const lbl = document.createElement('div'); lbl.style.minWidth='60px'; lbl.textContent = 'CH '+ch;
+          const sel = document.createElement('select'); sel.dataset.ch = String(ch);
+          const optOn = document.createElement('option'); optOn.value = '1'; optOn.text = 'On';
+          const optOff = document.createElement('option'); optOff.value = '0'; optOff.text = 'Off';
+          sel.appendChild(optOn); sel.appendChild(optOff);
+          const cur = channelsState[String(ch)] !== undefined ? Number(channelsState[String(ch)]) : 0;
+          sel.value = cur ? '1' : '0';
+          sel.addEventListener('change', async (ev)=>{
+            const chnum = Number(ev.target.dataset.ch);
+            const v = Number(ev.target.value);
+            await writeChannel(id, chnum, v);
+          });
+          row.appendChild(lbl); row.appendChild(sel);
+          wrapper.appendChild(row);
+        }
+        writePane.appendChild(wrapper);
+        document.getElementById('aioChannels').style.display = 'none';
+
+      } else if(m.type === 'aio'){
+        // show channel selector + value input for manual writes
+        const chRow = document.createElement('div'); chRow.style.display='flex'; chRow.style.gap='8px'; chRow.style.alignItems='center'; chRow.style.marginBottom='8px';
+        const chLabel = document.createElement('label'); chLabel.style.minWidth='70px'; chLabel.textContent='Channel';
+        const chSel = document.createElement('select'); chSel.id = 'channelSelect'; chSel.style.flex='1';
+        for(let i=1;i<=8;i++){ const o = document.createElement('option'); o.value=i; o.text=i; chSel.appendChild(o); }
+        chRow.appendChild(chLabel); chRow.appendChild(chSel);
+
+        const vRow = document.createElement('div'); vRow.style.display='flex'; vRow.style.gap='8px'; vRow.style.alignItems='center'; vRow.style.marginBottom='6px';
+        const vLabel = document.createElement('label'); vLabel.style.minWidth='70px'; vLabel.textContent='Value';
+        const vInput = document.createElement('input'); vInput.id='valueInput'; vInput.style.flex='1'; vRow.appendChild(vLabel); vRow.appendChild(vInput);
+
+        const btn = document.createElement('button'); btn.id='writeBtn'; btn.textContent='Write'; btn.addEventListener('click', writeModule);
+
+        writePane.appendChild(chRow); writePane.appendChild(vRow); writePane.appendChild(btn);
+
+        // Auto-read AIO and populate grid
         await readModule(true);
       } else {
+        writePane.textContent = '(module does not support writes)';
         document.getElementById('aioChannels').style.display = 'none';
       }
     }
@@ -138,24 +185,40 @@
       } else {
         document.getElementById('aioChannels').style.display = 'none';
       }
+
+      // If DO, update dropdowns to reflect new state
+      if(j && j.ok && j.type === 'do' && j.channels){
+        // find selects inside writePane and set values
+        const writePane = document.getElementById('writePane');
+        const selects = writePane.querySelectorAll('select[data-ch]');
+        selects.forEach(s => {
+          const ch = s.dataset.ch;
+          const val = j.channels[String(ch)] !== undefined ? Number(j.channels[String(ch)]) : 0;
+          s.value = val ? '1' : '0';
+        });
+      }
     }
 
     async function writeModule(){
       const id = document.getElementById('moduleSelect').value;
       const ch = parseInt(document.getElementById('channelSelect').value,10);
       const val = document.getElementById('valueInput').value;
-      const payload = { module_id: id, action: 'write', channel: ch, value: (isNaN(Number(val))? val : Number(val)) };
+      await writeChannel(id, ch, (isNaN(Number(val))? val : Number(val)));
+    }
+
+    async function writeChannel(moduleId, ch, val){
+      const payload = { module_id: moduleId, action: 'write', channel: ch, value: val };
       const r = await fetch(`/api/gui/action`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
       const j = await r.json();
       document.getElementById('readOut').textContent = JSON.stringify(j, null, 2);
-      // refresh modules and info
-      await fetchModules();
+      // refresh current module info and data without changing selection
+      await updateModuleInfo();
+      await readModule(true);
     }
 
     document.getElementById('refreshBtn').addEventListener('click', fetchModules);
     document.getElementById('moduleSelect').addEventListener('change', updateModuleInfo);
     document.getElementById('readBtn').addEventListener('click', ()=>readModule(false));
-    document.getElementById('writeBtn').addEventListener('click', writeModule);
 
     fetchModules();
   </script>
