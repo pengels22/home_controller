@@ -45,6 +45,10 @@ VALID_TYPES = ("di", "do", "aio")
 MCP23017_MIN = 0x20
 MCP23017_MAX = 0x27
 
+# AIO modules: base address (A0..A2 DIP switches add 0..7)
+AIO_BASE = 0x30
+AIO_MAX = 0x37
+
 
 # -----------------------------
 # Data model
@@ -92,9 +96,59 @@ class HomeControllerBackend:
         self._config_path = config_path or os.path.join(
             self._repo_root, "home_controller", "config", "config.json"
         )
+        # dev_mode and dev_file may be set by the caller to simulate I2C
+        self._dev_mode = False
+        self._dev_file: Optional[str] = None
+        self._dev_data: Dict[str, Any] = {}
+
         self.cfg = self.load_config()
         # Force modules to use the fixed modules I2C bus (ensure modules are always on i2c1)
         self.cfg.i2c_bus_num = DEFAULT_I2C_BUS_NUM
+
+    def enable_dev_mode(self, dev_file: Optional[str] = None) -> None:
+        """Enable developer simulation mode and load data from `dev_file`.
+
+        If `dev_file` is not provided, defaults to `<repo>/home_controller/config/dev_i2c.json`.
+        """
+        self._dev_mode = True
+        if dev_file:
+            self._dev_file = dev_file
+        else:
+            self._dev_file = os.path.join(self._repo_root, "home_controller", "config", "dev_i2c.json")
+        self._dev_data = self._load_dev_data()
+
+    def disable_dev_mode(self) -> None:
+        self._dev_mode = False
+        self._dev_file = None
+        self._dev_data = {}
+
+    def _load_dev_data(self) -> Dict[str, Any]:
+        try:
+            if not self._dev_file:
+                return {}
+            if not os.path.exists(self._dev_file):
+                return {}
+            with open(self._dev_file, "r", encoding="utf-8") as f:
+                raw = json.load(f) or {}
+            # normalize keys to lowercase hex strings
+            out: Dict[str, Any] = {}
+            for k, v in raw.items():
+                out[str(k).lower()] = v
+            return out
+        except Exception:
+            return {}
+
+    def _save_dev_data(self) -> None:
+        try:
+            if not self._dev_file:
+                return
+            os.makedirs(os.path.dirname(self._dev_file), exist_ok=True)
+            tmp = self._dev_file + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(self._dev_data, f, indent=2, sort_keys=True)
+            os.replace(tmp, self._dev_file)
+        except Exception:
+            pass
 
     # --------
     # Paths
@@ -199,10 +253,14 @@ class HomeControllerBackend:
 
         address_hex, address_int = self.normalize_address(address)
 
-        # Guardrail: DI/DO are expected to be MCP23017 range by default
+        # Guardrails per module type
         if mtype in ("di", "do"):
             if not (MCP23017_MIN <= address_int <= MCP23017_MAX):
                 raise ValueError("DI/DO addresses must be in 0x20–0x27 (MCP23017 default range)")
+        if mtype == "aio":
+            # AIO base address is 0x30; three DIP switches (A0..A2) add 0..7
+            if not (AIO_BASE <= address_int <= AIO_MAX):
+                raise ValueError("AIO addresses must be in 0x30–0x37 (AIO base + 3 DIP bits)")
 
         mid = self._module_id(address_hex)
         if self._find_module_index(mid) >= 0:
@@ -244,6 +302,130 @@ class HomeControllerBackend:
             raise ValueError(f"Module not found: {module_id}")
 
         m = self.cfg.modules[idx]
+
+        addr_key = m.address_hex.lower()
+        # Dev-mode write handling: modify simulated dev data and persist
+        if self._dev_mode:
+            dev = self._dev_data.setdefault(addr_key, {})
+            if m.type == "do":
+                # ensure gpio values exist
+                a = int(dev.get("gpio_a", 0))
+                b = int(dev.get("gpio_b", 0))
+                if not (1 <= channel <= 16):
+                    return {"ok": False, "error": "channel must be 1..16"}
+                if int(value) not in (0, 1):
+                    return {"ok": False, "error": "value must be 0 or 1"}
+
+                if channel <= 8:
+                    bit = channel - 1
+                    if int(value) == 1:
+                        a = a | (1 << bit)
+                    else:
+                        a = a & ~(1 << bit)
+                else:
+                    bit = channel - 9
+                    if int(value) == 1:
+                        b = b | (1 << bit)
+                    else:
+                        b = b & ~(1 << bit)
+
+                dev["gpio_a"] = a
+                dev["gpio_b"] = b
+                self._save_dev_data()
+
+                channels: Dict[str, int] = {}
+                for i in range(8):
+                    channels[str(i + 1)] = 1 if ((a >> i) & 1) else 0
+                for i in range(8):
+                    channels[str(9 + i)] = 1 if ((b >> i) & 1) else 0
+
+                return {
+                    "ok": True,
+                    "module_id": m.id,
+                    "type": m.type,
+                    "address": m.address_hex,
+                    "ports": {"gpio_a": a, "gpio_b": b},
+                    "channels": channels,
+                }
+
+            if m.type == "aio":
+                # ensure channels list
+                ch = int(channel)
+                if not (1 <= ch <= 8):
+                    return {"ok": False, "error": "channel must be 1..8 for AIO"}
+                try:
+                    voltage = float(value)
+                except Exception:
+                    return {"ok": False, "error": "invalid voltage value"}
+
+                arr = list(dev.get("channels", []))
+                # extend to at least 8
+                while len(arr) < 8:
+                    arr.append(0.0)
+                arr[ch - 1] = voltage
+                dev["channels"] = arr
+                dev["raw_response"] = ",".join(str(x) for x in arr)
+                self._save_dev_data()
+
+                channels: Dict[str, float] = {}
+                for i in range(8):
+                    channels[str(i + 1)] = float(arr[i])
+
+                return {"ok": True, "module_id": m.id, "type": m.type, "address": m.address_hex, "raw_response": dev["raw_response"], "channels": channels}
+
+            # unsupported type in dev mode
+            return {"ok": False, "error": "write not supported for this module type in dev mode"}
+
+        # Dev-mode: return simulated data if available
+        addr_key = m.address_hex.lower()
+        if self._dev_mode:
+            dev = self._dev_data.get(addr_key)
+            if dev is not None:
+                # DI/DO simulated via gpio_a/gpio_b or explicit channels
+                if m.type in ("di", "do"):
+                    a = int(dev.get("gpio_a", 0))
+                    b = int(dev.get("gpio_b", 0))
+                    channels: Dict[str, int] = {}
+                    for i in range(8):
+                        channels[str(i + 1)] = 1 if ((a >> i) & 1) else 0
+                    for i in range(8):
+                        channels[str(9 + i)] = 1 if ((b >> i) & 1) else 0
+                    return {
+                        "ok": True,
+                        "module_id": m.id,
+                        "type": m.type,
+                        "address": m.address_hex,
+                        "ports": {"gpio_a": a, "gpio_b": b},
+                        "channels": channels,
+                    }
+                elif m.type == "aio":
+                    # AIO simulated via channels list or raw_response
+                    if "raw_response" in dev:
+                        s = str(dev.get("raw_response", ""))
+                        parts = [p.strip() for p in s.split(",") if p.strip()]
+                        values: List[float] = []
+                        for p in parts:
+                            try:
+                                values.append(float(p))
+                            except Exception:
+                                values.append(float("nan"))
+                    else:
+                        vals = dev.get("channels", [])
+                        values = [float(v) for v in vals]
+
+                    channels: Dict[str, float] = {}
+                    max_ch = min(len(values), 8)
+                    for i in range(max_ch):
+                        channels[str(i + 1)] = values[i]
+
+                    return {
+                        "ok": True,
+                        "module_id": m.id,
+                        "type": m.type,
+                        "address": m.address_hex,
+                        "raw_response": dev.get("raw_response", ",".join(str(v) for v in values)),
+                        "channels": channels,
+                    }
 
         if not _HAS_SMBUS:
             return {"ok": False, "error": "smbus2 not installed on this system"}
@@ -340,6 +522,27 @@ class HomeControllerBackend:
           - '24v_a' corresponds to GPIOA bit (N-1)
           - '24v_b' corresponds to GPIOB bit (N-1)
         """
+        # Dev-mode: simulated hat entry keyed by hex address
+        addr_key = f"0x{address:02x}".lower()
+        if self._dev_mode:
+            dev = self._dev_data.get(addr_key)
+            if dev is not None:
+                a = int(dev.get("gpio_a", 0))
+                b = int(dev.get("gpio_b", 0))
+                modules: Dict[str, Dict[str, bool]] = {}
+                for i in range(8):
+                    modules[str(i + 1)] = {
+                        "24v_a": bool((a >> i) & 1),
+                        "24v_b": bool((b >> i) & 1),
+                    }
+                return {
+                    "ok": True,
+                    "bus": bus_num,
+                    "address": addr_key,
+                    "ports": {"gpio_a": a, "gpio_b": b},
+                    "modules": modules,
+                }
+
         if not _HAS_SMBUS:
             return {"ok": False, "error": "smbus2 not installed on this system"}
 

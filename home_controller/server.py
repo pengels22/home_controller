@@ -66,7 +66,14 @@ app = Flask(
     static_folder=str(STATIC_DIR),
 )
 
+import sys
+
+# Backend instance. Support developer simulation mode via `-dev` flag
+DEV_MODE = ("-dev" in sys.argv) or os.getenv("HC_DEV", "0").lower() in ("1", "true", "yes")
 backend = HomeControllerBackend()
+if DEV_MODE:
+    dev_file = os.getenv("HC_DEV_FILE", None)
+    backend.enable_dev_mode(dev_file)
 
 
 # ------------------------------------------------------------
@@ -433,6 +440,102 @@ def head_status():
             "ts": int(time.time()),
         }
     )
+
+
+# ------------------------------------------------------------
+# GUI helpers API
+# ------------------------------------------------------------
+@app.get("/api/gui/modules")
+def api_gui_modules():
+    """Return ordered modules for GUI: head (if any) then slots 1..N.
+
+    Each entry includes slot number, id, type, name, address, present,
+    and channel counts for in/out so the UI can build controls.
+    """
+    mods = backend.list_modules()
+    # prefer head first if present
+    head = [m for m in mods if m.type == "head"]
+    others = [m for m in mods if m.type != "head"]
+    ordered = head + others
+
+    addrs, _err = _scan_i2c_addresses(I2C_BUS)
+    present = {f"0x{a:02x}" for a in addrs}
+
+    out = []
+    for i, m in enumerate(ordered, start=1):
+        mtype = m.type
+        if mtype == "di":
+            ch_in = 16
+            ch_out = 0
+        elif mtype == "do":
+            ch_in = 0
+            ch_out = 16
+        elif mtype == "aio":
+            ch_in = 8
+            ch_out = 8
+        else:
+            ch_in = 0
+            ch_out = 0
+
+        out.append(
+            {
+                "slot": i,
+                "id": m.id,
+                "type": mtype,
+                "name": m.name,
+                "address": m.address_hex,
+                "present": m.address_hex.lower() in present,
+                "channels_in": ch_in,
+                "channels_out": ch_out,
+            }
+        )
+
+    return jsonify(out)
+
+
+@app.post("/api/gui/action")
+def api_gui_action():
+    """Perform a GUI action: read or write a module channel.
+
+    Payload: { module_id, action: "read"|"write", channel: int, value }
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    module_id = str(data.get("module_id", "")).strip()
+    action = str(data.get("action", "read")).strip().lower()
+
+    if not module_id:
+        return jsonify({"ok": False, "error": "module_id required"}), 400
+
+    if action == "read":
+        try:
+            res = backend.read_module(module_id)
+            return jsonify(res)
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+
+    elif action == "write":
+        try:
+            channel = int(data.get("channel", -1))
+        except Exception:
+            return jsonify({"ok": False, "error": "invalid channel"}), 400
+
+        value = data.get("value")
+        try:
+            res = backend.write_module(module_id=module_id, channel=channel, value=value)
+            return jsonify(res)
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+
+    else:
+        return jsonify({"ok": False, "error": "unknown action"}), 400
+
+
+# ------------------------------------------------------------
+# Simple GUI page
+# ------------------------------------------------------------
+@app.get("/ui/gui")
+def ui_gui():
+    return render_template("gui_panel.html")
 
 
 
