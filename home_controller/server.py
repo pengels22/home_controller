@@ -435,6 +435,88 @@ def head_status():
     )
 
 
+
+# ------------------------------------------------------------
+# Hat MCP23017 status (i2c0)
+# ------------------------------------------------------------
+@app.get("/api/hat_status")
+def api_hat_status():
+    # default address: 0x20 (A0..A2 pulled to GND)
+    try:
+        addr_env = os.getenv("HC_HAT_ADDR", "0x20")
+        if isinstance(addr_env, str) and addr_env.startswith("0x"):
+            addr = int(addr_env, 16)
+        else:
+            addr = int(addr_env, 0)
+    except Exception:
+        addr = 0x20
+
+    try:
+        res = backend.read_hat_status(bus_num=0, address=addr)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# ------------------------------------------------------------
+# Module read endpoint (module-specific parsing)
+# ------------------------------------------------------------
+@app.get("/api/module_read/<module_id>")
+def api_module_read(module_id: str):
+    try:
+        res = backend.read_module(module_id)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+
+@app.post("/api/module_write")
+def api_module_write():
+    data = request.get_json(force=True, silent=True) or {}
+    module_id = str(data.get("module_id", "")).strip()
+    if not module_id:
+        return jsonify({"ok": False, "error": "module_id required"}), 400
+
+    # Individual channel write: { module_id, channel: 1-16 (or 1-8 for AIO), value }
+    try:
+        channel = int(data.get("channel", -1))
+    except Exception:
+        channel = -1
+
+    # determine module type
+    idx = backend._find_module_index(module_id)
+    if idx < 0:
+        return jsonify({"ok": False, "error": "module not found"}), 400
+    mtype = backend.cfg.modules[idx].type
+
+    # parse value based on module type
+    if mtype == "do":
+        try:
+            value = int(data.get("value", -1))
+        except Exception:
+            value = -1
+        if not (1 <= channel <= 16) or value not in (0, 1):
+            return jsonify({"ok": False, "error": "invalid channel or value for DO"}), 400
+
+    elif mtype == "aio":
+        try:
+            # allow numeric or string float
+            value = float(data.get("value", "nan"))
+        except Exception:
+            return jsonify({"ok": False, "error": "invalid voltage value for AIO"}), 400
+        if not (1 <= channel <= 8):
+            return jsonify({"ok": False, "error": "invalid channel for AIO"}), 400
+
+    else:
+        return jsonify({"ok": False, "error": "module type does not support writes"}), 400
+
+    try:
+        res = backend.write_module(module_id=module_id, channel=channel, value=value)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+
 # ------------------------------------------------------------
 # Run
 # ------------------------------------------------------------

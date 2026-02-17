@@ -21,7 +21,15 @@ import json
 import os
 import time
 from dataclasses import dataclass, asdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+# Optional smbus2 import for direct I2C access. If missing, reads will report an error.
+try:
+    import smbus2
+    _HAS_SMBUS = True
+except Exception:
+    smbus2 = None  # type: ignore
+    _HAS_SMBUS = False
 
 
 # -----------------------------
@@ -85,6 +93,8 @@ class HomeControllerBackend:
             self._repo_root, "home_controller", "config", "config.json"
         )
         self.cfg = self.load_config()
+        # Force modules to use the fixed modules I2C bus (ensure modules are always on i2c1)
+        self.cfg.i2c_bus_num = DEFAULT_I2C_BUS_NUM
 
     # --------
     # Paths
@@ -166,7 +176,8 @@ class HomeControllerBackend:
         return f"0x{val:02x}", val
 
     def _module_id(self, address_hex: str) -> str:
-        return f"i2c{self.cfg.i2c_bus_num}-{address_hex.lower()}"
+        # Enforce bus number for module IDs to DEFAULT_I2C_BUS_NUM (i2c1)
+        return f"i2c{DEFAULT_I2C_BUS_NUM}-{address_hex.lower()}"
 
     def _find_module_index(self, mid: str) -> int:
         for i, m in enumerate(self.cfg.modules):
@@ -217,6 +228,288 @@ class HomeControllerBackend:
             raise ValueError(f"Module not found: {mid}")
         self.cfg.modules[idx].name = new_name.strip()
         self.save_config()
+
+    # -----------------------------
+    # Module-specific I2C reads
+    # -----------------------------
+
+    def read_module(self, module_id: str) -> Dict[str, Any]:
+        """
+        Read and parse a configured module's state from I2C.
+
+        Returns a dict with keys: ok, module_id, type, address, and type-specific data.
+        """
+        idx = self._find_module_index(module_id)
+        if idx < 0:
+            raise ValueError(f"Module not found: {module_id}")
+
+        m = self.cfg.modules[idx]
+
+        if not _HAS_SMBUS:
+            return {"ok": False, "error": "smbus2 not installed on this system"}
+
+        # MCP23017 registers for GPIO (reads reflect pin state)
+        MCP_GPIOA = 0x12
+        MCP_GPIOB = 0x13
+
+        if m.type in ("di", "do"):
+            try:
+                with smbus2.SMBus(self.cfg.i2c_bus_num) as bus:
+                    a = bus.read_byte_data(m.address_int(), MCP_GPIOA)
+                    b = bus.read_byte_data(m.address_int(), MCP_GPIOB)
+
+                # Map bits to channel numbers: 1-8 -> GPIOA bit0..7, 9-16 -> GPIOB bit0..7
+                channels: Dict[str, int] = {}
+                for i in range(8):
+                    channels[str(i + 1)] = 1 if ((a >> i) & 1) else 0
+                for i in range(8):
+                    channels[str(9 + i)] = 1 if ((b >> i) & 1) else 0
+
+                return {
+                    "ok": True,
+                    "module_id": m.id,
+                    "type": m.type,
+                    "address": m.address_hex,
+                    "ports": {"gpio_a": a, "gpio_b": b},
+                    "channels": channels,
+                }
+            except Exception as e:
+                return {"ok": False, "error": f"I2C read error: {e}"}
+
+        elif m.type == "aio":
+            # AIO protocol: write single-byte 0x01 to request status,
+            # then device returns an ASCII CSV of voltages (e.g. "1.23,2.34,...").
+            try:
+                with smbus2.SMBus(self.cfg.i2c_bus_num) as bus:
+                    # send request byte
+                    try:
+                        bus.write_byte(m.address_int(), 0x01)
+                    except Exception:
+                        # some devices require write_i2c_block_data with no register
+                        try:
+                            bus.write_i2c_block_data(m.address_int(), 0, [])
+                        except Exception:
+                            pass
+
+                    # read up to 128 bytes response
+                    from smbus2 import i2c_msg
+
+                    read_len = 128
+                    msg = i2c_msg.read(m.address_int(), read_len)
+                    bus.i2c_rdwr(msg)
+                    raw = bytes(msg)
+
+                # decode and parse ASCII CSV
+                s = raw.split(b"\x00", 1)[0].decode("utf-8", errors="ignore").strip()
+                if not s:
+                    return {"ok": False, "error": "empty response from AIO module"}
+
+                parts = [p.strip() for p in s.split(",") if p.strip()]
+                # parse floats and limit to expected channels (default 8)
+                values: List[float] = []
+                for p in parts:
+                    try:
+                        values.append(float(p))
+                    except Exception:
+                        values.append(float("nan"))
+
+                channels: Dict[str, float] = {}
+                max_ch = min(len(values), 8)
+                for i in range(max_ch):
+                    channels[str(i + 1)] = values[i]
+
+                return {
+                    "ok": True,
+                    "module_id": m.id,
+                    "type": m.type,
+                    "address": m.address_hex,
+                    "raw_response": s,
+                    "channels": channels,
+                }
+            except Exception as e:
+                return {"ok": False, "error": f"AIO I2C read error: {e}"}
+
+        else:
+            return {"ok": False, "error": f"Unsupported module type: {m.type}"}
+
+    def read_hat_status(self, bus_num: int = 0, address: int = 0x20) -> Dict[str, Any]:
+        """
+        Read the status MCP23017 on the hat (default bus 0, address 0x20).
+
+        Returns per-module power/status lines. There are 8 modules; for each module N:
+          - '24v_a' corresponds to GPIOA bit (N-1)
+          - '24v_b' corresponds to GPIOB bit (N-1)
+        """
+        if not _HAS_SMBUS:
+            return {"ok": False, "error": "smbus2 not installed on this system"}
+
+        # MCP23017 GPIO registers
+        MCP_GPIOA = 0x12
+        MCP_GPIOB = 0x13
+
+        try:
+            with smbus2.SMBus(bus_num) as bus:
+                a = bus.read_byte_data(address, MCP_GPIOA)
+                b = bus.read_byte_data(address, MCP_GPIOB)
+
+            modules: Dict[str, Dict[str, bool]] = {}
+            for i in range(8):
+                modules[str(i + 1)] = {
+                    "24v_a": bool((a >> i) & 1),
+                    "24v_b": bool((b >> i) & 1),
+                }
+
+            return {
+                "ok": True,
+                "bus": bus_num,
+                "address": f"0x{address:02x}",
+                "ports": {"gpio_a": a, "gpio_b": b},
+                "modules": modules,
+            }
+        except Exception as e:
+            return {"ok": False, "error": f"hat I2C read error: {e}", "bus": bus_num, "address": f"0x{address:02x}"}
+
+    def write_module(self, module_id: str, channel: int, value: Union[int, float]) -> Dict[str, Any]:
+        """
+        Write a single channel for DO (1-16) or AIO (1-8).
+
+        For DO: `value` must be 0 or 1.
+        For AIO: `value` is a voltage (float) and will be sent as ASCII `OUT{ch}:{voltage}`.
+        """
+        idx = self._find_module_index(module_id)
+        if idx < 0:
+            raise ValueError(f"Module not found: {module_id}")
+
+        m = self.cfg.modules[idx]
+
+        if m.type == "do":
+            # DO behaviour (existing)
+            if not (1 <= channel <= 16):
+                return {"ok": False, "error": "channel must be 1..16"}
+
+            if int(value) not in (0, 1):
+                return {"ok": False, "error": "value must be 0 or 1"}
+
+            if not _HAS_SMBUS:
+                return {"ok": False, "error": "smbus2 not installed on this system"}
+
+            # MCP23017 registers
+            MCP_GPIOA = 0x12
+            MCP_GPIOB = 0x13
+            MCP_OLATA = 0x14
+            MCP_OLATB = 0x15
+
+            # Determine port and bit
+            if channel <= 8:
+                port = "a"
+                bit = channel - 1
+            else:
+                port = "b"
+                bit = channel - 9
+
+            try:
+                with smbus2.SMBus(self.cfg.i2c_bus_num) as bus:
+                    # try reading OLAT first (output latch), fallback to GPIO
+                    try:
+                        if port == "a":
+                            cur = bus.read_byte_data(m.address_int(), MCP_OLATA)
+                        else:
+                            cur = bus.read_byte_data(m.address_int(), MCP_OLATB)
+                    except Exception:
+                        # fallback
+                        if port == "a":
+                            cur = bus.read_byte_data(m.address_int(), MCP_GPIOA)
+                        else:
+                            cur = bus.read_byte_data(m.address_int(), MCP_GPIOB)
+
+                    if int(value) == 1:
+                        new = cur | (1 << bit)
+                    else:
+                        new = cur & ~(1 << bit)
+
+                    # write back to OLAT register to update outputs
+                    if port == "a":
+                        bus.write_byte_data(m.address_int(), MCP_OLATA, new & 0xFF)
+                    else:
+                        bus.write_byte_data(m.address_int(), MCP_OLATB, new & 0xFF)
+
+                    # read back GPIO to provide updated state
+                    a = bus.read_byte_data(m.address_int(), MCP_GPIOA)
+                    b = bus.read_byte_data(m.address_int(), MCP_GPIOB)
+
+                channels: Dict[str, int] = {}
+                for i in range(8):
+                    channels[str(i + 1)] = 1 if ((a >> i) & 1) else 0
+                for i in range(8):
+                    channels[str(9 + i)] = 1 if ((b >> i) & 1) else 0
+
+                return {
+                    "ok": True,
+                    "module_id": m.id,
+                    "type": m.type,
+                    "address": m.address_hex,
+                    "ports": {"gpio_a": a, "gpio_b": b},
+                    "channels": channels,
+                }
+
+            except Exception as e:
+                return {"ok": False, "error": f"I2C write error: {e}"}
+
+        elif m.type == "aio":
+            # AIO: ASCII command 'OUT{ch}:{voltage}'
+            try:
+                ch = int(channel)
+            except Exception:
+                return {"ok": False, "error": "invalid channel"}
+
+            if not (1 <= ch <= 8):
+                return {"ok": False, "error": "channel must be 1..8 for AIO"}
+
+            try:
+                voltage = float(value)
+            except Exception:
+                return {"ok": False, "error": "invalid voltage value"}
+
+            if not _HAS_SMBUS:
+                return {"ok": False, "error": "smbus2 not installed on this system"}
+
+            cmd = f"OUT{ch}:{voltage}"
+            try:
+                from smbus2 import i2c_msg
+
+                with smbus2.SMBus(self.cfg.i2c_bus_num) as bus:
+                    msg = i2c_msg.write(m.address_int(), cmd.encode("ascii"))
+                    bus.i2c_rdwr(msg)
+
+                    # request status back after write
+                    try:
+                        bus.write_byte(m.address_int(), 0x01)
+                    except Exception:
+                        pass
+                    msgr = i2c_msg.read(m.address_int(), 128)
+                    bus.i2c_rdwr(msgr)
+                    raw = bytes(msgr)
+
+                s = raw.split(b"\x00", 1)[0].decode("utf-8", errors="ignore").strip()
+                parts = [p.strip() for p in s.split(",") if p.strip()]
+                values: List[float] = []
+                for p in parts:
+                    try:
+                        values.append(float(p))
+                    except Exception:
+                        values.append(float("nan"))
+
+                channels: Dict[str, float] = {}
+                max_ch = min(len(values), 8)
+                for i in range(max_ch):
+                    channels[str(i + 1)] = values[i]
+
+                return {"ok": True, "module_id": m.id, "type": m.type, "address": m.address_hex, "raw_response": s, "channels": channels}
+            except Exception as e:
+                return {"ok": False, "error": f"AIO I2C write error: {e}"}
+
+        else:
+            return {"ok": False, "error": "write not supported for this module type"}
 
 
 # -----------------------------
