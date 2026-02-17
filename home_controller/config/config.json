@@ -19,14 +19,8 @@
       "id": "i2c1-0x44",
       "name": "",
       "type": "aio"
-    },
-    {
-      "address_hex": "0x45",
-      "id": "i2c1-0x45",
-      "name": "",
-      "type": "aio"
     }
   ],
   "notes": "",
-  "saved_at": 1771191479
+  "saved_at": 1771202918
 }

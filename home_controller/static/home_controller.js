@@ -10,9 +10,137 @@ let MODAL_CTX = {
   name: null
 };
 
-// --------------------
-// Test mode (cycle channels across all modules)
-// --------------------
+// ============================================================
+// HEAD MODULE (Pi enclosure) — injected FIRST, but NOT part of MODULE_SVGS
+// ============================================================
+
+const HEAD_MODULE_SVG = `
+<div class="module-card head-card" id="head_module_card">
+  <div class="module-header">
+    <div>
+      <div class="module-title">HEAD MODULE</div>
+      <div class="module-sub">PI • STATUS</div>
+    </div>
+  </div>
+
+  <div class="module-svg" id="head_module_svg">
+    <svg id="head_svg" width="170" height="430" viewBox="0 0 170 430" xmlns="http://www.w3.org/2000/svg">
+      <!-- NOTE: keep styles minimal / scoped; but HEAD is not included in test logic anyway -->
+      <defs>
+        <style>
+          #head_svg .shadow { fill:#000; opacity:0.18; }
+          #head_svg .card { fill:#eeeeee; stroke:#cfcfcf; stroke-width:2; }
+          #head_svg .inner { fill:none; stroke:#d7d7d7; stroke-width:2; }
+          #head_svg .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1a1a1a; }
+          #head_svg .label { font-family:Arial,Helvetica,sans-serif; font-size:10px; font-weight:700; fill:#2a2a2a; }
+
+          #head_svg .ledOuter { fill:#e7e7e7; stroke:#9c9c9c; stroke-width:2; }
+          #head_svg .ledPwr { fill:#cfcfcf; stroke:#222; stroke-width:2; }
+          #head_svg .ledNet { fill:#cfcfcf; stroke:#222; stroke-width:2; }
+
+          #head_svg .pi { fill:#e5e5e5; stroke:#bdbdbd; stroke-width:2; }
+          #head_svg .piWindow { fill:#d9d9d9; stroke:#bdbdbd; stroke-width:2; opacity:0.8; }
+
+          #head_svg .ipBox { fill:#ffffff; stroke:#8a8a8a; stroke-width:2; }
+          #head_svg .ipText { font-family:"Courier New",Courier,monospace; font-size:13px; font-weight:700; fill:#000; }
+        </style>
+      </defs>
+
+      <rect class="shadow" x="10" y="14" width="150" height="402" rx="16"/>
+      <rect class="card" x="8" y="12" width="150" height="402" rx="16"/>
+
+      <text class="title" x="83" y="32" text-anchor="middle">HEAD MODULE</text>
+
+      <text class="label" x="40" y="56">PWR</text>
+      <circle class="ledOuter" cx="52" cy="72" r="10"/>
+      <circle id="led_pwr" class="ledPwr" cx="52" cy="72" r="6"/>
+
+      <text class="label" x="96" y="56">NET</text>
+      <circle class="ledOuter" cx="108" cy="72" r="10"/>
+      <circle id="led_net" class="ledNet" cx="108" cy="72" r="6"/>
+
+      <rect class="inner" x="22" y="92" width="122" height="300" rx="12"/>
+
+      <g transform="translate(30,110)">
+        <rect class="pi" x="0" y="0" width="106" height="88" rx="10"/>
+        <path class="inner" d="M64,0 V12"/>
+        <rect class="piWindow" x="18" y="16" width="50" height="28" rx="6"/>
+        <rect class="inner" x="22" y="20" width="42" height="20" rx="4"/>
+      </g>
+
+      <text class="label" x="34" y="242">IP ADDRESS</text>
+      <rect class="ipBox" x="30" y="252" width="110" height="34" rx="8"/>
+
+      <text id="ip_text" class="ipText"
+            x="35" y="274"
+            textLength="100" lengthAdjust="spacingAndGlyphs">0.0.0.0</text>
+    </svg>
+  </div>
+</div>
+`;
+
+function _insertHeadModule(rowEl) {
+  if (!rowEl) return;
+  if ($("head_module_card")) return; // already inserted
+  rowEl.insertAdjacentHTML("afterbegin", HEAD_MODULE_SVG);
+}
+
+function _setHeadLed(svg, sel, on, blink) {
+  const el = svg.querySelector(sel);
+  if (!el) return;
+
+  if (on) {
+    el.style.fill = "#39d353"; // green
+    if (blink) el.classList.add("blink");
+    else el.classList.remove("blink");
+  } else {
+    el.style.fill = "#cfcfcf"; // off/gray
+    el.classList.remove("blink");
+  }
+  el.style.opacity = "1";
+}
+
+async function _refreshHeadStatusOnce() {
+  const card = $("head_module_card");
+  if (!card) return;
+
+  const svg = card.querySelector("svg");
+  if (!svg) return;
+
+  try {
+    const r = await fetch("/api/head_status", { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const s = await r.json();
+
+    // Server reachable => power on
+    _setHeadLed(svg, "#led_pwr", true, false);
+
+    // Internet OK => blink green
+    _setHeadLed(svg, "#led_net", !!s.internet_ok, true);
+
+    // IP
+    const ipt = svg.querySelector("#ip_text");
+    if (ipt) ipt.textContent = (typeof s.ip === "string" && s.ip) ? s.ip : "0.0.0.0";
+  } catch (e) {
+    // API failed
+    _setHeadLed(svg, "#led_pwr", false, false);
+    _setHeadLed(svg, "#led_net", false, false);
+    const ipt = svg.querySelector("#ip_text");
+    if (ipt) ipt.textContent = "0.0.0.0";
+  }
+}
+
+let _HEAD_TIMER = null;
+function startHeadStatusPolling() {
+  if (_HEAD_TIMER) return;
+  _refreshHeadStatusOnce();
+  _HEAD_TIMER = setInterval(_refreshHeadStatusOnce, 2000);
+}
+
+// ============================================================
+// TEST MODE (cycle channels across all non-head modules)
+// ============================================================
+
 let TEST_RUNNING = false;
 
 function _sleep(ms) {
@@ -132,12 +260,12 @@ function toggleTest() {
   runTestLoop();
 }
 
-// Expose for onclick="toggleTest()"
 window.toggleTest = toggleTest;
 
-// --------------------
-// Status
-// --------------------
+// ============================================================
+// STATUS PILL
+// ============================================================
+
 async function loadStatus() {
   const el = $("status");
   if (!el) return;
@@ -155,9 +283,10 @@ async function loadStatus() {
   }
 }
 
-// --------------------
-// Modules list + SVG wiring
-// --------------------
+// ============================================================
+// MODULE LIST + SVG WIRING
+// ============================================================
+
 async function loadModules() {
   const row = $("modules");
   if (!row) return;
@@ -167,6 +296,10 @@ async function loadModules() {
 
   row.innerHTML = "";
   MODULE_SVGS.clear(); // prevent stale svg references
+
+  // Always show head module first
+  _insertHeadModule(row);
+  startHeadStatusPolling();
 
   if (!data || data.length === 0) {
     const empty = document.createElement("div");
@@ -185,7 +318,6 @@ async function loadModules() {
 
     const left = document.createElement("div");
 
-    // Name as main, type+address as sub
     const displayName =
       (m.name && String(m.name).trim().length > 0)
         ? String(m.name).trim()
@@ -213,7 +345,6 @@ async function loadModules() {
     card.appendChild(svgHolder);
     row.appendChild(card);
 
-    // Inline SVG injection (so we can flip LEDs by class)
     try {
       const svgRes = await fetch(`/modules/svg/${m.type}`);
       if (!svgRes.ok) throw new Error("SVG not found");
@@ -222,6 +353,7 @@ async function loadModules() {
 
       const svgRoot = svgHolder.querySelector("svg");
       if (svgRoot) {
+        // IMPORTANT: only real modules go in MODULE_SVGS; head never does.
         MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
       }
     } catch (e) {
@@ -231,9 +363,10 @@ async function loadModules() {
   }
 }
 
-// --------------------
-// Add page support
-// --------------------
+// ============================================================
+// ADD PAGE SUPPORT
+// ============================================================
+
 async function addModuleCore(type, addr, name) {
   const res = await fetch("/modules/add", {
     method: "POST",
@@ -264,12 +397,12 @@ async function addModuleThenGoBack() {
   window.location.href = "/ui";
 }
 
-// Expose for onclick on add page
 window.addModuleThenGoBack = addModuleThenGoBack;
 
-// --------------------
-// Modal (settings)
-// --------------------
+// ============================================================
+// MODAL (SETTINGS)
+// ============================================================
+
 function closeModal() {
   const b = $("modal_backdrop");
   if (!b) return;
@@ -284,7 +417,6 @@ function closeModal() {
   MODAL_CTX = { id: null, type: null, address: null, name: null };
 }
 
-// Expose for onclick
 window.closeModal = closeModal;
 
 async function openModal(module) {
@@ -321,7 +453,6 @@ async function openModal(module) {
     grid.appendChild(wrap);
   }
 
-  // load stored labels (if any)
   try {
     const res = await fetch(`/labels/${encodeURIComponent(module.id)}`);
     const data = await res.json();
@@ -353,7 +484,6 @@ async function saveModal() {
 
   const moduleName = $("modal_module_name").value || "";
 
-  // 1) rename module (backend)
   const r1 = await fetch("/modules/rename", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -368,7 +498,6 @@ async function saveModal() {
     return;
   }
 
-  // 2) save labels (module + channels)
   const channels = {};
   for (let i = 1; i <= 16; i++) {
     channels[String(i)] = $(`ch_name_${i}`).value || "";
@@ -423,13 +552,13 @@ async function removeFromModal() {
   await loadModules();
 }
 
-// Expose for onclick in HTML
 window.saveModal = saveModal;
 window.removeFromModal = removeFromModal;
 
-// --------------------
-// Boot
-// --------------------
+// ============================================================
+// BOOT
+// ============================================================
+
 loadStatus();
 loadModules();
 setInterval(loadStatus, 4000);

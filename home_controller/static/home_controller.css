@@ -77,7 +77,7 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  gap: 2px;               /* FINAL desired spacing */
+  gap: 2px;               /* tight spacing between modules */
   overflow-x: auto;
   padding-top: 6px;       /* keep original clearance */
   padding-bottom: 10px;
@@ -87,12 +87,12 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
 
 .module-card {
   flex: 0 0 auto;
-  width: 150px;           /* keep your original size */
-  padding: 6px 6px 8px 6px;
+  width: 150px;
+  padding: 6px 0px 8px 0px;       /* side padding killed (you asked) */
   border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.05);
   background: rgba(255,255,255,0.02);
-  margin: 0;              /* prevent accidental outer spacing */
+  margin: 0;
 }
 
 .module-header {
@@ -101,6 +101,7 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
   gap: 0px;
   align-items: flex-start;
   margin-bottom: 4px;
+  padding: 0 6px;                /* keep header readable even though card has no side padding */
 }
 
 .module-title {
@@ -123,11 +124,12 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
   align-items: center;
   padding: 0;
   margin: 0;
+  line-height: 0; /* remove inline SVG baseline spacing */
 }
 
 .module-svg svg {
   width: 100%;
-  max-width: 130px;
+  max-width: none;   /* let SVG fill the card */
   height: auto;
   display: block;
 }
@@ -142,9 +144,7 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
   cursor: pointer;
   font-size: 12px;
 }
-.icon-btn:hover {
-  background: rgba(255,255,255,0.08);
-}
+.icon-btn:hover { background: rgba(255,255,255,0.08); }
 
 /* ------------------ Modal ------------------ */
 
@@ -232,37 +232,35 @@ button.danger { border-color: rgba(255,74,74,0.45); }
   background: rgba(255,74,74,0.10);
   color: rgba(255,255,255,0.92);
 }
-/* Kill side padding in card */
-.module-card {
-  padding-left: 0px;
-  padding-right: 0px;
-}
 
-/* Let SVG actually fill the card */
-.module-svg svg {
-  width: 100%;
-  max-width: none;   /* <-- this is the main fix */
-}
+/* ------------------ SVG LED STYLES ------------------ */
 
-/* Remove inline SVG baseline spacing */
-.module-svg {
-  line-height: 0;
-}
-/* Test flash effect for SVG LEDs */
+/* ON = bright + glow */
 .led-on {
   filter: drop-shadow(0 0 6px rgba(80, 200, 255, 0.9));
   opacity: 1;
 }
 
-.led-off {
-  opacity: 0.25;
-}
-.led-on circle {
-  fill: #38d26a;
-  stroke: #167a38;
-}
+/* OFF: don't fade the entire group (it contains text). Dim only the LED circle. */
+.led-off { opacity: 1; }
+.led-off circle { opacity: 0.25; }
+.led-off text { opacity: 1; }
 
 .led-off circle {
   fill: #d0d0d0;
   stroke: #7a7a7a;
 }
+
+/* Blink: ONLY apply animation to circles, never to groups/text */
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.25; }
+}
+.blink { animation: none; }
+.blink circle,
+circle.blink {
+  animation: blink 0.8s infinite;
+}
+
+/* Optional: hide head subtitle if you want */
+.module-card.head-card .module-sub { opacity: 0.0; }

@@ -4,6 +4,10 @@ from __future__ import annotations
 import os
 import json
 from pathlib import Path
+import socket
+import subprocess
+import time
+from typing import Set, Tuple, Optional
 
 from flask import (
     Flask,
@@ -26,6 +30,12 @@ STATIC_DIR = BASE_DIR / "static"
 # UI labels storage (module + channel naming)
 LABELS_DIR = BASE_DIR / "config"
 LABELS_FILE = LABELS_DIR / "ui_labels.json"
+
+# I2C bus to scan (Pi default is usually 1)
+I2C_BUS = int(os.getenv("HC_I2C_BUS", "1"))
+
+# Small cache so we don't run i2cdetect constantly
+_I2C_CACHE: Tuple[float, Set[int], Optional[str]] = (0.0, set(), None)  # (ts, addrs, err)
 
 
 def _load_labels() -> dict:
@@ -60,6 +70,146 @@ backend = HomeControllerBackend()
 
 
 # ------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------
+@app.after_request
+def _no_cache_for_api(resp):
+    # Prevent stale head/IP/network/I2C status in the browser
+    if request.path.startswith("/api/") or request.path == "/":
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+    return resp
+
+
+def _parse_i2c_address(addr_str: str) -> int:
+    """
+    Accepts '0x20', '20', '32' etc.
+    If it includes 0x -> hex.
+    If it is all hex digits -> treat as hex (common for i2c).
+    If it is decimal digits only -> decimal.
+    """
+    s = (addr_str or "").strip().lower()
+    if not s:
+        raise ValueError("address is empty")
+
+    if s.startswith("0x"):
+        v = int(s, 16)
+    elif all(c in "0123456789abcdef" for c in s) and any(c in "abcdef" for c in s):
+        # has hex letters => hex
+        v = int(s, 16)
+    elif all(c in "0123456789abcdef" for c in s) and len(s) <= 2:
+        # ambiguous "20" — in I2C land people usually mean hex
+        v = int(s, 16)
+    else:
+        # decimal
+        v = int(s, 10)
+
+    if v < 0x03 or v > 0x77:
+        raise ValueError(f"address out of 7-bit range: {hex(v)}")
+    return v
+
+
+def _scan_i2c_addresses(bus: int, cache_seconds: float = 1.5) -> Tuple[Set[int], Optional[str]]:
+    """
+    Returns (set_of_detected_addresses, error_string_or_None)
+
+    Uses `i2cdetect -y <bus>` if available.
+    Caches results briefly to avoid hammering the bus.
+    """
+    global _I2C_CACHE
+
+    now = time.time()
+    last_ts, last_addrs, last_err = _I2C_CACHE
+    if (now - last_ts) < cache_seconds:
+        return set(last_addrs), last_err
+
+    # Ensure device exists (Linux i2c-dev)
+    devnode = f"/dev/i2c-{bus}"
+    if not Path(devnode).exists():
+        err = f"{devnode} not found (enable I2C + i2c-dev on this system)"
+        _I2C_CACHE = (now, set(), err)
+        return set(), err
+
+    try:
+        # i2cdetect output is the most compatible / least dependency approach
+        r = subprocess.run(
+            ["i2cdetect", "-y", str(bus)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=2.5,
+        )
+        if r.returncode != 0:
+            err = (r.stderr or r.stdout or "").strip() or "i2cdetect failed"
+            _I2C_CACHE = (now, set(), err)
+            return set(), err
+
+        addrs: Set[int] = set()
+        for line in (r.stdout or "").splitlines():
+            line = line.strip()
+            # rows look like: "20: -- -- 22 -- -- -- -- --"
+            if len(line) < 3 or ":" not in line:
+                continue
+            prefix, rest = line.split(":", 1)
+            prefix = prefix.strip()
+            if len(prefix) != 2:
+                continue
+
+            tokens = rest.strip().split()
+            for t in tokens:
+                tt = t.strip().lower()
+                if tt in ("--", "uu"):
+                    continue
+                # actual addresses appear as two hex digits (e.g. '20', '3c')
+                if len(tt) == 2 and all(c in "0123456789abcdef" for c in tt):
+                    addrs.add(int(tt, 16))
+
+        _I2C_CACHE = (now, set(addrs), None)
+        return addrs, None
+
+    except FileNotFoundError:
+        err = "i2cdetect not installed (install `i2c-tools`)"
+        _I2C_CACHE = (now, set(), err)
+        return set(), err
+    except Exception as e:
+        err = f"i2c scan error: {e}"
+        _I2C_CACHE = (now, set(), err)
+        return set(), err
+
+
+def get_lan_ip() -> str:
+    """
+    Best-effort LAN IP detection.
+    This uses a UDP "connect" trick (no packets required) to learn the outbound interface IP.
+    Falls back to hostname lookup.
+    """
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        try:
+            return socket.gethostbyname(socket.gethostname())
+        except Exception:
+            return "0.0.0.0"
+
+
+def internet_ok_tcp() -> bool:
+    """
+    More reliable than ping permissions:
+    try a TCP connect to 8.8.8.8:53 (DNS).
+    """
+    try:
+        with socket.create_connection(("8.8.8.8", 53), timeout=1.5):
+            return True
+    except Exception:
+        return False
+
+
+# ------------------------------------------------------------
 # Health check (API)
 # ------------------------------------------------------------
 @app.get("/")
@@ -88,30 +238,75 @@ def ui_add():
 
 
 # ------------------------------------------------------------
+# I2C scan API
+# ------------------------------------------------------------
+@app.get("/api/i2c_scan")
+def api_i2c_scan():
+    addrs, err = _scan_i2c_addresses(I2C_BUS)
+    return jsonify(
+        {
+            "ok": err is None,
+            "bus": I2C_BUS,
+            "addresses": [f"0x{a:02x}" for a in sorted(addrs)],
+            "error": err,
+            "ts": int(time.time()),
+        }
+    )
+
+
+# ------------------------------------------------------------
 # Modules API
 # ------------------------------------------------------------
 @app.get("/modules")
 def modules_list():
-    return jsonify(
-        [
+    addrs, _err = _scan_i2c_addresses(I2C_BUS)
+    present_hex = {f"0x{a:02x}" for a in addrs}
+
+    out = []
+    for m in backend.list_modules():
+        # m.address_hex assumed like "0x20"
+        addr_hex = str(m.address_hex).lower().strip()
+        out.append(
             {
                 "id": m.id,
                 "type": m.type,
-                "address": m.address_hex,
+                "address": addr_hex,
                 "name": m.name,
+                "present": addr_hex in present_hex,
             }
-            for m in backend.list_modules()
-        ]
-    )
+        )
+    return jsonify(out)
 
 
 @app.post("/modules/add")
 def modules_add():
     data = request.get_json(force=True, silent=True) or {}
     try:
+        # Address validation: confirm it exists on the bus
+        addr_str = str(data.get("address", "")).strip()
+        addr_val = _parse_i2c_address(addr_str)
+        addr_hex = f"0x{addr_val:02x}"
+
+        # Allow bypass for bench/testing if user really wants it
+        skip_check = bool(data.get("skip_i2c_check", False))
+
+        if not skip_check:
+            addrs, err = _scan_i2c_addresses(I2C_BUS)
+            if err is not None:
+                return jsonify({"ok": False, "error": f"I2C scan failed: {err}"}), 400
+            if addr_val not in addrs:
+                return jsonify(
+                    {
+                        "ok": False,
+                        "error": f"Address {addr_hex} not found on I2C bus {I2C_BUS}",
+                        "bus": I2C_BUS,
+                        "seen": [f"0x{a:02x}" for a in sorted(addrs)],
+                    }
+                ), 400
+
         m = backend.add_module(
             mtype=str(data.get("type", "")),
-            address=str(data.get("address", "")),
+            address=addr_hex,  # normalize to 0xNN
             name=str(data.get("name", "")),
         )
         return jsonify(
@@ -136,7 +331,6 @@ def modules_remove():
         mid = str(data.get("id", ""))
         backend.remove_module(mid)
 
-        # also remove any stored labels for this module
         labels = _load_labels()
         if mid in labels:
             labels.pop(mid, None)
@@ -161,14 +355,7 @@ def modules_rename():
 
 
 # ------------------------------------------------------------
-# Labels API (module + channel naming for reports)
-# Stores per-module:
-#  {
-#    "<module_id>": {
-#      "module_name": "Optional override",
-#      "channels": { "1": "Door", "2": "Window", ... }
-#    }
-#  }
+# Labels API
 # ------------------------------------------------------------
 @app.get("/labels/<module_id>")
 def labels_get(module_id: str):
@@ -186,14 +373,12 @@ def labels_set():
     module_name = str(data.get("module_name", "")).strip()
     channels = data.get("channels", {})
 
-    # normalize channels to {"1":"name",...} only (strings)
     ch_out: dict[str, str] = {}
     if isinstance(channels, dict):
         for k, v in channels.items():
             ks = str(k).strip()
             vs = str(v).strip()
             if ks.isdigit():
-                # allow blank names (store as "")
                 ch_out[ks] = vs
 
     labels = _load_labels()
@@ -207,11 +392,7 @@ def labels_set():
 
 
 # ------------------------------------------------------------
-# Serve module SVGs from /home_controller/modules/<type>/*.svg
-# Expected:
-#   home_controller/modules/di/DI.svg
-#   home_controller/modules/do/DO.svg
-#   home_controller/modules/aio/AIO.svg
+# Serve module SVGs
 # ------------------------------------------------------------
 @app.get("/modules/svg/<module_type>")
 def module_svg(module_type: str):
@@ -221,6 +402,7 @@ def module_svg(module_type: str):
         "di": ("di", "DI.svg"),
         "do": ("do", "DO.svg"),
         "aio": ("aio", "AIO.svg"),
+        "head": ("head", "HEAD.svg"),  # optional if you want server-served HEAD.svg later
     }
 
     if module_type not in svg_map:
@@ -236,10 +418,30 @@ def module_svg(module_type: str):
 
 
 # ------------------------------------------------------------
+# Head module status endpoint
+# ------------------------------------------------------------
+@app.get("/api/head_status")
+def head_status():
+    ip = get_lan_ip()
+    online = internet_ok_tcp()
+
+    return jsonify(
+        {
+            "server_running": True,
+            "internet_ok": bool(online),
+            "ip": ip,
+            "ts": int(time.time()),
+        }
+    )
+
+
+# ------------------------------------------------------------
 # Run
 # ------------------------------------------------------------
 if __name__ == "__main__":
     host = os.getenv("HC_HOST", "0.0.0.0")
     port = int(os.getenv("HC_PORT", "8080"))
+    debug = os.getenv("HC_DEBUG", "0").lower() in ("1", "true", "yes", "on")
+
     print(f"Home Controller running on http://{host}:{port}")
-    app.run(host=host, port=port, debug=True)
+    app.run(host=host, port=port, debug=debug)
