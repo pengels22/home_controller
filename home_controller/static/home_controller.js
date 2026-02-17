@@ -436,7 +436,50 @@ async function openModal(module) {
   $("modal_sub").textContent = `${module.address} • ${module.id}`;
 
   $("modal_module_name").value = module.name || "";
-  $("modal_module_address").value = module.address || "";
+  $("modal_address_display").textContent = module.address || "0x00";
+
+  // setup change address button and prompt
+  const changeBtn = $("change_addr_btn");
+  const addrPrompt = $("addr_prompt");
+  const addrInput = $("addr_prompt_input");
+  const addrCancel = $("addr_prompt_cancel");
+  const addrOk = $("addr_prompt_ok");
+  const addrErr = $("addr_prompt_error");
+
+  if (changeBtn) {
+    changeBtn.onclick = () => {
+      if (addrErr) { addrErr.style.display = 'none'; addrErr.textContent = ''; }
+      addrInput.value = module.address || '';
+      addrPrompt.style.display = 'block';
+      addrInput.focus();
+    };
+  }
+  if (addrCancel) addrCancel.onclick = () => { addrPrompt.style.display = 'none'; if (addrErr) { addrErr.style.display='none'; addrErr.textContent=''; } };
+  if (addrOk) addrOk.onclick = async () => {
+    const newAddr = addrInput.value.trim();
+    if (!newAddr) {
+      if (addrErr) { addrErr.textContent = 'Address required'; addrErr.style.display = 'block'; }
+      return;
+    }
+    // call change address
+    try {
+      const res = await fetch('/modules/change_address', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id: MODAL_CTX.id, address: newAddr }) });
+      const j = await res.json();
+      if (!j.ok) {
+        if (addrErr) { addrErr.textContent = j.error || 'change failed'; addrErr.style.display = 'block'; }
+        return;
+      }
+      // success: update modal and UI
+      MODAL_CTX.id = j.module.id || MODAL_CTX.id;
+      MODAL_CTX.address = j.module.address || MODAL_CTX.address;
+      $("modal_address_display").textContent = MODAL_CTX.address;
+      $("modal_sub").textContent = `${MODAL_CTX.address} • ${MODAL_CTX.id}`;
+      addrPrompt.style.display = 'none';
+      await loadModules();
+    } catch (e) {
+      if (addrErr) { addrErr.textContent = String(e); addrErr.style.display = 'block'; }
+    }
+  };
 
   const grid = $("channels_grid");
   grid.innerHTML = "";
@@ -489,27 +532,6 @@ async function saveModal() {
   if (!MODAL_CTX.id) return;
 
   const moduleName = $("modal_module_name").value || "";
-  const moduleAddr = $("modal_module_address").value || "";
-
-  // If the address changed, attempt to update it first
-  if (moduleAddr && moduleAddr !== MODAL_CTX.address) {
-    const rAddr = await fetch("/modules/change_address", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: MODAL_CTX.id, address: moduleAddr }),
-    });
-    const dAddr = await rAddr.json();
-    if (!dAddr.ok) {
-      if (err) {
-        err.textContent = "Error changing address: " + dAddr.error;
-        err.style.display = "block";
-      }
-      return;
-    }
-    // update the modal context id/address to the new values
-    MODAL_CTX.id = dAddr.module.id || dAddr.module.id;
-    MODAL_CTX.address = dAddr.module.address || MODAL_CTX.address;
-  }
 
   const r1 = await fetch("/modules/rename", {
     method: "POST",

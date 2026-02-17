@@ -48,8 +48,22 @@
         </div>
 
         <div class="form-row">
-          <label for="modal_module_address">I2C Address</label>
-          <input id="modal_module_address" placeholder="e.g., 0x20" />
+          <label>I2C Address</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div id="modal_address_display" style="font-weight:700">0x00</div>
+            <button id="change_addr_btn">Change address</button>
+          </div>
+        </div>
+
+        <!-- Address change prompt -->
+        <div id="addr_prompt" style="display:none;padding:12px;border:1px solid rgba(0,0,0,0.06);margin-top:8px;background:var(--panel)">
+          <div style="margin-bottom:8px;font-weight:700">Enter new I2C address</div>
+          <div style="display:flex;gap:8px">
+            <input id="addr_prompt_input" placeholder="e.g., 0x21" style="flex:1" />
+            <button id="addr_prompt_cancel">Cancel</button>
+            <button id="addr_prompt_ok">Change</button>
+          </div>
+          <div id="addr_prompt_error" class="error-box" style="display:none;margin-top:8px"></div>
         </div>
 
         <div class="channels-grid" id="channels_grid"></div>
