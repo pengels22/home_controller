@@ -1,38 +1,74 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Home Controller - Quick GUI</title>
+  <link rel="stylesheet" href="/static/home_controller.css" />
   <style>
-    body { font-family: sans-serif; margin: 20px; }
-    .row { margin-bottom: 12px; }
-    label { display: inline-block; width: 120px; }
-    select, input { min-width: 200px; }
-    pre { background:#f6f6f6;padding:8px;border:1px solid #ddd }
+    /* small overrides for the GUI panel */
+    .gui-grid { display:flex; gap:14px; align-items:flex-start; }
+    .gui-left { flex: 0 0 360px; }
+    .gui-right { flex: 1 1 auto; }
+    pre.readout { background:#0b0d12; border:1px solid rgba(255,255,255,0.04); padding:12px; color:var(--muted); white-space:pre-wrap; }
   </style>
 </head>
 <body>
-  <h2>Quick Module GUI</h2>
-  <div class="row">
-    <label>Module</label>
-    <select id="moduleSelect"></select>
-    <button id="refreshBtn">Refresh</button>
-  </div>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-title">Home Controller</div>
+      <div class="brand-sub">Quick Module GUI</div>
+    </div>
+    <div class="topbar-right">
+      <a class="btn-link" href="/">Back</a>
+      <a class="btn-link" href="/ui/add">+ Add Module</a>
+      <a class="btn-link" href="/ui/gui">GUI Panel</a>
+    </div>
+  </header>
 
-  <div id="moduleInfo" class="row"></div>
+  <main class="container">
+    <section class="card">
+      <div class="gui-grid">
+        <div class="gui-left">
+          <div style="margin-bottom:10px">
+            <label style="display:block;margin-bottom:6px;font-weight:800">Module</label>
+            <select id="moduleSelect" style="width:100%"></select>
+          </div>
 
-  <div id="readPane" class="row">
-    <button id="readBtn">Read Module</button>
-    <pre id="readOut">(no data)</pre>
-  </div>
+          <div id="moduleInfo" style="margin-bottom:12px;color:var(--muted)"></div>
 
-  <div id="writePane" class="row">
-    <label>Channel</label>
-    <select id="channelSelect"></select>
-    <label style="margin-left:12px">Value</label>
-    <input id="valueInput" />
-    <button id="writeBtn">Write</button>
-  </div>
+          <div style="margin-bottom:10px">
+            <button id="refreshBtn">Refresh</button>
+            <button id="readBtn" style="margin-left:8px">Read Module</button>
+          </div>
+
+          <div id="writePane">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+              <label style="min-width:70px">Channel</label>
+              <select id="channelSelect" style="flex:1"></select>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+              <label style="min-width:70px">Value</label>
+              <input id="valueInput" style="flex:1" />
+            </div>
+            <div>
+              <button id="writeBtn">Write</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="gui-right">
+          <h3>Module Output</h3>
+          <pre id="readOut" class="readout">(no data)</pre>
+
+          <div id="aioChannels" style="margin-top:12px;display:none">
+            <h4>Analog Inputs</h4>
+            <div class="channels-grid" id="aioChannelsGrid"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
 
   <script>
     async function fetchModules(){
@@ -43,11 +79,11 @@
       mods.forEach(m => {
         const opt = document.createElement('option');
         opt.value = m.id;
-        opt.text = `Slot ${m.slot}: ${m.type.toUpperCase()} ${m.name || ''} (${m.address})`;
+        opt.text = `Slot ${m.slot}: ${m.type.toUpperCase()} ${m.name ? '- ' + m.name : ''} (${m.address})`;
         sel.appendChild(opt);
       });
       if(mods.length) sel.selectedIndex = 0;
-      updateModuleInfo();
+      await updateModuleInfo();
     }
 
     async function updateModuleInfo(){
@@ -57,12 +93,12 @@
       const mods = await r.json();
       const m = mods.find(x=>x.id===id);
       const info = document.getElementById('moduleInfo');
-      info.textContent = `Type: ${m.type} | Address: ${m.address} | Present: ${m.present}`;
+      info.textContent = `Type: ${m.type.toUpperCase()} | Address: ${m.address} | Present: ${m.present}`;
 
-      // populate channels
+      // populate channel selector
       const chSel = document.getElementById('channelSelect');
       chSel.innerHTML = '';
-      const total = (m.channels_out || m.channels_in || 0);
+      const total = (m.channels_out || m.channels_in || 0) || (m.type==='aio'?8:0);
       for(let i=1;i<=total;i++){
         const o = document.createElement('option'); o.value = i; o.text = i; chSel.appendChild(o);
       }
@@ -71,31 +107,54 @@
       if(m.type==='do') val.value = '1';
       else if(m.type==='aio') val.value = '12.0';
       else val.value = '';
+
+      // If AIO, auto-read and show channels
+      if(m.type==='aio'){
+        await readModule(true);
+      } else {
+        document.getElementById('aioChannels').style.display = 'none';
+      }
     }
 
-    async function readModule(){
+    async function readModule(suppressOut=false){
       const id = document.getElementById('moduleSelect').value;
       const r = await fetch(`/api/gui/action`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({module_id:id, action:'read'})});
       const j = await r.json();
       document.getElementById('readOut').textContent = JSON.stringify(j, null, 2);
+
+      // If AIO response contains channels, populate grid
+      if(j && j.ok && j.type === 'aio' && j.channels){
+        const grid = document.getElementById('aioChannelsGrid');
+        grid.innerHTML = '';
+        for(let i=1;i<=8;i++){
+          const row = document.createElement('div'); row.className = 'channel-row';
+          const label = document.createElement('div'); label.className = 'channel-label'; label.textContent = 'CH ' + i;
+          const input = document.createElement('input'); input.className = 'channel-input'; input.value = (j.channels[String(i)] !== undefined ? j.channels[String(i)] : '');
+          input.readOnly = true;
+          row.appendChild(label); row.appendChild(input);
+          grid.appendChild(row);
+        }
+        document.getElementById('aioChannels').style.display = '';
+      } else {
+        document.getElementById('aioChannels').style.display = 'none';
+      }
     }
 
     async function writeModule(){
       const id = document.getElementById('moduleSelect').value;
       const ch = parseInt(document.getElementById('channelSelect').value,10);
       const val = document.getElementById('valueInput').value;
-      // try to coerce numeric
       const payload = { module_id: id, action: 'write', channel: ch, value: (isNaN(Number(val))? val : Number(val)) };
       const r = await fetch(`/api/gui/action`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
       const j = await r.json();
       document.getElementById('readOut').textContent = JSON.stringify(j, null, 2);
-      // refresh info
+      // refresh modules and info
       await fetchModules();
     }
 
     document.getElementById('refreshBtn').addEventListener('click', fetchModules);
     document.getElementById('moduleSelect').addEventListener('change', updateModuleInfo);
-    document.getElementById('readBtn').addEventListener('click', readModule);
+    document.getElementById('readBtn').addEventListener('click', ()=>readModule(false));
     document.getElementById('writeBtn').addEventListener('click', writeModule);
 
     fetchModules();

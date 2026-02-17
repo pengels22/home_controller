@@ -17,6 +17,7 @@ from flask import (
     send_from_directory,
     abort,
 )
+import traceback
 
 from home_controller.core.backend import HomeControllerBackend
 
@@ -68,12 +69,14 @@ app = Flask(
 
 import sys
 
-# Backend instance. Support developer simulation mode via `-dev` flag
-DEV_MODE = ("-dev" in sys.argv) or os.getenv("HC_DEV", "0").lower() in ("1", "true", "yes")
+# Backend instance. Support developer simulation mode via `-dev` flag or env var.
+args = [a.lower() for a in sys.argv[1:]]
+DEV_MODE = any(a in ("-dev", "--dev", "dev") for a in args) or os.getenv("HC_DEV", "0").lower() in ("1", "true", "yes")
 backend = HomeControllerBackend()
 if DEV_MODE:
     dev_file = os.getenv("HC_DEV_FILE", None)
     backend.enable_dev_mode(dev_file)
+    print(f"DEV MODE enabled; dev file={backend._dev_file}")
 
 
 # ------------------------------------------------------------
@@ -460,6 +463,13 @@ def api_gui_modules():
 
     addrs, _err = _scan_i2c_addresses(I2C_BUS)
     present = {f"0x{a:02x}" for a in addrs}
+    # If running in dev mode, treat addresses found in dev data as present too
+    try:
+        if backend._dev_mode:
+            dev_addrs = {str(k).lower() for k in backend._dev_data.keys()}
+            present = present.union(dev_addrs)
+    except Exception:
+        pass
 
     out = []
     for i, m in enumerate(ordered, start=1):
@@ -511,7 +521,9 @@ def api_gui_action():
             res = backend.read_module(module_id)
             return jsonify(res)
         except Exception as e:
-            return jsonify({"ok": False, "error": str(e)}), 400
+            tb = traceback.format_exc()
+            print(tb)
+            return jsonify({"ok": False, "error": str(e), "trace": tb}), 400
 
     elif action == "write":
         try:
@@ -524,7 +536,9 @@ def api_gui_action():
             res = backend.write_module(module_id=module_id, channel=channel, value=value)
             return jsonify(res)
         except Exception as e:
-            return jsonify({"ok": False, "error": str(e)}), 400
+            tb = traceback.format_exc()
+            print(tb)
+            return jsonify({"ok": False, "error": str(e), "trace": tb}), 400
 
     else:
         return jsonify({"ok": False, "error": "unknown action"}), 400
