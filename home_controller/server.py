@@ -224,14 +224,19 @@ def internet_ok_tcp() -> bool:
 # ------------------------------------------------------------
 @app.get("/")
 def root():
-    return jsonify(
-        {
-            "service": "home_controller",
-            "status": "running",
-            "controller_name": backend.cfg.controller_name,
-            "modules": len(backend.list_modules()),
-        }
-    )
+    # Serve the main UI by default
+    try:
+        return render_template("index.html")
+    except Exception:
+        # fallback to JSON health if template rendering fails
+        return jsonify(
+            {
+                "service": "home_controller",
+                "status": "running",
+                "controller_name": backend.cfg.controller_name,
+                "modules": len(backend.list_modules()),
+            }
+        )
 
 
 # ------------------------------------------------------------

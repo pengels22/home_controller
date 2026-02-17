@@ -271,11 +271,16 @@ async function loadStatus() {
   if (!el) return;
 
   try {
-    const res = await fetch("/");
+    const res = await fetch("/api/head_status", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
-    el.textContent = `RUNNING • Modules: ${data.modules}`;
-    el.classList.remove("status-bad");
-    el.classList.add("status-good");
+    if (data && data.server_running) {
+      el.textContent = `RUNNING`;
+      el.classList.remove("status-bad");
+      el.classList.add("status-good");
+      return;
+    }
+    throw new Error("no server_running flag");
   } catch (e) {
     el.textContent = "OFFLINE";
     el.classList.remove("status-good");

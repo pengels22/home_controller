@@ -305,10 +305,26 @@ class HomeControllerBackend:
 
         addr_key = m.address_hex.lower()
 
-        # Dev-mode: return simulated data if available
+        # Dev-mode: return simulated data if available. If exact address
+        # isn't present in the dev file, fall back to any compatible
+        # simulated entry (useful for quick testing where addresses differ).
         addr_key = m.address_hex.lower()
         if self._dev_mode:
             dev = self._dev_data.get(addr_key)
+            # fallback: if no exact match, try to find a compatible dev entry
+            if dev is None:
+                for k, v in self._dev_data.items():
+                    if not isinstance(v, dict):
+                        continue
+                    # AIO entries typically contain 'channels' or 'raw_response'
+                    if m.type == 'aio' and ('raw_response' in v or 'channels' in v):
+                        dev = v
+                        break
+                    # DI/DO entries typically contain gpio_a/gpio_b
+                    if m.type in ('di', 'do') and ('gpio_a' in v or 'gpio_b' in v):
+                        dev = v
+                        break
+
             if dev is not None:
                 # DI/DO simulated via gpio_a/gpio_b or explicit channels
                 if m.type in ("di", "do"):
