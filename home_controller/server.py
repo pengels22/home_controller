@@ -356,6 +356,37 @@ def modules_remove():
         return jsonify({"ok": False, "error": str(e)}), 400
 
 
+@app.post("/modules/change_address")
+def modules_change_address():
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        mid = str(data.get("id", "")).strip()
+        new_addr = str(data.get("address", "")).strip()
+        if not mid:
+            return jsonify({"ok": False, "error": "module id required"}), 400
+        if not new_addr:
+            return jsonify({"ok": False, "error": "address required"}), 400
+
+        # perform the address change in backend
+        try:
+            updated = backend.change_module_address(mid, new_addr)
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+
+        # move any saved labels for the module to the new id
+        try:
+            labels = _load_labels()
+            if mid in labels:
+                labels[updated.id] = labels.pop(mid)
+                _save_labels(labels)
+        except Exception:
+            pass
+
+        return jsonify({"ok": True, "module": {"id": updated.id, "address": updated.address_hex, "type": updated.type}})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+
 @app.post("/modules/rename")
 def modules_rename():
     data = request.get_json(force=True, silent=True) or {}

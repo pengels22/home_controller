@@ -436,6 +436,7 @@ async function openModal(module) {
   $("modal_sub").textContent = `${module.address} • ${module.id}`;
 
   $("modal_module_name").value = module.name || "";
+  $("modal_module_address").value = module.address || "";
 
   const grid = $("channels_grid");
   grid.innerHTML = "";
@@ -488,6 +489,27 @@ async function saveModal() {
   if (!MODAL_CTX.id) return;
 
   const moduleName = $("modal_module_name").value || "";
+  const moduleAddr = $("modal_module_address").value || "";
+
+  // If the address changed, attempt to update it first
+  if (moduleAddr && moduleAddr !== MODAL_CTX.address) {
+    const rAddr = await fetch("/modules/change_address", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: MODAL_CTX.id, address: moduleAddr }),
+    });
+    const dAddr = await rAddr.json();
+    if (!dAddr.ok) {
+      if (err) {
+        err.textContent = "Error changing address: " + dAddr.error;
+        err.style.display = "block";
+      }
+      return;
+    }
+    // update the modal context id/address to the new values
+    MODAL_CTX.id = dAddr.module.id || dAddr.module.id;
+    MODAL_CTX.address = dAddr.module.address || MODAL_CTX.address;
+  }
 
   const r1 = await fetch("/modules/rename", {
     method: "POST",

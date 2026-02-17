@@ -287,6 +287,42 @@ class HomeControllerBackend:
         self.cfg.modules[idx].name = new_name.strip()
         self.save_config()
 
+    def change_module_address(self, module_id: str, new_address: str) -> ModuleEntry:
+        """
+        Change the I2C address of an existing module without removing it.
+
+        Returns the updated ModuleEntry on success.
+        """
+        mid = module_id.strip()
+        idx = self._find_module_index(mid)
+        if idx < 0:
+            raise ValueError(f"Module not found: {mid}")
+
+        m = self.cfg.modules[idx]
+
+        # normalize and validate new address
+        address_hex, address_int = self.normalize_address(new_address)
+
+        # type-specific guardrails
+        if m.type in ("di", "do"):
+            if not (MCP23017_MIN <= address_int <= MCP23017_MAX):
+                raise ValueError("DI/DO addresses must be in 0x20–0x27 (MCP23017 default range)")
+        if m.type == "aio":
+            if not (AIO_BASE <= address_int <= AIO_MAX):
+                raise ValueError("AIO addresses must be in 0x30–0x37 (AIO base + 3 DIP bits)")
+
+        new_mid = self._module_id(address_hex)
+        # ensure we won't collide with another module
+        existing = self._find_module_index(new_mid)
+        if existing >= 0 and existing != idx:
+            raise ValueError(f"Another module already uses address {address_hex}")
+
+        # update module entry
+        m.address_hex = address_hex
+        m.id = new_mid
+        self.save_config()
+        return m
+
     # -----------------------------
     # Module-specific I2C reads
     # -----------------------------
