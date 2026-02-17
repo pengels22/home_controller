@@ -538,6 +538,62 @@ class HomeControllerBackend:
             if int(value) not in (0, 1):
                 return {"ok": False, "error": "value must be 0 or 1"}
 
+            # Determine port and bit for DO channel
+            if channel <= 8:
+                port = "a"
+                bit = channel - 1
+            else:
+                port = "b"
+                bit = channel - 9
+
+            # If running in dev/simulate mode, update the simulated dev data
+            if self._dev_mode:
+                addrk = m.address_hex.lower()
+                dev = self._dev_data.get(addrk, {}) if isinstance(self._dev_data, dict) else {}
+                try:
+                    a = int(dev.get("gpio_a", 0))
+                    b = int(dev.get("gpio_b", 0))
+                except Exception:
+                    a = 0
+                    b = 0
+
+                if port == "a":
+                    cur = a
+                else:
+                    cur = b
+
+                if int(value) == 1:
+                    new = cur | (1 << bit)
+                else:
+                    new = cur & ~(1 << bit)
+
+                if port == "a":
+                    a = new & 0xFF
+                else:
+                    b = new & 0xFF
+
+                dev_out = {"gpio_a": a, "gpio_b": b}
+                self._dev_data[addrk] = dev_out
+                try:
+                    self._save_dev_data()
+                except Exception:
+                    pass
+
+                channels: Dict[str, int] = {}
+                for i in range(8):
+                    channels[str(i + 1)] = 1 if ((a >> i) & 1) else 0
+                for i in range(8):
+                    channels[str(9 + i)] = 1 if ((b >> i) & 1) else 0
+
+                return {
+                    "ok": True,
+                    "module_id": m.id,
+                    "type": m.type,
+                    "address": m.address_hex,
+                    "ports": {"gpio_a": a, "gpio_b": b},
+                    "channels": channels,
+                }
+
             if not _HAS_SMBUS:
                 return {"ok": False, "error": "smbus2 not installed on this system"}
 
@@ -546,14 +602,6 @@ class HomeControllerBackend:
             MCP_GPIOB = 0x13
             MCP_OLATA = 0x14
             MCP_OLATB = 0x15
-
-            # Determine port and bit
-            if channel <= 8:
-                port = "a"
-                bit = channel - 1
-            else:
-                port = "b"
-                bit = channel - 9
 
             try:
                 with smbus2.SMBus(self.cfg.i2c_bus_num) as bus:
@@ -569,6 +617,25 @@ class HomeControllerBackend:
                             cur = bus.read_byte_data(m.address_int(), MCP_GPIOA)
                         else:
                             cur = bus.read_byte_data(m.address_int(), MCP_GPIOB)
+
+                    # ensure the pin is configured as output in IODIR (clear bit)
+                    MCP_IODIRA = 0x00
+                    MCP_IODIRB = 0x01
+                    try:
+                        if port == "a":
+                            iodir = bus.read_byte_data(m.address_int(), MCP_IODIRA)
+                        else:
+                            iodir = bus.read_byte_data(m.address_int(), MCP_IODIRB)
+                        # if the bit is set (input) clear it to make output
+                        if (iodir >> bit) & 1:
+                            new_iodir = iodir & ~(1 << bit)
+                            if port == "a":
+                                bus.write_byte_data(m.address_int(), MCP_IODIRA, new_iodir & 0xFF)
+                            else:
+                                bus.write_byte_data(m.address_int(), MCP_IODIRB, new_iodir & 0xFF)
+                    except Exception:
+                        # best-effort; continue even if IODIR can't be read/written
+                        pass
 
                     if int(value) == 1:
                         new = cur | (1 << bit)
@@ -617,6 +684,36 @@ class HomeControllerBackend:
                 voltage = float(value)
             except Exception:
                 return {"ok": False, "error": "invalid voltage value"}
+
+            # If running in dev/simulate mode, update the simulated AIO channels
+            if self._dev_mode:
+                addrk = m.address_hex.lower()
+                dev = self._dev_data.get(addrk, {}) if isinstance(self._dev_data, dict) else {}
+                chans = [0.0] * 8
+                try:
+                    existing = dev.get("channels", [])
+                    for i, v in enumerate(existing[:8]):
+                        chans[i] = float(v)
+                except Exception:
+                    pass
+
+                try:
+                    chans[ch - 1] = float(voltage)
+                except Exception:
+                    pass
+
+                dev_out = {"channels": chans, "raw_response": ",".join(str(v) for v in chans)}
+                self._dev_data[addrk] = dev_out
+                try:
+                    self._save_dev_data()
+                except Exception:
+                    pass
+
+                channels: Dict[str, float] = {}
+                for i in range(8):
+                    channels[str(i + 1)] = chans[i]
+
+                return {"ok": True, "module_id": m.id, "type": m.type, "address": m.address_hex, "raw_response": dev_out["raw_response"], "channels": channels}
 
             if not _HAS_SMBUS:
                 return {"ok": False, "error": "smbus2 not installed on this system"}
