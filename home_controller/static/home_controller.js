@@ -742,13 +742,14 @@ async function onExtClick(event) {
       return;
     }
   }
-  // Updated HTML structure for expander SVG
+  // Updated HTML structure for expander SVG with settings button
   // Replace the module card in its parent container
   headCard.innerHTML = `
     <div class="module-header">
       <div>
         <div class="module-title">I2C EXPANDER</div>
       </div>
+      <button class="icon-btn" id="expander_settings_btn" title="Settings">⚙️</button>
     </div>
     <div class="module-svg" id="expander_module_svg"></div>
   `;
@@ -772,6 +773,19 @@ async function onExtClick(event) {
     const backBtn = document.getElementById("head_module_card").querySelector("#expander_back_btn");
     if (backBtn) {
       backBtn.onclick = onExpanderBackClick;
+    }
+    // Attach settings button handler
+    const settingsBtn = document.getElementById("expander_settings_btn");
+    if (settingsBtn) {
+      // Find the expander module object from the loaded modules
+      fetch('/modules').then(r => r.json()).then(modules => {
+        const expander = modules.find(m => String(m.type).toLowerCase() === 'i2c');
+        if (expander) {
+          settingsBtn.onclick = () => openModal(expander);
+        } else {
+          settingsBtn.onclick = () => alert('Expander module not found.');
+        }
+      });
     }
   }, 0);
 }
