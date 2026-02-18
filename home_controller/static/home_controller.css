@@ -1,3 +1,18 @@
+/* SVG styles for module cards */
+.module-svg .shadow { fill:#000; opacity:0.18; }
+.module-svg .inner { fill:none; stroke:#d7d7d7; stroke-width:2; }
+.module-svg .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1a1a1a; }
+.module-svg .label { font-family:Arial,Helvetica,sans-serif; font-size:10px; font-weight:700; fill:#2a2a2a; }
+.module-svg .ipBox { fill:#ffffff; stroke:#8a8a8a; stroke-width:2; }
+.module-svg .ipText { font-family:"Courier New",Courier,monospace; font-size:13px; font-weight:700; fill:#000000; }
+.module-svg .hat-off { fill:#cfcfcf; }
+
+/* OPTIONAL (recommend removing): This doesn't fix overlays that sit on top */
+/*
+.module-card, .module-svg, .module-card svg {
+  opacity: 1 !important;
+}
+*/
 
 :root {
   --bg: #0f1115;
@@ -78,9 +93,9 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  gap: 2px;               /* tight spacing between modules */
+  gap: 2px;
   overflow-x: auto;
-  padding-top: 6px;       /* keep original clearance */
+  padding-top: 6px;
   padding-bottom: 10px;
 }
 
@@ -89,7 +104,7 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
 .module-card {
   flex: 0 0 auto;
   width: 150px;
-  padding: 6px 0px 8px 0px;       /* side padding killed (you asked) */
+  padding: 6px 0px 8px 0px;
   border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.05);
   background: rgba(255,255,255,0.02);
@@ -102,7 +117,7 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
   gap: 0px;
   align-items: flex-start;
   margin-bottom: 4px;
-  padding: 0 6px;                /* keep header readable even though card has no side padding */
+  padding: 0 6px;
 }
 
 .module-title {
@@ -125,12 +140,12 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
   align-items: center;
   padding: 0;
   margin: 0;
-  line-height: 0; /* remove inline SVG baseline spacing */
+  line-height: 0;
 }
 
 .module-svg svg {
   width: 100%;
-  max-width: none;   /* let SVG fill the card */
+  max-width: none;
   height: auto;
   display: block;
 }
@@ -148,16 +163,22 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
 .icon-btn:hover { background: rgba(255,255,255,0.08); }
 
 /* ------------------ Modal ------------------ */
+/* IMPORTANT: hidden by default so it can’t “stick on” */
 
 .modal-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.65);
-  display: flex;
+  display: none;                 /* <-- key fix */
   justify-content: center;
   align-items: center;
   padding: 18px;
   z-index: 9999;
+}
+
+/* Optional future-proof toggle: if you decide to use class toggles in JS */
+.modal-backdrop.is-open {
+  display: flex;
 }
 
 .modal {
@@ -236,13 +257,11 @@ button.danger { border-color: rgba(255,74,74,0.45); }
 
 /* ------------------ SVG LED STYLES ------------------ */
 
-/* ON = bright + glow */
 .led-on {
   filter: drop-shadow(0 0 6px rgba(80, 200, 255, 0.9));
   opacity: 1;
 }
 
-/* OFF: don't fade the entire group (it contains text). Dim only the LED circle. */
 .led-off { opacity: 1; }
 .led-off circle { opacity: 0.25; }
 .led-off text { opacity: 1; }
@@ -252,7 +271,6 @@ button.danger { border-color: rgba(255,74,74,0.45); }
   stroke: #7a7a7a;
 }
 
-/* Blink: ONLY apply animation to circles, never to groups/text */
 @keyframes blink {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0.25; }
