@@ -4,7 +4,7 @@
   <defs>
     <style>
       .shadow { fill:#000; opacity:0; }
-      .card { fill:#eeeeee; stroke:#cfcfcf; stroke-width:2; }
+      .card { fill:#f5f5f5; stroke:#cfcfcf; stroke-width:2; }
       .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1a1a1a; }
       .label { font-family:Arial,Helvetica,sans-serif; font-size:10px; font-weight:700; fill:#2a2a2a; }
       .hat-off { fill:#cfcfcf; }
@@ -34,10 +34,10 @@
   </g>
 
   <!-- Header -->
-  <text class="title" x="83" y="32" text-anchor="middle">I2C EXPANDER</text>
+  <text class="title" x="83" y="32" text-anchor="middle" font-size="14">I2C EXPANDER</text>
 
   <!-- Module grid, centered vertically -->
-  <g id="hat_indicators" transform="translate(57,120)">
+  <g id="hat_indicators" transform="translate(57,135)">
     <text class="label" x="0" y="-8">MODULES</text>
     <text class="label" x="-6" y="8" text-anchor="end">1</text>
     <rect id="exp_mod_1" class="hat-off" x="0" y="0" width="16" height="10" rx="2"><title>Module 1</title></rect>
