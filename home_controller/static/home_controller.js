@@ -750,23 +750,10 @@ async function onExtClick(event) {
         <div class="module-title">I2C EXPANDER</div>
       </div>
     </div>
-    <div class="module-svg" id="expander_module_svg"></div>
+    <div class="module-svg" id="expander_module_svg">
+      ${_expanderSVGCache}
+    </div>
   `;
-  // Inject SVG as real element
-  const svgContainer = headCard.querySelector('#expander_module_svg');
-  if (svgContainer) {
-    const parser = new DOMParser();
-    const svgDoc = parser.parseFromString(_expanderSVGCache, 'image/svg+xml');
-    const svgElem = svgDoc.documentElement;
-    svgElem.style.opacity = '1';
-    // Force .card fill and opacity
-    const cardElem = svgElem.querySelector('.card');
-    if (cardElem) {
-      cardElem.style.opacity = '1';
-      cardElem.setAttribute('fill', '#eeeeee');
-    }
-    svgContainer.appendChild(svgElem);
-  }
   // Attach back button handler after SVG is in DOM
   setTimeout(() => {
     const backBtn = document.getElementById("head_module_card").querySelector("#expander_back_btn");
