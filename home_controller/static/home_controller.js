@@ -742,59 +742,24 @@ async function onExtClick(event) {
       return;
     }
   }
-  // Updated HTML structure for expander SVG with settings button
-  // Replace the module card in its parent container
-  // Always preserve both module-card and head-card classes for structure and CSS
-  headCard.className = 'module-card head-card';
+  // Updated HTML structure for expander SVG
   headCard.innerHTML = `
-    <div class="module-header">
-      <div>
-        <div class="module-title">I2C EXPANDER</div>
+    <div class="module-card head-card" style="width:150px;">
+      <div class="module-header">
+        <div>
+          <div class="module-title">I2C EXPANDER</div>
+        </div>
       </div>
-      <button class="icon-btn" id="expander_settings_btn" title="Settings">⚙️</button>
+      <div class="module-svg" id="expander_module_svg">
+        ${_expanderSVGCache}
+      </div>
     </div>
-    <div class="module-svg" id="expander_module_svg"></div>
   `;
-  // Ensure module-svg class is present
-  const svgContainer = headCard.querySelector('#expander_module_svg');
-  if (svgContainer) {
-    svgContainer.classList.add('module-svg');
-    const parser = new DOMParser();
-    const svgDoc = parser.parseFromString(_expanderSVGCache, 'image/svg+xml');
-    const svgElem = svgDoc.documentElement;
-    // Remove any opacity from SVG root and all children except .shadow
-    svgElem.style.opacity = '1';
-    Array.from(svgElem.querySelectorAll('*:not(.shadow)')).forEach(el => {
-      if (el.style && el.style.opacity && el.className.baseVal !== 'shadow') {
-        el.style.opacity = '1';
-      }
-    });
-    // Force .card fill and opacity
-    const cardElem = svgElem.querySelector('.card');
-    if (cardElem) {
-      cardElem.style.opacity = '1';
-      cardElem.setAttribute('fill', '#eeeeee');
-    }
-    svgContainer.appendChild(svgElem);
-  }
   // Attach back button handler after SVG is in DOM
   setTimeout(() => {
     const backBtn = document.getElementById("head_module_card").querySelector("#expander_back_btn");
     if (backBtn) {
       backBtn.onclick = onExpanderBackClick;
-    }
-    // Attach settings button handler
-    const settingsBtn = document.getElementById("expander_settings_btn");
-    if (settingsBtn) {
-      // Find the expander module object from the loaded modules
-      fetch('/modules').then(r => r.json()).then(modules => {
-        const expander = modules.find(m => String(m.type).toLowerCase() === 'i2c');
-        if (expander) {
-          settingsBtn.onclick = () => openModal(expander);
-        } else {
-          settingsBtn.onclick = () => alert('Expander module not found.');
-        }
-      });
     }
   }, 0);
 }
