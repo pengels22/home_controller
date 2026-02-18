@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="170" height="430" viewBox="0 0 170 430"
+     xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .shadow { fill:#000; opacity:0; }
+      .card { fill:#eeeeee; stroke:#cfcfcf; stroke-width:2; }
+      .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1a1a1a; }
+      .label { font-family:Arial,Helvetica,sans-serif; font-size:10px; font-weight:700; fill:#2a2a2a; }
+      .hat-off { fill:#cfcfcf; }
+      .hat-a { fill:#ffd43b; }
+      .hat-b { fill:#ff4d4f; }
+      .hat-ab { fill:#39d353; }
+    </style>
+  </defs>
+
+
+  <!-- Shadow -->
+  <rect class="shadow" x="10" y="14" width="150" height="402" rx="16"/>
+
+  <!-- Card -->
+  <rect class="card" x="8" y="12" width="150" height="402" rx="16"/>
+
+  <!-- Border -->
+  <rect x="8" y="12" width="150" height="402" rx="16" fill="none" stroke="#888" stroke-width="3"/>
+
+  <!-- Header -->
+  <text class="title" x="83" y="32" text-anchor="middle">I2C EXPANDER</text>
+
+  <!-- Module grid, centered vertically -->
+  <g id="hat_indicators" transform="translate(57,120)">
+    <text class="label" x="0" y="-8">MODULES</text>
+    <text class="label" x="-6" y="8" text-anchor="end">1</text>
+    <rect id="exp_mod_1" class="hat-off" x="0" y="0" width="16" height="10" rx="2"><title>Module 1</title></rect>
+    <text class="label" x="-6" y="26" text-anchor="end">2</text>
+    <rect id="exp_mod_2" class="hat-off" x="0" y="18" width="16" height="10" rx="2"><title>Module 2</title></rect>
+    <text class="label" x="-6" y="44" text-anchor="end">3</text>
+    <rect id="exp_mod_3" class="hat-off" x="0" y="36" width="16" height="10" rx="2"><title>Module 3</title></rect>
+    <text class="label" x="-6" y="62" text-anchor="end">4</text>
+    <rect id="exp_mod_4" class="hat-off" x="0" y="54" width="16" height="10" rx="2"><title>Module 4</title></rect>
+    <rect id="exp_mod_5" class="hat-off" x="36" y="0" width="16" height="10" rx="2"><title>Module 5</title></rect>
+    <text class="label" x="58" y="8" text-anchor="start">5</text>
+    <rect id="exp_mod_6" class="hat-off" x="36" y="18" width="16" height="10" rx="2"><title>Module 6</title></rect>
+    <text class="label" x="58" y="26" text-anchor="start">6</text>
+    <rect id="exp_mod_7" class="hat-off" x="36" y="36" width="16" height="10" rx="2"><title>Module 7</title></rect>
+    <text class="label" x="58" y="44" text-anchor="start">7</text>
+    <rect id="exp_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
+    <text class="label" x="58" y="62" text-anchor="start">8</text>
+  </g>
+</svg>
