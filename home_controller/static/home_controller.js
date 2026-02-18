@@ -743,8 +743,11 @@ async function onExtClick(event) {
     }
   }
   // Updated HTML structure for expander SVG
-  headCard.innerHTML = `
-    <div class="module-card head-card" style="width:150px;">
+  // Replace the module card in its parent container
+  const cardParent = headCard.parentNode;
+  if (!cardParent) return;
+  cardParent.innerHTML = `
+    <div class="module-card head-card" id="head_module_card" style="width:150px;">
       <div class="module-header">
         <div>
           <div class="module-title">I2C EXPANDER</div>
