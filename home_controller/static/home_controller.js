@@ -742,7 +742,17 @@ async function onExtClick(event) {
       return;
     }
   }
-  headCard.innerHTML = `<div class=\"module-header\"><div><div class=\"module-title\">I2C EXPANDER</div></div></div><div class=\"module-svg\">${_expanderSVGCache}</div>`;
+  // Updated HTML structure for expander SVG
+  headCard.innerHTML = `
+    <div class="module-header">
+      <div>
+        <div class="module-title">I2C EXPANDER</div>
+      </div>
+    </div>
+    <div class="module-svg" id="expander_module_svg">
+      ${_expanderSVGCache}
+    </div>
+  `;
   // Attach back button handler after SVG is in DOM
   setTimeout(() => {
     const backBtn = document.getElementById("head_module_card").querySelector("#expander_back_btn");
