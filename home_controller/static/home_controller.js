@@ -757,23 +757,8 @@ async function onExtClick(event) {
   const svgContainer = headCard.querySelector('#expander_module_svg');
   if (svgContainer) {
     svgContainer.classList.add('module-svg');
-    const parser = new DOMParser();
-    const svgDoc = parser.parseFromString(_expanderSVGCache, 'image/svg+xml');
-    const svgElem = svgDoc.documentElement;
-    // Remove any opacity from SVG root and all children except .shadow
-    svgElem.style.opacity = '1';
-    Array.from(svgElem.querySelectorAll('*:not(.shadow)')).forEach(el => {
-      if (el.style && el.style.opacity && el.className.baseVal !== 'shadow') {
-        el.style.opacity = '1';
-      }
-    });
-    // Force .card fill and opacity
-    const cardElem = svgElem.querySelector('.card');
-    if (cardElem) {
-      cardElem.style.opacity = '1';
-      cardElem.setAttribute('fill', '#eeeeee');
-    }
-    svgContainer.appendChild(svgElem);
+    // Inject SVG as a string so internal <style> is applied in all browsers
+    svgContainer.innerHTML = _expanderSVGCache;
   }
   // Attach back and settings button handlers after SVG is in DOM
   setTimeout(() => {
