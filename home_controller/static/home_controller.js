@@ -315,24 +315,23 @@ function _findLedElement(moduleType, svgRoot, channelIndex) {
   return null;
 }
 
-function _allLedOff() {
-  for (const [_mid, info] of MODULE_SVGS.entries()) {
-    const root = info.svgRoot;
-    if (!root) continue;
 
-    root.querySelectorAll(".led-on").forEach((el) => {
-      el.classList.remove("led-on");
-      el.classList.add("led-off");
-    });
+function updateModuleLeds(svgRoot, states) {
+  if (!svgRoot) return;
 
-    for (let ch = 1; ch <= 16; ch++) {
-      const el = _findLedElement(info.type, root, ch);
-      if (el) {
-        el.classList.remove("led-on");
-        el.classList.add("led-off");
-      }
+  ensureSvgVisible(svgRoot);
+
+  const leds = svgRoot.querySelectorAll(".led");
+
+  leds.forEach((led, i) => {
+    led.classList.remove("led-on", "led-off", "blink");
+
+    if (states[i] === 1) {
+      led.classList.add("led-on");
+    } else {
+      led.classList.add("led-off");
     }
-  }
+  });
 }
 
 function _flashLed(el, on) {
