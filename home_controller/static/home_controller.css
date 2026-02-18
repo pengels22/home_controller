@@ -1,6 +1,5 @@
 /* SVG styles for module cards */
 .module-svg .shadow { fill:#000; opacity:0.18; }
-.module-svg .card { fill:#eeeeee; stroke:#cfcfcf; stroke-width:2; }
 .module-svg .inner { fill:none; stroke:#d7d7d7; stroke-width:2; }
 .module-svg .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1a1a1a; }
 .module-svg .label { font-family:Arial,Helvetica,sans-serif; font-size:10px; font-weight:700; fill:#2a2a2a; }
