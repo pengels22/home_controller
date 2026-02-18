@@ -694,6 +694,51 @@ window.removeFromModal = removeFromModal;
 // BOOT
 // ============================================================
 
+
+// --- SVG SWAP LOGIC FOR EXT/EXPANDER ---
+let _originalHeadModuleHTML = null;
+let _expanderSVGCache = null;
+
+async function onExtClick(event) {
+  event?.stopPropagation?.();
+  const headCard = document.getElementById("head_module_card");
+  if (!headCard) return;
+  if (!_originalHeadModuleHTML) {
+    _originalHeadModuleHTML = headCard.innerHTML;
+  }
+  // Fetch and inject expander SVG
+  if (!_expanderSVGCache) {
+    try {
+      const res = await fetch("/modules/i2c/I2C_EXPANDER.svg");
+      if (!res.ok) throw new Error("Failed to load expander SVG");
+      let svgText = await res.text();
+      // Inject back button (absolute positioned in card)
+      svgText = svgText.replace(
+        /(<svg[^>]*>)/i,
+        `$1\n  <g id=\"expander_back_btn\" style=\"cursor:pointer;\" tabindex=\"0\" role=\"button\" aria-label=\"Back\" onclick=\"onExpanderBackClick(event)\">\n    <rect x=\"8\" y=\"12\" width=\"40\" height=\"28\" rx=\"8\" fill=\"#e0e0e0\" stroke=\"#888\" stroke-width=\"1.5\"/>\n    <text x=\"28\" y=\"32\" text-anchor=\"middle\" alignment-baseline=\"middle\" font-size=\"14\" font-family=\"Arial,Helvetica,sans-serif\" fill=\"#333\">← Back</text>\n  </g>`
+      );
+      _expanderSVGCache = svgText;
+    } catch (e) {
+      alert("Could not load expander SVG: " + e);
+      return;
+    }
+  }
+  headCard.innerHTML = `<div class=\"module-header\"><div><div class=\"module-title\">I2C EXPANDER</div></div></div><div class=\"module-svg\">${_expanderSVGCache}</div>`;
+}
+
+window.onExtClick = onExtClick;
+
+function onExpanderBackClick(event) {
+  event?.stopPropagation?.();
+  const headCard = document.getElementById("head_module_card");
+  if (!headCard || !_originalHeadModuleHTML) return;
+  headCard.innerHTML = _originalHeadModuleHTML;
+}
+
+window.onExpanderBackClick = onExpanderBackClick;
+
+// --- END SVG SWAP LOGIC ---
+
 loadStatus();
 loadModules();
 setInterval(loadStatus, 4000);
