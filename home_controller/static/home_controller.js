@@ -113,15 +113,79 @@ const HEAD_MODULE_SVG = `
         <!-- EXT indicator below the two-column grid, same size as module LEDs, label to the left -->
         <text class="label" x="24" y="80" text-anchor="end">EXT</text>
         <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer" onclick="onExtClick(event)"><title>EXT</title></rect>
-          <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
-      function attachExtClickHandler() {
-        // Called after head SVG is inserted
-        const headCard = document.getElementById("head_module_card");
-        if (!headCard) return;
-        const extRect = headCard.querySelector("#hat_ext");
-        if (extRect) {
-          extRect.onclick = onExtClick;
-          extRect.style.cursor = "pointer";
+      // --- MODULE GRID SVG (for EXT click) ---
+      const MODULE_GRID_SVG = `
+      <div class="module-card head-card" id="head_module_card_grid">
+        <div class="module-header">
+          <div>
+            <div class="module-title">MODULE GRID</div>
+            <div class="module-sub">EXT VIEW</div>
+          </div>
+        </div>
+        <div class="module-svg" id="head_module_svg_grid">
+          <svg id="head_grid_svg" width="170" height="430" viewBox="0 0 170 430" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <style>
+                #head_grid_svg .label { font-family:Arial,Helvetica,sans-serif; font-size:10px; font-weight:700; fill:#2a2a2a; }
+                #head_grid_svg .hat-off { fill:#cfcfcf; }
+                #head_grid_svg .hat-a { fill:#ffd43b; }
+                #head_grid_svg .hat-b { fill:#ff4d4f; }
+                #head_grid_svg .hat-ab { fill:#39d353; }
+              </style>
+            </defs>
+            <g id="hat_indicators" transform="translate(57,120)">
+              <text class="label" x="0" y="-8">MODULES</text>
+              <text class="label" x="-6" y="8" text-anchor="end">1</text>
+              <rect id="grid_mod_1" class="hat-off" x="0" y="0" width="16" height="10" rx="2"><title>Module 1</title></rect>
+              <text class="label" x="-6" y="26" text-anchor="end">2</text>
+              <rect id="grid_mod_2" class="hat-off" x="0" y="18" width="16" height="10" rx="2"><title>Module 2</title></rect>
+              <text class="label" x="-6" y="44" text-anchor="end">3</text>
+              <rect id="grid_mod_3" class="hat-off" x="0" y="36" width="16" height="10" rx="2"><title>Module 3</title></rect>
+              <text class="label" x="-6" y="62" text-anchor="end">4</text>
+              <rect id="grid_mod_4" class="hat-off" x="0" y="54" width="16" height="10" rx="2"><title>Module 4</title></rect>
+              <rect id="grid_mod_5" class="hat-off" x="36" y="0" width="16" height="10" rx="2"><title>Module 5</title></rect>
+              <text class="label" x="58" y="8" text-anchor="start">5</text>
+              <rect id="grid_mod_6" class="hat-off" x="36" y="18" width="16" height="10" rx="2"><title>Module 6</title></rect>
+              <text class="label" x="58" y="26" text-anchor="start">6</text>
+              <rect id="grid_mod_7" class="hat-off" x="36" y="36" width="16" height="10" rx="2"><title>Module 7</title></rect>
+              <text class="label" x="58" y="44" text-anchor="start">7</text>
+              <rect id="grid_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
+              <text class="label" x="58" y="62" text-anchor="start">8</text>
+            </g>
+            <rect x="0" y="0" width="170" height="430" fill="transparent" style="cursor:pointer" onclick="onGridBackClick(event)"/>
+            <text class="label" x="85" y="410" text-anchor="middle" style="font-size:12px;fill:#888;">Click anywhere to return</text>
+          </svg>
+        </div>
+      </div>
+      `;
+
+      // --- EXT click handler ---
+      window.onExtClick = function (e) {
+        e.stopPropagation();
+        const card = document.getElementById("head_module_card");
+        if (!card) return;
+        card.outerHTML = MODULE_GRID_SVG;
+        // Optionally, copy indicator states from head SVG to grid SVG
+        setTimeout(refreshModuleGridIndicators, 10);
+      };
+
+      window.onGridBackClick = function (e) {
+        e.stopPropagation();
+        const card = document.getElementById("head_module_card_grid");
+        if (!card) return;
+        card.outerHTML = HEAD_MODULE_SVG;
+        setTimeout(_refreshHeadStatusOnce, 10);
+      };
+
+      function refreshModuleGridIndicators() {
+        // Try to copy indicator colors from head SVG if present
+        const headSvg = document.getElementById("head_svg");
+        const gridSvg = document.getElementById("head_grid_svg");
+        if (!headSvg || !gridSvg) return;
+        for (let i = 1; i <= 8; i++) {
+          const src = headSvg.querySelector(`#hat_mod_${i}`);
+          const dst = gridSvg.querySelector(`#grid_mod_${i}`);
+          if (src && dst) dst.style.fill = src.style.fill;
         }
       }
       </g>
@@ -135,7 +199,6 @@ function _insertHeadModule(rowEl) {
   if (!rowEl) return;
   if ($("head_module_card")) return; // already inserted
   rowEl.insertAdjacentHTML("afterbegin", HEAD_MODULE_SVG);
-  attachExtClickHandler();
 }
 
 function _setHeadLed(svg, sel, on, blink) {
@@ -395,18 +458,7 @@ async function loadModules() {
   if (!row) return;
 
   const res = await fetch("/modules");
-    // Attach the click handler for the external module
-    function attachExtClickHandler() {
-      // Called after head SVG is inserted
-      const headCard = document.getElementById("head_module_card");
-      if (!headCard) return;
-      const extRect = headCard.querySelector("#hat_ext");
-      if (extRect) {
-        extRect.onclick = onExtClick;
-        extRect.style.cursor = "pointer";
-      }
-    }
-    attachExtClickHandler();
+  const data = await res.json();
 
   row.innerHTML = "";
   MODULE_SVGS.clear(); // prevent stale svg references
@@ -716,54 +768,6 @@ window.removeFromModal = removeFromModal;
 // ============================================================
 // BOOT
 // ============================================================
-
-
-// --- SVG SWAP LOGIC FOR EXT/EXPANDER ---
-let _originalHeadModuleHTML = null;
-let _expanderSVGCache = null;
-
-
-async function onExtClick(event) {
-  event?.stopPropagation?.();
-  const headCard = document.getElementById("head_module_card");
-  if (!headCard) return;
-  if (!_originalHeadModuleHTML) {
-    _originalHeadModuleHTML = headCard.innerHTML;
-  }
-  // Fetch and inject expander SVG
-  if (!_expanderSVGCache) {
-    try {
-      const res = await fetch("/modules/i2c/I2C_EXPANDER.svg");
-      if (!res.ok) throw new Error("Failed to load expander SVG");
-      _expanderSVGCache = await res.text();
-    } catch (e) {
-      alert("Could not load expander SVG: " + e);
-      return;
-    }
-  }
-  headCard.innerHTML = `<div class=\"module-header\"><div><div class=\"module-title\">I2C EXPANDER</div></div></div><div class=\"module-svg\">${_expanderSVGCache}</div>`;
-  // Attach back button handler after SVG is in DOM
-  setTimeout(() => {
-    const backBtn = document.getElementById("head_module_card").querySelector("#expander_back_btn");
-    if (backBtn) {
-      backBtn.onclick = onExpanderBackClick;
-    }
-  }, 0);
-}
-
-window.onExtClick = onExtClick;
-
-function onExpanderBackClick(event) {
-  event?.stopPropagation?.();
-  const headCard = document.getElementById("head_module_card");
-  if (!headCard || !_originalHeadModuleHTML) return;
-  headCard.innerHTML = _originalHeadModuleHTML;
-  attachExtClickHandler();
-}
-
-window.onExpanderBackClick = onExpanderBackClick;
-
-// --- END SVG SWAP LOGIC ---
 
 loadStatus();
 loadModules();
