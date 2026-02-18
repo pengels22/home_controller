@@ -113,6 +113,17 @@ const HEAD_MODULE_SVG = `
         <!-- EXT indicator below the two-column grid, same size as module LEDs, label to the left -->
         <text class="label" x="24" y="80" text-anchor="end">EXT</text>
         <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer" onclick="onExtClick(event)"><title>EXT</title></rect>
+          <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
+      function attachExtClickHandler() {
+        // Called after head SVG is inserted
+        const headCard = document.getElementById("head_module_card");
+        if (!headCard) return;
+        const extRect = headCard.querySelector("#hat_ext");
+        if (extRect) {
+          extRect.onclick = onExtClick;
+          extRect.style.cursor = "pointer";
+        }
+      }
       </g>
       </g>
     </svg>
@@ -124,6 +135,7 @@ function _insertHeadModule(rowEl) {
   if (!rowEl) return;
   if ($("head_module_card")) return; // already inserted
   rowEl.insertAdjacentHTML("afterbegin", HEAD_MODULE_SVG);
+  attachExtClickHandler();
 }
 
 function _setHeadLed(svg, sel, on, blink) {
@@ -699,6 +711,7 @@ window.removeFromModal = removeFromModal;
 let _originalHeadModuleHTML = null;
 let _expanderSVGCache = null;
 
+
 async function onExtClick(event) {
   event?.stopPropagation?.();
   const headCard = document.getElementById("head_module_card");
@@ -711,19 +724,20 @@ async function onExtClick(event) {
     try {
       const res = await fetch("/modules/i2c/I2C_EXPANDER.svg");
       if (!res.ok) throw new Error("Failed to load expander SVG");
-      let svgText = await res.text();
-      // Inject back button (absolute positioned in card)
-      svgText = svgText.replace(
-        /(<svg[^>]*>)/i,
-        `$1\n  <g id=\"expander_back_btn\" style=\"cursor:pointer;\" tabindex=\"0\" role=\"button\" aria-label=\"Back\" onclick=\"onExpanderBackClick(event)\">\n    <rect x=\"8\" y=\"12\" width=\"40\" height=\"28\" rx=\"8\" fill=\"#e0e0e0\" stroke=\"#888\" stroke-width=\"1.5\"/>\n    <text x=\"28\" y=\"32\" text-anchor=\"middle\" alignment-baseline=\"middle\" font-size=\"14\" font-family=\"Arial,Helvetica,sans-serif\" fill=\"#333\">← Back</text>\n  </g>`
-      );
-      _expanderSVGCache = svgText;
+      _expanderSVGCache = await res.text();
     } catch (e) {
       alert("Could not load expander SVG: " + e);
       return;
     }
   }
   headCard.innerHTML = `<div class=\"module-header\"><div><div class=\"module-title\">I2C EXPANDER</div></div></div><div class=\"module-svg\">${_expanderSVGCache}</div>`;
+  // Attach back button handler after SVG is in DOM
+  setTimeout(() => {
+    const backBtn = document.getElementById("head_module_card").querySelector("#expander_back_btn");
+    if (backBtn) {
+      backBtn.onclick = onExpanderBackClick;
+    }
+  }, 0);
 }
 
 window.onExtClick = onExtClick;
@@ -733,6 +747,7 @@ function onExpanderBackClick(event) {
   const headCard = document.getElementById("head_module_card");
   if (!headCard || !_originalHeadModuleHTML) return;
   headCard.innerHTML = _originalHeadModuleHTML;
+  attachExtClickHandler();
 }
 
 window.onExpanderBackClick = onExpanderBackClick;
