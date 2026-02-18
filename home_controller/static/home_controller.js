@@ -28,7 +28,7 @@ function _clearAnyDimState() {
   // Nuke any inline filter/opacity/backdropFilter on common containers
   const kill = (el) => {
     if (!el) return;
-    el.style.opacity = "1";
+    /* opacity removed */
     el.style.filter = "none";
     el.style.backdropFilter = "none";
     el.style.webkitBackdropFilter = "none";
@@ -54,7 +54,7 @@ function _clearAnyDimState() {
 // Ensures SVG isn’t inheriting odd filter/opacity from Safari quirks
 function ensureSvgVisible(svgRoot) {
   if (!svgRoot) return;
-  svgRoot.style.opacity = "1";
+  /* opacity removed */
   svgRoot.style.filter = "none";
   svgRoot.style.pointerEvents = "auto";
 }
@@ -76,7 +76,7 @@ const HEAD_MODULE_SVG = `
     <svg id="head_svg" width="170" height="430" viewBox="0 0 170 430" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <style>
-          #head_svg .shadow { fill:#000; opacity:0.18; }
+          #head_svg .shadow { fill:#000; }
           #head_svg .card { fill:#eeeeee; stroke:#cfcfcf; stroke-width:2; }
           #head_svg .inner { fill:none; stroke:#d7d7d7; stroke-width:2; }
           #head_svg .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1a1a1a; }
@@ -87,7 +87,7 @@ const HEAD_MODULE_SVG = `
           #head_svg .ledNet { fill:#cfcfcf; stroke:#222; stroke-width:2; }
 
           #head_svg .pi { fill:#e5e5e5; stroke:#bdbdbd; stroke-width:2; }
-          #head_svg .piWindow { fill:#d9d9d9; stroke:#bdbdbd; stroke-width:2; opacity:0.8; }
+          #head_svg .piWindow { fill:#d9d9d9; stroke:#bdbdbd; stroke-width:2; }
 
           #head_svg .ipBox { fill:#ffffff; stroke:#8a8a8a; stroke-width:2; }
           #head_svg .ipText { font-family:"Courier New",Courier,monospace; font-size:13px; font-weight:700; fill:#000; }
@@ -198,7 +198,7 @@ function _setHeadLed(svg, sel, on, blink) {
     el.style.fill = "#cfcfcf";
     el.classList.remove("blink");
   }
-  el.style.opacity = "1";
+  /* opacity removed */
 }
 
 async function _refreshHeadStatusOnce() {

@@ -1,5 +1,6 @@
 /* SVG styles for module cards */
-.module-svg .shadow { fill:#000; opacity:0.18; }
+.module-svg .shadow { fill:#000; }
+.module-svg .shadow { fill:#000; }
 .module-svg .inner { fill:none; stroke:#d7d7d7; stroke-width:2; }
 .module-svg .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1a1a1a; }
 .module-svg .label { font-family:Arial,Helvetica,sans-serif; font-size:10px; font-weight:700; fill:#2a2a2a; }
@@ -14,8 +15,7 @@
 .module-card *,
 .module-svg *,
 .module-card svg * {
-  opacity: 1 !important;
-  filter: none !important;
+  /* opacity and filter rules removed for clean reset */
 }
 
 :root {
@@ -254,12 +254,12 @@ button.danger { border-color: rgba(255,74,74,0.45); }
 /* ------------------ SVG LED STYLES ------------------ */
 .led-on {
   filter: drop-shadow(0 0 6px rgba(80, 200, 255, 0.9));
-  opacity: 1;
+  /* opacity removed */
 }
 
-.led-off { opacity: 1; }
-.led-off circle { opacity: 0.25; }
-.led-off text { opacity: 1; }
+.led-off { /* opacity removed */ }
+.led-off circle { /* opacity removed */ }
+.led-off text { /* opacity removed */ }
 
 .led-off circle {
   fill: #d0d0d0;
@@ -267,8 +267,8 @@ button.danger { border-color: rgba(255,74,74,0.45); }
 }
 
 @keyframes blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0.25; }
+  0%, 49% { /* opacity removed */ }
+  50%, 100% { /* opacity removed */ }
 }
 .blink { animation: none; }
 .blink circle,
@@ -277,4 +277,4 @@ circle.blink {
 }
 
 /* Optional: hide head subtitle */
-.module-card.head-card .module-sub { opacity: 0.0; }
+.module-card.head-card .module-sub { /* opacity removed */ }
