@@ -1,3 +1,12 @@
+/* SVG styles for module cards */
+.module-svg .shadow, svg .shadow, .shadow { fill:#000; opacity:0.18; }
+.module-svg .card, svg .card, .card { fill:#eeeeee; stroke:#cfcfcf; stroke-width:2; }
+.module-svg .inner, svg .inner, .inner { fill:none; stroke:#d7d7d7; stroke-width:2; }
+.module-svg .title, svg .title, .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1a1a1a; }
+.module-svg .label, svg .label, .label { font-family:Arial,Helvetica,sans-serif; font-size:10px; font-weight:700; fill:#2a2a2a; }
+.module-svg .ipBox, svg .ipBox, .ipBox { fill:#ffffff; stroke:#8a8a8a; stroke-width:2; }
+.module-svg .ipText, svg .ipText, .ipText { font-family:"Courier New",Courier,monospace; font-size:13px; font-weight:700; fill:#000000; }
+.module-svg .hat-off, svg .hat-off, .hat-off { fill:#cfcfcf; }
 /* Force module cards and SVGs to be fully opaque */
 .module-card, .module-svg, .module-card svg {
   opacity: 1 !important;
