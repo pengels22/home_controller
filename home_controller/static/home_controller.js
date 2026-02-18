@@ -158,6 +158,7 @@ const HEAD_MODULE_SVG = `
         </div>
       </div>
       `;
+
       // --- EXT click handler ---
       window.onExtClick = function (e) {
         e.stopPropagation();
