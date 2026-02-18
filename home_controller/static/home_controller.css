@@ -1,11 +1,4 @@
-/* Hard kill any accidental dimming via filter */
-.container, .card, .modules-row, #modules, .module-card, .module-card svg, .module-svg {
-  filter: none !important;
-  opacity: 1 !important;
-}
-
-
-* SVG styles for module cards */
+/* SVG styles for module cards */
 .module-svg .shadow { fill:#000; opacity:0.18; }
 .module-svg .inner { fill:none; stroke:#d7d7d7; stroke-width:2; }
 .module-svg .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1a1a1a; }
@@ -14,12 +7,11 @@
 .module-svg .ipText { font-family:"Courier New",Courier,monospace; font-size:13px; font-weight:700; fill:#000000; }
 .module-svg .hat-off { fill:#cfcfcf; }
 
-/* OPTIONAL (recommend removing): This doesn't fix overlays that sit on top */
-/*
+/* Force module cards and SVGs to be fully opaque */
 .module-card, .module-svg, .module-card svg {
   opacity: 1 !important;
+  filter: none !important;
 }
-*/
 
 :root {
   --bg: #0f1115;
@@ -30,7 +22,6 @@
 }
 
 /* ------------------ Base layout ------------------ */
-
 * { box-sizing: border-box; }
 
 body {
@@ -95,7 +86,6 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
 .hint { margin-top: 4px; font-size: 11px; color: var(--muted); }
 
 /* ------------------ DIN RAIL MODULE ROW ------------------ */
-
 .modules-row {
   display: flex;
   flex-direction: row;
@@ -107,7 +97,6 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
 }
 
 /* ------------------ MODULE CARD ------------------ */
-
 .module-card {
   flex: 0 0 auto;
   width: 150px;
@@ -140,7 +129,6 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
 }
 
 /* ------------------ SVG AREA ------------------ */
-
 .module-svg {
   display: flex;
   justify-content: center;
@@ -158,7 +146,6 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
 }
 
 /* ------------------ Gear button ------------------ */
-
 .icon-btn {
   border: 1px solid rgba(255,255,255,0.06);
   background: rgba(255,255,255,0.04);
@@ -170,23 +157,20 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
 .icon-btn:hover { background: rgba(255,255,255,0.08); }
 
 /* ------------------ Modal ------------------ */
-/* IMPORTANT: hidden by default so it can’t “stick on” */
 
+/* IMPORTANT: default to HIDDEN, JS turns it on */
 .modal-backdrop {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.65);
-  display: none;                 /* <-- key fix */
+  display: none;            /* <-- FIX */
   justify-content: center;
   align-items: center;
   padding: 18px;
   z-index: 9999;
 }
 
-/* Optional future-proof toggle: if you decide to use class toggles in JS */
-.modal-backdrop.is-open {
-  display: flex;
-}
+body.modal-open { overflow: hidden; }
 
 .modal {
   width: min(900px, 96vw);
@@ -263,7 +247,6 @@ button.danger { border-color: rgba(255,74,74,0.45); }
 }
 
 /* ------------------ SVG LED STYLES ------------------ */
-
 .led-on {
   filter: drop-shadow(0 0 6px rgba(80, 200, 255, 0.9));
   opacity: 1;
@@ -288,5 +271,5 @@ circle.blink {
   animation: blink 0.8s infinite;
 }
 
-/* Optional: hide head subtitle if you want */
+/* Optional: hide head subtitle */
 .module-card.head-card .module-sub { opacity: 0.0; }

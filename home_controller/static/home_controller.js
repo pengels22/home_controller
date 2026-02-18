@@ -11,24 +11,57 @@ let MODAL_CTX = {
 };
 
 // ============================================================
-// HEAD MODULE (Pi enclosure) — injected FIRST, but NOT part of MODULE_SVGS
+// “DIM/OVERLAY” DEFENSE (THIS IS THE REAL FIX)
 // ============================================================
+
+function _clearAnyDimState() {
+  // Hide modal backdrop if it exists
+  const b = $("modal_backdrop");
+  if (b) {
+    b.style.display = "none";
+    b.style.pointerEvents = "none";
+  }
+
+  // Remove any body classes that typically cause dim/blur
+  document.body.classList.remove("modal-open", "dim", "busy", "disabled");
+
+  // Nuke any inline filter/opacity/backdropFilter on common containers
+  const kill = (el) => {
+    if (!el) return;
+    el.style.opacity = "1";
+    el.style.filter = "none";
+    el.style.backdropFilter = "none";
+    el.style.webkitBackdropFilter = "none";
+    el.style.pointerEvents = "";
+  };
+
+  kill(document.body);
+  kill(document.querySelector(".container"));
+
+  document.querySelectorAll(".card, .modules-row, #modules, .module-card, .module-card svg, .module-svg")
+    .forEach(kill);
+
+  // If any “overlay-ish” nodes exist, force them off
+  document.querySelectorAll(".modal-backdrop, .overlay, .backdrop")
+    .forEach(el => {
+      el.style.display = "none";
+      el.style.pointerEvents = "none";
+      el.style.opacity = "1";
+      el.style.filter = "none";
+    });
+}
+
+// Ensures SVG isn’t inheriting odd filter/opacity from Safari quirks
 function ensureSvgVisible(svgRoot) {
   if (!svgRoot) return;
-
   svgRoot.style.opacity = "1";
   svgRoot.style.filter = "none";
-
-  const all = svgRoot.querySelectorAll("*");
-  all.forEach(el => {
-    if (el.style.opacity && el.style.opacity !== "1") {
-      el.style.opacity = "";
-    }
-    if (el.style.filter) {
-      el.style.filter = "";
-    }
-  });
+  svgRoot.style.pointerEvents = "auto";
 }
+
+// ============================================================
+// HEAD MODULE (Pi enclosure) — injected FIRST, NOT in MODULE_SVGS
+// ============================================================
 
 const HEAD_MODULE_SVG = `
 <div class="module-card head-card" id="head_module_card">
@@ -130,10 +163,7 @@ const HEAD_MODULE_SVG = `
 </div>
 `;
 
-// ============================================================
 // EXT click hookup
-// ============================================================
-
 function attachExtClickHandler() {
   const headCard = document.getElementById("head_module_card");
   if (!headCard) return;
@@ -149,40 +179,6 @@ function _insertHeadModule(rowEl) {
   if ($("head_module_card")) return;
   rowEl.insertAdjacentHTML("afterbegin", HEAD_MODULE_SVG);
   attachExtClickHandler();
-}
-
-// ============================================================
-// HARD RESET ANY “DIM/OVERLAY” STATE (JS DEFENSE)
-// ============================================================
-
-function _clearAnyDimState() {
-  // 1) hide modal backdrop if it exists
-  const b = $("modal_backdrop");
-  if (b) b.style.display = "none";
-
-  // 2) remove any common “dim” classes if you ever add them elsewhere
-  document.body.classList.remove("modal-open", "dim", "busy", "disabled");
-
-  // 3) nuke inline filter/opacity on likely containers
-  const kill = (el) => {
-    if (!el) return;
-    el.style.filter = "none";
-    el.style.opacity = "1";
-    el.style.backdropFilter = "none";
-    el.style.webkitBackdropFilter = "none";
-  };
-
-  kill(document.body);
-
-  const container = document.querySelector(".container");
-  kill(container);
-
-  document.querySelectorAll(".card, .modules-row, #modules, .module-card, .module-card svg, .module-svg")
-    .forEach(kill);
-
-  // 4) if any overlay element exists accidentally, make sure it can’t intercept visuals
-  document.querySelectorAll(".modal-backdrop, .overlay, .backdrop")
-    .forEach(el => { el.style.display = "none"; el.style.pointerEvents = "none"; });
 }
 
 // ============================================================
@@ -222,6 +218,7 @@ async function _refreshHeadStatusOnce() {
     const ipt = svg.querySelector("#ip_text");
     if (ipt) ipt.textContent = (typeof s.ip === "string" && s.ip) ? s.ip : "0.0.0.0";
 
+    // Hat indicators
     try {
       const hr = await fetch("/api/hat_status", { cache: "no-store" });
       if (hr.ok) {
@@ -255,7 +252,7 @@ async function _refreshHeadStatusOnce() {
         }
       }
     } catch (e) {
-      // ignore
+      // ignore hat indicator errors
     }
   } catch (e) {
     _setHeadLed(svg, "#led_pwr", false, false);
@@ -273,7 +270,7 @@ function startHeadStatusPolling() {
 }
 
 // ============================================================
-// TEST MODE
+// TEST MODE (cycle channels across all non-head modules)
 // ============================================================
 
 let TEST_RUNNING = false;
@@ -288,9 +285,29 @@ function _setTestBtn(on) {
   b.textContent = on ? "Stop Test" : "Test";
 }
 
+function _allLedOff() {
+  for (const [_mid, info] of MODULE_SVGS.entries()) {
+    const root = info.svgRoot;
+    if (!root) continue;
+
+    const ons = root.querySelectorAll(".led-on");
+    ons.forEach((el) => {
+      el.classList.remove("led-on");
+      el.classList.add("led-off");
+    });
+
+    for (let ch = 1; ch <= 16; ch++) {
+      const el = _findLedElement(info.type, root, ch);
+      if (el) {
+        el.classList.remove("led-on");
+        el.classList.add("led-off");
+      }
+    }
+  }
+}
+
 function _findLedElement(moduleType, svgRoot, channelIndex) {
   if (!svgRoot) return null;
-
   const mt = String(moduleType || "").toLowerCase();
 
   const id2 = `ch${String(channelIndex).padStart(2, "0")}`;
@@ -315,25 +332,6 @@ function _findLedElement(moduleType, svgRoot, channelIndex) {
   return null;
 }
 
-
-function updateModuleLeds(svgRoot, states) {
-  if (!svgRoot) return;
-
-  ensureSvgVisible(svgRoot);
-
-  const leds = svgRoot.querySelectorAll(".led");
-
-  leds.forEach((led, i) => {
-    led.classList.remove("led-on", "led-off", "blink");
-
-    if (states[i] === 1) {
-      led.classList.add("led-on");
-    } else {
-      led.classList.add("led-off");
-    }
-  });
-}
-
 function _flashLed(el, on) {
   if (!el) return;
   if (on) {
@@ -348,14 +346,15 @@ function _flashLed(el, on) {
 async function runTestLoop() {
   TEST_RUNNING = true;
   _setTestBtn(true);
-
   _allLedOff();
 
   while (TEST_RUNNING) {
     for (const [_moduleId, info] of MODULE_SVGS.entries()) {
       if (!TEST_RUNNING) break;
+
       for (let ch = 1; ch <= 16; ch++) {
         if (!TEST_RUNNING) break;
+
         const el = _findLedElement(info.type, info.svgRoot, ch);
         _flashLed(el, true);
         await _sleep(250);
@@ -378,7 +377,6 @@ function toggleTest() {
   }
   runTestLoop();
 }
-
 window.toggleTest = toggleTest;
 
 // ============================================================
@@ -393,6 +391,7 @@ async function loadStatus() {
     const res = await fetch("/api/head_status", { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
+
     if (data && data.server_running) {
       el.textContent = "RUNNING";
       el.classList.remove("status-bad");
@@ -412,6 +411,8 @@ async function loadStatus() {
 // ============================================================
 
 async function loadModules() {
+  _clearAnyDimState();
+
   const row = $("modules");
   if (!row) return;
 
@@ -476,6 +477,7 @@ async function loadModules() {
 
       const svgRoot = svgHolder.querySelector("svg");
       if (svgRoot) {
+        ensureSvgVisible(svgRoot);
         MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
       }
     } catch (e) {
@@ -483,7 +485,44 @@ async function loadModules() {
       MODULE_SVGS.delete(m.id);
     }
   }
+
+  _clearAnyDimState();
 }
+
+// ============================================================
+// ADD PAGE SUPPORT
+// ============================================================
+
+async function addModuleCore(type, addr, name) {
+  const res = await fetch("/modules/add", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: type, address: addr, name: name }),
+  });
+  return await res.json();
+}
+
+async function addModuleThenGoBack() {
+  const type = $("add_type")?.value || "";
+  const addr = $("add_addr")?.value || "";
+  const name = $("add_name")?.value || "";
+
+  const errBox = $("add_error");
+  if (errBox) { errBox.style.display = "none"; errBox.textContent = ""; }
+
+  const data = await addModuleCore(type, addr, name);
+  if (!data.ok) {
+    if (errBox) {
+      errBox.textContent = "Error: " + data.error;
+      errBox.style.display = "block";
+    } else {
+      alert("Error: " + data.error);
+    }
+    return;
+  }
+  window.location.href = "/ui";
+}
+window.addModuleThenGoBack = addModuleThenGoBack;
 
 // ============================================================
 // MODAL (SETTINGS)
@@ -491,8 +530,7 @@ async function loadModules() {
 
 function closeModal() {
   const b = $("modal_backdrop");
-  if (!b) return;
-  b.style.display = "none";
+  if (b) b.style.display = "none";
 
   const err = $("modal_error");
   if (err) {
@@ -500,12 +538,16 @@ function closeModal() {
     err.textContent = "";
   }
 
+  document.body.classList.remove("modal-open");
   MODAL_CTX = { id: null, type: null, address: null, name: null };
-}
 
+  _clearAnyDimState();
+}
 window.closeModal = closeModal;
 
 async function openModal(module) {
+  _clearAnyDimState();
+
   MODAL_CTX = {
     id: module.id,
     type: module.type,
@@ -518,6 +560,55 @@ async function openModal(module) {
 
   $("modal_module_name").value = module.name || "";
   $("modal_address_display").textContent = module.address || "0x00";
+
+  const changeBtn = $("change_addr_btn");
+  const addrPrompt = $("addr_prompt");
+  const addrInput = $("addr_prompt_input");
+  const addrCancel = $("addr_prompt_cancel");
+  const addrOk = $("addr_prompt_ok");
+  const addrErr = $("addr_prompt_error");
+
+  if (changeBtn) {
+    changeBtn.onclick = () => {
+      if (addrErr) { addrErr.style.display = "none"; addrErr.textContent = ""; }
+      addrInput.value = module.address || "";
+      addrPrompt.style.display = "block";
+      addrInput.focus();
+    };
+  }
+
+  if (addrCancel) addrCancel.onclick = () => {
+    addrPrompt.style.display = "none";
+    if (addrErr) { addrErr.style.display = "none"; addrErr.textContent = ""; }
+  };
+
+  if (addrOk) addrOk.onclick = async () => {
+    const newAddr = addrInput.value.trim();
+    if (!newAddr) {
+      if (addrErr) { addrErr.textContent = "Address required"; addrErr.style.display = "block"; }
+      return;
+    }
+    try {
+      const res = await fetch("/modules/change_address", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: MODAL_CTX.id, address: newAddr })
+      });
+      const j = await res.json();
+      if (!j.ok) {
+        if (addrErr) { addrErr.textContent = j.error || "change failed"; addrErr.style.display = "block"; }
+        return;
+      }
+      MODAL_CTX.id = j.module.id || MODAL_CTX.id;
+      MODAL_CTX.address = j.module.address || MODAL_CTX.address;
+      $("modal_address_display").textContent = MODAL_CTX.address;
+      $("modal_sub").textContent = `${MODAL_CTX.address} • ${MODAL_CTX.id}`;
+      addrPrompt.style.display = "none";
+      await loadModules();
+    } catch (e) {
+      if (addrErr) { addrErr.textContent = String(e); addrErr.style.display = "block"; }
+    }
+  };
 
   const grid = $("channels_grid");
   grid.innerHTML = "";
@@ -557,7 +648,12 @@ async function openModal(module) {
     // ignore
   }
 
-  $("modal_backdrop").style.display = "flex";
+  const backdrop = $("modal_backdrop");
+  if (backdrop) {
+    backdrop.style.display = "flex";
+    backdrop.style.pointerEvents = "auto";
+  }
+  document.body.classList.add("modal-open");
 }
 
 async function saveModal() {
@@ -566,7 +662,6 @@ async function saveModal() {
     err.style.display = "none";
     err.textContent = "";
   }
-
   if (!MODAL_CTX.id) return;
 
   const moduleName = $("modal_module_name").value || "";
@@ -650,9 +745,11 @@ let _originalHeadModuleHTML = null;
 let _expanderSVGCache = null;
 
 async function onExtClick(event) {
+  event?.preventDefault?.();
   event?.stopPropagation?.();
 
-  // THIS is the “JS fix” part: wipe any stuck dim/filter/overlay state.
+  // THIS is what stops the “gray overlay” from sticking
+  closeModal();
   _clearAnyDimState();
 
   const headCard = document.getElementById("head_module_card");
@@ -674,9 +771,6 @@ async function onExtClick(event) {
   }
 
   headCard.className = "module-card head-card";
-  headCard.style.opacity = "1";
-  headCard.style.filter = "none";
-
   headCard.innerHTML = `
     <div class="module-header">
       <div>
@@ -689,10 +783,13 @@ async function onExtClick(event) {
 
   const svgContainer = headCard.querySelector("#expander_module_svg");
   if (svgContainer) {
+    svgContainer.classList.add("module-svg");
     svgContainer.innerHTML = _expanderSVGCache;
+
+    const svgRoot = svgContainer.querySelector("svg");
+    if (svgRoot) ensureSvgVisible(svgRoot);
   }
 
-  // hook back + settings
   setTimeout(() => {
     _clearAnyDimState();
 
@@ -711,32 +808,30 @@ async function onExtClick(event) {
     }
   }, 0);
 }
-
 window.onExtClick = onExtClick;
 
 function onExpanderBackClick(event) {
+  event?.preventDefault?.();
   event?.stopPropagation?.();
+
+  closeModal();
   _clearAnyDimState();
 
   const headCard = document.getElementById("head_module_card");
   if (!headCard || !_originalHeadModuleHTML) return;
-
-  headCard.className = "module-card head-card";
-  headCard.style.opacity = "1";
-  headCard.style.filter = "none";
 
   headCard.innerHTML = _originalHeadModuleHTML;
   attachExtClickHandler();
 
   _clearAnyDimState();
 }
-
 window.onExpanderBackClick = onExpanderBackClick;
 
 // ============================================================
 // BOOT
 // ============================================================
 
+_clearAnyDimState();
 loadStatus();
 loadModules();
 setInterval(loadStatus, 4000);
