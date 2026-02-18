@@ -9,9 +9,13 @@
 
 /* Force module cards and SVGs to be fully opaque */
 /* Remove forced opacity and filter */
-.module-card, .module-svg, .module-card svg {
-  opacity: 1;
-  filter: none;
+/* Force full opacity for all module cards, SVGs, and children */
+.module-card, .module-svg, .module-card svg,
+.module-card *,
+.module-svg *,
+.module-card svg * {
+  opacity: 1 !important;
+  filter: none !important;
 }
 
 :root {
