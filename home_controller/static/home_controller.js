@@ -112,25 +112,24 @@ const HEAD_MODULE_SVG = `
 
         <!-- EXT indicator below the two-column grid, same size as module LEDs, label to the left -->
         <text class="label" x="24" y="80" text-anchor="end">EXT</text>
-        <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
+        <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer" onclick="onExtClick(event)"><title>EXT</title></rect>
+          <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
+      function attachExtClickHandler() {
+        // Called after head SVG is inserted
+        const headCard = document.getElementById("head_module_card");
+        if (!headCard) return;
+        const extRect = headCard.querySelector("#hat_ext");
+        if (extRect) {
+          extRect.onclick = onExtClick;
+          extRect.style.cursor = "pointer";
+        }
+      }
       </g>
       </g>
     </svg>
   </div>
 </div>
 `;
-
-// Attach the click handler for the external module (global scope)
-function attachExtClickHandler() {
-  // Called after head SVG is inserted
-  const headCard = document.getElementById("head_module_card");
-  if (!headCard) return;
-  const extRect = headCard.querySelector("#hat_ext");
-  if (extRect) {
-    extRect.onclick = onExtClick;
-    extRect.style.cursor = "pointer";
-  }
-}
 
 function _insertHeadModule(rowEl) {
   if (!rowEl) return;
@@ -396,18 +395,18 @@ async function loadModules() {
   if (!row) return;
 
   const res = await fetch("/modules");
-  const data = await res.json();
-// Attach the click handler for the external module (global scope)
-function attachExtClickHandler() {
-  // Called after head SVG is inserted
-  const headCard = document.getElementById("head_module_card");
-  if (!headCard) return;
-  const extRect = headCard.querySelector("#hat_ext");
-  if (extRect) {
-    extRect.onclick = onExtClick;
-    extRect.style.cursor = "pointer";
-  }
-}
+    // Attach the click handler for the external module
+    function attachExtClickHandler() {
+      // Called after head SVG is inserted
+      const headCard = document.getElementById("head_module_card");
+      if (!headCard) return;
+      const extRect = headCard.querySelector("#hat_ext");
+      if (extRect) {
+        extRect.onclick = onExtClick;
+        extRect.style.cursor = "pointer";
+      }
+    }
+    attachExtClickHandler();
 
   row.innerHTML = "";
   MODULE_SVGS.clear(); // prevent stale svg references
@@ -734,7 +733,7 @@ async function onExtClick(event) {
   // Fetch and inject expander SVG
   if (!_expanderSVGCache) {
     try {
-      const res = await fetch("/modules/svg/i2c");
+      const res = await fetch("/modules/i2c/I2C_EXPANDER.svg");
       if (!res.ok) throw new Error("Failed to load expander SVG");
       _expanderSVGCache = await res.text();
     } catch (e) {
@@ -742,19 +741,7 @@ async function onExtClick(event) {
       return;
     }
   }
-  // Updated HTML structure for expander SVG
-  headCard.innerHTML = `
-    <div class="module-card head-card" style="width:150px;">
-      <div class="module-header">
-        <div>
-          <div class="module-title">I2C EXPANDER</div>
-        </div>
-      </div>
-      <div class="module-svg" id="expander_module_svg">
-        ${_expanderSVGCache}
-      </div>
-    </div>
-  `;
+  headCard.innerHTML = `<div class=\"module-header\"><div><div class=\"module-title\">I2C EXPANDER</div></div></div><div class=\"module-svg\">${_expanderSVGCache}</div>`;
   // Attach back button handler after SVG is in DOM
   setTimeout(() => {
     const backBtn = document.getElementById("head_module_card").querySelector("#expander_back_btn");
