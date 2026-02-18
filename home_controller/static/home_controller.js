@@ -422,6 +422,7 @@ async function loadModules() {
   row.innerHTML = "";
   MODULE_SVGS.clear();
 
+  // Insert head module row
   _insertHeadModule(row);
   startHeadStatusPolling();
 
@@ -433,7 +434,28 @@ async function loadModules() {
     return;
   }
 
+  // Partition modules: ext and its subsystem, others
+  const extModules = [];
+  const extSubsystem = [];
+  const normalModules = [];
+  let extSubsystemType = null;
+
   for (const m of data) {
+    if (String(m.type).toLowerCase() === "ext") {
+      extModules.push(m);
+      extSubsystemType = m.subsystem || null;
+    }
+  }
+  for (const m of data) {
+    if (String(m.type).toLowerCase() !== "ext" && extSubsystemType && m.subsystem === extSubsystemType) {
+      extSubsystem.push(m);
+    } else if (String(m.type).toLowerCase() !== "head" && String(m.type).toLowerCase() !== "ext") {
+      normalModules.push(m);
+    }
+  }
+
+  // Render normal modules in first row (beside head)
+  for (const m of normalModules) {
     const card = document.createElement("div");
     card.className = "module-card";
 
@@ -484,6 +506,69 @@ async function loadModules() {
       svgHolder.textContent = `No SVG for type: ${m.type}`;
       MODULE_SVGS.delete(m.id);
     }
+  }
+
+  // If ext module(s) present, render a new row under head for ext and its subsystem
+  if (extModules.length > 0 || extSubsystem.length > 0) {
+    const extRow = document.createElement("div");
+    extRow.className = "modules-row";
+    extRow.style.marginTop = "-8px";
+    extRow.style.marginBottom = "8px";
+
+    for (const m of extModules.concat(extSubsystem)) {
+      const card = document.createElement("div");
+      card.className = "module-card";
+
+      const header = document.createElement("div");
+      header.className = "module-header";
+
+      const left = document.createElement("div");
+
+      const displayName =
+        (m.name && String(m.name).trim().length > 0)
+          ? String(m.name).trim()
+          : `${String(m.type || "").toUpperCase()} MODULE`;
+
+      left.innerHTML = `
+        <div class="module-title">${displayName}</div>
+        <div class="module-sub">${String(m.type || "").toUpperCase()} • ${m.address}</div>
+      `;
+
+      const gear = document.createElement("button");
+      gear.className = "icon-btn";
+      gear.title = "Settings";
+      gear.textContent = "⚙️";
+      gear.onclick = () => openModal(m);
+
+      header.appendChild(left);
+      header.appendChild(gear);
+
+      const svgHolder = document.createElement("div");
+      svgHolder.className = "module-svg";
+      svgHolder.textContent = "Loading…";
+
+      card.appendChild(header);
+      card.appendChild(svgHolder);
+      extRow.appendChild(card);
+
+      try {
+        const svgRes = await fetch(`/modules/svg/${m.type}`);
+        if (!svgRes.ok) throw new Error("SVG not found");
+        const svgText = await svgRes.text();
+        svgHolder.innerHTML = svgText;
+
+        const svgRoot = svgHolder.querySelector("svg");
+        if (svgRoot) {
+          ensureSvgVisible(svgRoot);
+          MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
+        }
+      } catch (e) {
+        svgHolder.textContent = `No SVG for type: ${m.type}`;
+        MODULE_SVGS.delete(m.id);
+      }
+    }
+    // Insert ext row after head module
+    row.parentNode.insertBefore(extRow, row.nextSibling);
   }
 
   _clearAnyDimState();
