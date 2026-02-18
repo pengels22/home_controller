@@ -120,6 +120,18 @@ const HEAD_MODULE_SVG = `
 </div>
 `;
 
+// Attach the click handler for the external module (global scope)
+function attachExtClickHandler() {
+  // Called after head SVG is inserted
+  const headCard = document.getElementById("head_module_card");
+  if (!headCard) return;
+  const extRect = headCard.querySelector("#hat_ext");
+  if (extRect) {
+    extRect.onclick = onExtClick;
+    extRect.style.cursor = "pointer";
+  }
+}
+
 function _insertHeadModule(rowEl) {
   if (!rowEl) return;
   if ($("head_module_card")) return; // already inserted
