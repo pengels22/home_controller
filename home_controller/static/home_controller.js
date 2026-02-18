@@ -165,12 +165,13 @@ const HEAD_MODULE_SVG = `
 
 // EXT click hookup
 function attachExtClickHandler() {
+  // Remove EXT indicator click handler
   const headCard = document.getElementById("head_module_card");
   if (!headCard) return;
   const extRect = headCard.querySelector("#hat_ext");
   if (extRect) {
-    extRect.onclick = onExtClick;
-    extRect.style.cursor = "pointer";
+    extRect.onclick = null;
+    extRect.style.cursor = "default";
   }
 }
 

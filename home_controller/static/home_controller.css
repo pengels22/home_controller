@@ -8,9 +8,10 @@
 .module-svg .hat-off { fill:#cfcfcf; }
 
 /* Force module cards and SVGs to be fully opaque */
+/* Remove forced opacity and filter */
 .module-card, .module-svg, .module-card svg {
-  opacity: 1 !important;
-  filter: none !important;
+  opacity: 1;
+  filter: none;
 }
 
 :root {
