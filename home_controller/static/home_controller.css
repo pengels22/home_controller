@@ -1,3 +1,7 @@
+/* Force module cards and SVGs to be fully opaque */
+.module-card, .module-svg, .module-card svg {
+  opacity: 1 !important;
+}
 :root {
   --bg: #0f1115;
   --card: #161a22;
