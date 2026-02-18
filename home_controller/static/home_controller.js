@@ -747,7 +747,7 @@ async function onExtClick(event) {
   const cardParent = headCard.parentNode;
   if (!cardParent) return;
   cardParent.innerHTML = `
-    <div class="module-card head-card" id="head_module_card" style="width:150px;">
+    <div class="module-card" id="head_module_card" style="width:150px;">
       <div class="module-header">
         <div>
           <div class="module-title">I2C EXPANDER</div>
