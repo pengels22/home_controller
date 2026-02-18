@@ -112,18 +112,7 @@ const HEAD_MODULE_SVG = `
 
         <!-- EXT indicator below the two-column grid, same size as module LEDs, label to the left -->
         <text class="label" x="24" y="80" text-anchor="end">EXT</text>
-        <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer" onclick="onExtClick(event)"><title>EXT</title></rect>
-          <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
-      function attachExtClickHandler() {
-        // Called after head SVG is inserted
-        const headCard = document.getElementById("head_module_card");
-        if (!headCard) return;
-        const extRect = headCard.querySelector("#hat_ext");
-        if (extRect) {
-          extRect.onclick = onExtClick;
-          extRect.style.cursor = "pointer";
-        }
-      }
+        <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
       </g>
       </g>
     </svg>
