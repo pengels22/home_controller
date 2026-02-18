@@ -744,18 +744,14 @@ async function onExtClick(event) {
   }
   // Updated HTML structure for expander SVG
   // Replace the module card in its parent container
-  const cardParent = headCard.parentNode;
-  if (!cardParent) return;
-  cardParent.innerHTML = `
-    <div class="module-card" id="head_module_card" style="width:150px; border: 2px solid red; background: #fff;">
-      <div class="module-header">
-        <div>
-          <div class="module-title">I2C EXPANDER</div>
-        </div>
+  headCard.innerHTML = `
+    <div class="module-header">
+      <div>
+        <div class="module-title">I2C EXPANDER</div>
       </div>
-      <div class="module-svg" id="expander_module_svg">
-        ${_expanderSVGCache}
-      </div>
+    </div>
+    <div class="module-svg" id="expander_module_svg">
+      ${_expanderSVGCache}
     </div>
   `;
   // Attach back button handler after SVG is in DOM
