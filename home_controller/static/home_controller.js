@@ -42,6 +42,7 @@ const HEAD_MODULE_SVG = `
 
           #head_svg .ipBox { fill:#ffffff; stroke:#8a8a8a; stroke-width:2; }
           #head_svg .ipText { font-family:"Courier New",Courier,monospace; font-size:13px; font-weight:700; fill:#000; }
+
           #head_svg .hat-off { fill:#cfcfcf; }
           #head_svg .hat-a { fill:#ffd43b; }
           #head_svg .hat-b { fill:#ff4d4f; }
@@ -113,7 +114,10 @@ const HEAD_MODULE_SVG = `
 </div>
 `;
 
-// Attach the click handler for the external module (global scope)
+// ============================================================
+// EXT click hookup
+// ============================================================
+
 function attachExtClickHandler() {
   const headCard = document.getElementById("head_module_card");
   if (!headCard) return;
@@ -126,21 +130,59 @@ function attachExtClickHandler() {
 
 function _insertHeadModule(rowEl) {
   if (!rowEl) return;
-  if ($("head_module_card")) return; // already inserted
+  if ($("head_module_card")) return;
   rowEl.insertAdjacentHTML("afterbegin", HEAD_MODULE_SVG);
   attachExtClickHandler();
 }
+
+// ============================================================
+// HARD RESET ANY “DIM/OVERLAY” STATE (JS DEFENSE)
+// ============================================================
+
+function _clearAnyDimState() {
+  // 1) hide modal backdrop if it exists
+  const b = $("modal_backdrop");
+  if (b) b.style.display = "none";
+
+  // 2) remove any common “dim” classes if you ever add them elsewhere
+  document.body.classList.remove("modal-open", "dim", "busy", "disabled");
+
+  // 3) nuke inline filter/opacity on likely containers
+  const kill = (el) => {
+    if (!el) return;
+    el.style.filter = "none";
+    el.style.opacity = "1";
+    el.style.backdropFilter = "none";
+    el.style.webkitBackdropFilter = "none";
+  };
+
+  kill(document.body);
+
+  const container = document.querySelector(".container");
+  kill(container);
+
+  document.querySelectorAll(".card, .modules-row, #modules, .module-card, .module-card svg, .module-svg")
+    .forEach(kill);
+
+  // 4) if any overlay element exists accidentally, make sure it can’t intercept visuals
+  document.querySelectorAll(".modal-backdrop, .overlay, .backdrop")
+    .forEach(el => { el.style.display = "none"; el.style.pointerEvents = "none"; });
+}
+
+// ============================================================
+// HEAD STATUS
+// ============================================================
 
 function _setHeadLed(svg, sel, on, blink) {
   const el = svg.querySelector(sel);
   if (!el) return;
 
   if (on) {
-    el.style.fill = "#39d353"; // green
+    el.style.fill = "#39d353";
     if (blink) el.classList.add("blink");
     else el.classList.remove("blink");
   } else {
-    el.style.fill = "#cfcfcf"; // off/gray
+    el.style.fill = "#cfcfcf";
     el.classList.remove("blink");
   }
   el.style.opacity = "1";
@@ -164,9 +206,8 @@ async function _refreshHeadStatusOnce() {
     const ipt = svg.querySelector("#ip_text");
     if (ipt) ipt.textContent = (typeof s.ip === "string" && s.ip) ? s.ip : "0.0.0.0";
 
-    // Hat status indicators (modules 1..8)
     try {
-      const hr = await fetch('/api/hat_status', { cache: 'no-store' });
+      const hr = await fetch("/api/hat_status", { cache: "no-store" });
       if (hr.ok) {
         const hs = await hr.json();
         if (hs && hs.ok) {
@@ -176,8 +217,8 @@ async function _refreshHeadStatusOnce() {
 
             let a = false, b = false;
             if (hs.modules && hs.modules[String(i)]) {
-              a = !!hs.modules[String(i)]['24v_a'];
-              b = !!hs.modules[String(i)]['24v_b'];
+              a = !!hs.modules[String(i)]["24v_a"];
+              b = !!hs.modules[String(i)]["24v_b"];
             } else if (hs.ports) {
               const ga = Number(hs.ports.gpio_a || 0);
               const gb = Number(hs.ports.gpio_b || 0);
@@ -185,22 +226,20 @@ async function _refreshHeadStatusOnce() {
               b = !!((gb >> (i - 1)) & 1);
             }
 
-            if (a && b) el.style.fill = '#39d353';
-            else if (a && !b) el.style.fill = '#ffd43b';
-            else if (!a && b) el.style.fill = '#ff4d4f';
-            else el.style.fill = '#cfcfcf';
+            if (a && b) el.style.fill = "#39d353";
+            else if (a && !b) el.style.fill = "#ffd43b";
+            else if (!a && b) el.style.fill = "#ff4d4f";
+            else el.style.fill = "#cfcfcf";
           }
 
-          // EXT indicator (optional, if your API provides it)
-          const extEl = svg.querySelector('#hat_ext');
+          const extEl = svg.querySelector("#hat_ext");
           if (extEl) {
-            if (hs.ext_present) extEl.style.fill = '#39d353';
-            else extEl.style.fill = '#cfcfcf';
+            extEl.style.fill = hs.ext_present ? "#39d353" : "#cfcfcf";
           }
         }
       }
     } catch (e) {
-      // ignore hat indicator errors
+      // ignore
     }
   } catch (e) {
     _setHeadLed(svg, "#led_pwr", false, false);
@@ -218,7 +257,7 @@ function startHeadStatusPolling() {
 }
 
 // ============================================================
-// TEST MODE (cycle channels across all non-head modules)
+// TEST MODE
 // ============================================================
 
 let TEST_RUNNING = false;
@@ -233,34 +272,6 @@ function _setTestBtn(on) {
   b.textContent = on ? "Stop Test" : "Test";
 }
 
-function _allLedOff() {
-  for (const [_mid, info] of MODULE_SVGS.entries()) {
-    const root = info.svgRoot;
-    if (!root) continue;
-
-    const ons = root.querySelectorAll(".led-on");
-    ons.forEach((el) => {
-      el.classList.remove("led-on");
-      el.classList.add("led-off");
-    });
-
-    for (let ch = 1; ch <= 16; ch++) {
-      const el = _findLedElement(info.type, root, ch);
-      if (el) {
-        el.classList.remove("led-on");
-        el.classList.add("led-off");
-      }
-    }
-  }
-}
-
-/**
- * Finds the LED "group" element for a channel.
- * Supports:
- *  - ch01..ch16 (your current SVGs)
- *  - ch1..ch16 (fallback)
- *  - aio: in1..in8 / out1..out8 (future fallback)
- */
 function _findLedElement(moduleType, svgRoot, channelIndex) {
   if (!svgRoot) return null;
 
@@ -288,6 +299,26 @@ function _findLedElement(moduleType, svgRoot, channelIndex) {
   return null;
 }
 
+function _allLedOff() {
+  for (const [_mid, info] of MODULE_SVGS.entries()) {
+    const root = info.svgRoot;
+    if (!root) continue;
+
+    root.querySelectorAll(".led-on").forEach((el) => {
+      el.classList.remove("led-on");
+      el.classList.add("led-off");
+    });
+
+    for (let ch = 1; ch <= 16; ch++) {
+      const el = _findLedElement(info.type, root, ch);
+      if (el) {
+        el.classList.remove("led-on");
+        el.classList.add("led-off");
+      }
+    }
+  }
+}
+
 function _flashLed(el, on) {
   if (!el) return;
   if (on) {
@@ -308,10 +339,8 @@ async function runTestLoop() {
   while (TEST_RUNNING) {
     for (const [_moduleId, info] of MODULE_SVGS.entries()) {
       if (!TEST_RUNNING) break;
-
       for (let ch = 1; ch <= 16; ch++) {
         if (!TEST_RUNNING) break;
-
         const el = _findLedElement(info.type, info.svgRoot, ch);
         _flashLed(el, true);
         await _sleep(250);
@@ -350,7 +379,7 @@ async function loadStatus() {
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
     if (data && data.server_running) {
-      el.textContent = `RUNNING`;
+      el.textContent = "RUNNING";
       el.classList.remove("status-bad");
       el.classList.add("status-good");
       return;
@@ -375,9 +404,8 @@ async function loadModules() {
   const data = await res.json();
 
   row.innerHTML = "";
-  MODULE_SVGS.clear(); // prevent stale svg references
+  MODULE_SVGS.clear();
 
-  // Always show head module first
   _insertHeadModule(row);
   startHeadStatusPolling();
 
@@ -443,42 +471,6 @@ async function loadModules() {
 }
 
 // ============================================================
-// ADD PAGE SUPPORT
-// ============================================================
-
-async function addModuleCore(type, addr, name) {
-  const res = await fetch("/modules/add", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ type: type, address: addr, name: name }),
-  });
-  return await res.json();
-}
-
-async function addModuleThenGoBack() {
-  const type = $("add_type")?.value || "";
-  const addr = $("add_addr")?.value || "";
-  const name = $("add_name")?.value || "";
-
-  const errBox = $("add_error");
-  if (errBox) { errBox.style.display = "none"; errBox.textContent = ""; }
-
-  const data = await addModuleCore(type, addr, name);
-  if (!data.ok) {
-    if (errBox) {
-      errBox.textContent = "Error: " + data.error;
-      errBox.style.display = "block";
-    } else {
-      alert("Error: " + data.error);
-    }
-    return;
-  }
-  window.location.href = "/ui";
-}
-
-window.addModuleThenGoBack = addModuleThenGoBack;
-
-// ============================================================
 // MODAL (SETTINGS)
 // ============================================================
 
@@ -511,55 +503,6 @@ async function openModal(module) {
 
   $("modal_module_name").value = module.name || "";
   $("modal_address_display").textContent = module.address || "0x00";
-
-  const changeBtn = $("change_addr_btn");
-  const addrPrompt = $("addr_prompt");
-  const addrInput = $("addr_prompt_input");
-  const addrCancel = $("addr_prompt_cancel");
-  const addrOk = $("addr_prompt_ok");
-  const addrErr = $("addr_prompt_error");
-
-  if (changeBtn) {
-    changeBtn.onclick = () => {
-      if (addrErr) { addrErr.style.display = 'none'; addrErr.textContent = ''; }
-      addrInput.value = module.address || '';
-      addrPrompt.style.display = 'block';
-      addrInput.focus();
-    };
-  }
-
-  if (addrCancel) addrCancel.onclick = () => {
-    addrPrompt.style.display = 'none';
-    if (addrErr) { addrErr.style.display='none'; addrErr.textContent=''; }
-  };
-
-  if (addrOk) addrOk.onclick = async () => {
-    const newAddr = addrInput.value.trim();
-    if (!newAddr) {
-      if (addrErr) { addrErr.textContent = 'Address required'; addrErr.style.display = 'block'; }
-      return;
-    }
-    try {
-      const res = await fetch('/modules/change_address', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ id: MODAL_CTX.id, address: newAddr })
-      });
-      const j = await res.json();
-      if (!j.ok) {
-        if (addrErr) { addrErr.textContent = j.error || 'change failed'; addrErr.style.display = 'block'; }
-        return;
-      }
-      MODAL_CTX.id = j.module.id || MODAL_CTX.id;
-      MODAL_CTX.address = j.module.address || MODAL_CTX.address;
-      $("modal_address_display").textContent = MODAL_CTX.address;
-      $("modal_sub").textContent = `${MODAL_CTX.address} • ${MODAL_CTX.id}`;
-      addrPrompt.style.display = 'none';
-      await loadModules();
-    } catch (e) {
-      if (addrErr) { addrErr.textContent = String(e); addrErr.style.display = 'block'; }
-    }
-  };
 
   const grid = $("channels_grid");
   grid.innerHTML = "";
@@ -691,17 +634,11 @@ window.removeFromModal = removeFromModal;
 let _originalHeadModuleHTML = null;
 let _expanderSVGCache = null;
 
-function _forceCloseBackdrop() {
-  const b = $("modal_backdrop");
-  if (b) b.style.display = "none";
-  document.body.classList.remove("modal-open");
-}
-
 async function onExtClick(event) {
   event?.stopPropagation?.();
 
-  // Prevent the “dim/opaque overlay” from sticking around
-  _forceCloseBackdrop();
+  // THIS is the “JS fix” part: wipe any stuck dim/filter/overlay state.
+  _clearAnyDimState();
 
   const headCard = document.getElementById("head_module_card");
   if (!headCard) return;
@@ -721,7 +658,10 @@ async function onExtClick(event) {
     }
   }
 
-  headCard.className = 'module-card head-card';
+  headCard.className = "module-card head-card";
+  headCard.style.opacity = "1";
+  headCard.style.filter = "none";
+
   headCard.innerHTML = `
     <div class="module-header">
       <div>
@@ -732,26 +672,27 @@ async function onExtClick(event) {
     <div class="module-svg" id="expander_module_svg"></div>
   `;
 
-  const svgContainer = headCard.querySelector('#expander_module_svg');
+  const svgContainer = headCard.querySelector("#expander_module_svg");
   if (svgContainer) {
-    svgContainer.classList.add('module-svg');
     svgContainer.innerHTML = _expanderSVGCache;
   }
 
+  // hook back + settings
   setTimeout(() => {
+    _clearAnyDimState();
+
     const backBtn = document.getElementById("head_module_card")?.querySelector("#expander_back_btn");
     if (backBtn) backBtn.onclick = onExpanderBackClick;
 
     const settingsBtn = document.getElementById("expander_settings_btn");
     if (settingsBtn) {
-      fetch('/modules')
+      fetch("/modules")
         .then(r => r.json())
         .then(modules => {
-          const expander = modules.find(m => String(m.type).toLowerCase() === 'i2c');
-          if (expander) settingsBtn.onclick = () => openModal(expander);
-          else settingsBtn.onclick = () => alert('Expander module not found.');
+          const expander = modules.find(m => String(m.type).toLowerCase() === "i2c");
+          settingsBtn.onclick = expander ? () => openModal(expander) : () => alert("Expander module not found.");
         })
-        .catch(() => { settingsBtn.onclick = () => alert('Expander module not found.'); });
+        .catch(() => { settingsBtn.onclick = () => alert("Expander module not found."); });
     }
   }, 0);
 }
@@ -760,13 +701,19 @@ window.onExtClick = onExtClick;
 
 function onExpanderBackClick(event) {
   event?.stopPropagation?.();
-
-  _forceCloseBackdrop();
+  _clearAnyDimState();
 
   const headCard = document.getElementById("head_module_card");
   if (!headCard || !_originalHeadModuleHTML) return;
+
+  headCard.className = "module-card head-card";
+  headCard.style.opacity = "1";
+  headCard.style.filter = "none";
+
   headCard.innerHTML = _originalHeadModuleHTML;
   attachExtClickHandler();
+
+  _clearAnyDimState();
 }
 
 window.onExpanderBackClick = onExpanderBackClick;
