@@ -758,6 +758,13 @@ async function onExtClick(event) {
     const parser = new DOMParser();
     const svgDoc = parser.parseFromString(_expanderSVGCache, 'image/svg+xml');
     const svgElem = svgDoc.documentElement;
+    svgElem.style.opacity = '1';
+    // Force .card fill and opacity
+    const cardElem = svgElem.querySelector('.card');
+    if (cardElem) {
+      cardElem.style.opacity = '1';
+      cardElem.setAttribute('fill', '#eeeeee');
+    }
     svgContainer.appendChild(svgElem);
   }
   // Attach back button handler after SVG is in DOM
