@@ -395,7 +395,18 @@ async function loadModules() {
   if (!row) return;
 
   const res = await fetch("/modules");
-  const data = await res.json();
+    // Attach the click handler for the external module
+    function attachExtClickHandler() {
+      // Called after head SVG is inserted
+      const headCard = document.getElementById("head_module_card");
+      if (!headCard) return;
+      const extRect = headCard.querySelector("#hat_ext");
+      if (extRect) {
+        extRect.onclick = onExtClick;
+        extRect.style.cursor = "pointer";
+      }
+    }
+    attachExtClickHandler();
 
   row.innerHTML = "";
   MODULE_SVGS.clear(); // prevent stale svg references
