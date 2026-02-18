@@ -744,13 +744,15 @@ async function onExtClick(event) {
   }
   // Updated HTML structure for expander SVG
   headCard.innerHTML = `
-    <div class="module-header">
-      <div>
-        <div class="module-title">I2C EXPANDER</div>
+    <div class="module-card head-card" style="width:150px;">
+      <div class="module-header">
+        <div>
+          <div class="module-title">I2C EXPANDER</div>
+        </div>
       </div>
-    </div>
-    <div class="module-svg" id="expander_module_svg">
-      ${_expanderSVGCache}
+      <div class="module-svg" id="expander_module_svg">
+        ${_expanderSVGCache}
+      </div>
     </div>
   `;
   // Attach back button handler after SVG is in DOM
