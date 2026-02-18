@@ -38,7 +38,7 @@ except Exception:
 
 DEFAULT_I2C_BUS_NUM = 1  # fixed bus (Pi SDA/SCL)
 
-VALID_TYPES = ("di", "do", "aio")
+VALID_TYPES = ("di", "do", "aio", "ext")
 
 # Typical MCP23017 A0..A2 range.
 # We can expand later if you add other chips.
@@ -62,7 +62,7 @@ class ModuleEntry:
     id format: "i2c1-0x21"
     """
     id: str
-    type: str          # "di" | "do" | "aio"
+    type: str          # "di" | "do" | "aio" | "ext"
     address_hex: str   # "0x21"
     name: str = ""     # optional friendly label
 
@@ -250,6 +250,18 @@ class HomeControllerBackend:
         mtype = mtype.strip().lower()
         if mtype not in VALID_TYPES:
             raise ValueError(f"Invalid module type: {mtype}")
+
+        # For ext, skip address guardrails (user must provide a valid I2C address)
+        if mtype == "ext":
+            address_hex, address_int = self.normalize_address(address)
+            # Optionally, you could restrict ext addresses if needed
+            mid = self._module_id(address_hex)
+            if self._find_module_index(mid) >= 0:
+                raise ValueError(f"Module already exists: {mid}")
+            entry = ModuleEntry(id=mid, type=mtype, address_hex=address_hex, name=name.strip())
+            self.cfg.modules.append(entry)
+            self.save_config()
+            return entry
 
         address_hex, address_int = self.normalize_address(address)
 
