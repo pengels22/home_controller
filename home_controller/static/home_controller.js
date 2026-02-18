@@ -43,6 +43,10 @@ const HEAD_MODULE_SVG = `
 
           #head_svg .ipBox { fill:#ffffff; stroke:#8a8a8a; stroke-width:2; }
           #head_svg .ipText { font-family:"Courier New",Courier,monospace; font-size:13px; font-weight:700; fill:#000; }
+          #head_svg .hat-off { fill:#cfcfcf; }
+          #head_svg .hat-a { fill:#ffd43b; }
+          #head_svg .hat-b { fill:#ff4d4f; }
+          #head_svg .hat-ab { fill:#39d353; }
         </style>
       </defs>
 
@@ -51,29 +55,66 @@ const HEAD_MODULE_SVG = `
 
       <text class="title" x="83" y="32" text-anchor="middle">HEAD MODULE</text>
 
-      <text class="label" x="40" y="56">PWR</text>
-      <circle class="ledOuter" cx="52" cy="72" r="10"/>
-      <circle id="led_pwr" class="ledPwr" cx="52" cy="72" r="6"/>
+      <!-- power and network LEDs will be rendered inside the Pi enclosure below -->
 
-      <text class="label" x="96" y="56">NET</text>
-      <circle class="ledOuter" cx="108" cy="72" r="10"/>
-      <circle id="led_net" class="ledNet" cx="108" cy="72" r="6"/>
-
-      <rect class="inner" x="22" y="92" width="122" height="300" rx="12"/>
+      <rect class="inner" x="22" y="103" width="122" height="300" rx="12"/>
 
       <g transform="translate(30,110)">
         <rect class="pi" x="0" y="0" width="106" height="88" rx="10"/>
         <path class="inner" d="M64,0 V12"/>
         <rect class="piWindow" x="18" y="16" width="50" height="28" rx="6"/>
         <rect class="inner" x="22" y="20" width="42" height="20" rx="4"/>
+
+        <!-- moved power/net LEDs inside the Pi enclosure (shifted down by 0.5in -> ~48px) -->
+        <text class="label" x="12" y="61">PWR</text>
+        <circle class="ledOuter" cx="26" cy="73" r="10"/>
+        <circle id="led_pwr" class="ledPwr" cx="26" cy="73" r="6"/>
+
+        <text class="label" x="94" y="61" text-anchor="end">NET</text>
+        <circle class="ledOuter" cx="80" cy="73" r="10"/>
+        <circle id="led_net" class="ledNet" cx="80" cy="73" r="6"/>
       </g>
 
-      <text class="label" x="34" y="242">IP ADDRESS</text>
-      <rect class="ipBox" x="30" y="252" width="110" height="34" rx="8"/>
+      <text class="label" x="34" y="227">IP ADDRESS</text>
+      <rect class="ipBox" x="30" y="237" width="110" height="34" rx="8"/>
 
       <text id="ip_text" class="ipText"
-            x="35" y="274"
-            textLength="100" lengthAdjust="spacingAndGlyphs">0.0.0.0</text>
+        x="35" y="259"
+        textLength="100" lengthAdjust="spacingAndGlyphs">0.0.0.0</text>
+      <!-- Hat module indicators (1..8) arranged in 2 columns x 4 rows under the IP box -->
+      <g id="hat_indicators" transform="translate(57,305)">
+        <text class="label" x="0" y="-8">MODULES</text>
+        <!-- left column (1-4) with labels to the left -->
+        <text class="label" x="-6" y="8" text-anchor="end">1</text>
+        <rect id="hat_mod_1" class="hat-off" x="0" y="0" width="16" height="10" rx="2"><title>Module 1</title></rect>
+
+        <text class="label" x="-6" y="26" text-anchor="end">2</text>
+        <rect id="hat_mod_2" class="hat-off" x="0" y="18" width="16" height="10" rx="2"><title>Module 2</title></rect>
+
+        <text class="label" x="-6" y="44" text-anchor="end">3</text>
+        <rect id="hat_mod_3" class="hat-off" x="0" y="36" width="16" height="10" rx="2"><title>Module 3</title></rect>
+
+        <text class="label" x="-6" y="62" text-anchor="end">4</text>
+        <rect id="hat_mod_4" class="hat-off" x="0" y="54" width="16" height="10" rx="2"><title>Module 4</title></rect>
+
+        <!-- right column (5-8) with labels to the right -->
+        <rect id="hat_mod_5" class="hat-off" x="36" y="0" width="16" height="10" rx="2"><title>Module 5</title></rect>
+        <text class="label" x="58" y="8" text-anchor="start">5</text>
+
+        <rect id="hat_mod_6" class="hat-off" x="36" y="18" width="16" height="10" rx="2"><title>Module 6</title></rect>
+        <text class="label" x="58" y="26" text-anchor="start">6</text>
+
+        <rect id="hat_mod_7" class="hat-off" x="36" y="36" width="16" height="10" rx="2"><title>Module 7</title></rect>
+        <text class="label" x="58" y="44" text-anchor="start">7</text>
+
+        <rect id="hat_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
+        <text class="label" x="58" y="62" text-anchor="start">8</text>
+
+        <!-- EXT indicator below the two-column grid, same size as module LEDs, label to the left -->
+        <text class="label" x="24" y="80" text-anchor="end">EXT</text>
+        <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2"><title>EXT</title></rect>
+      </g>
+      </g>
     </svg>
   </div>
 </div>
@@ -121,6 +162,40 @@ async function _refreshHeadStatusOnce() {
     // IP
     const ipt = svg.querySelector("#ip_text");
     if (ipt) ipt.textContent = (typeof s.ip === "string" && s.ip) ? s.ip : "0.0.0.0";
+    
+    // Hat status indicators (modules 1..8)
+    try {
+      const hr = await fetch('/api/hat_status', { cache: 'no-store' });
+      if (hr.ok) {
+        const hs = await hr.json();
+        if (hs && hs.ok) {
+          // prefer explicit modules map if provided
+          for (let i = 1; i <= 8; i++) {
+            const el = svg.querySelector(`#hat_mod_${i}`);
+            if (!el) continue;
+
+            let a = false, b = false;
+            if (hs.modules && hs.modules[String(i)]) {
+              a = !!hs.modules[String(i)]['24v_a'];
+              b = !!hs.modules[String(i)]['24v_b'];
+            } else if (hs.ports) {
+              const ga = Number(hs.ports.gpio_a || 0);
+              const gb = Number(hs.ports.gpio_b || 0);
+              a = !!((ga >> (i - 1)) & 1);
+              b = !!((gb >> (i - 1)) & 1);
+            }
+
+            // color rules: both -> green, only A -> yellow, only B -> red, none -> gray
+            if (a && b) el.style.fill = '#39d353';
+            else if (a && !b) el.style.fill = '#ffd43b';
+            else if (!a && b) el.style.fill = '#ff4d4f';
+            else el.style.fill = '#cfcfcf';
+          }
+        }
+      }
+    } catch (e) {
+      // ignore hat indicator errors
+    }
   } catch (e) {
     // API failed
     _setHeadLed(svg, "#led_pwr", false, false);
@@ -172,6 +247,17 @@ function _allLedOff() {
         el.classList.remove("led-on");
         el.classList.add("led-off");
       }
+
+          // EXT indicator (extension board presence)
+          try {
+            const extEl = svg.querySelector('#hat_ext');
+            if (extEl) {
+              if (hs.ext_present) extEl.style.fill = '#39d353';
+              else extEl.style.fill = '#cfcfcf';
+            }
+          } catch (e) {
+            // ignore
+          }
     }
   }
 }

@@ -516,12 +516,24 @@ class HomeControllerBackend:
                         "24v_a": bool((a >> i) & 1),
                         "24v_b": bool((b >> i) & 1),
                     }
+                # extension presence: check for a dev entry at the ext address if provided
+                try:
+                    ext_addr_env = os.getenv("HC_HAT_EXT_ADDR", "0x21")
+                    ext_addr = int(ext_addr_env, 16) if isinstance(ext_addr_env, str) and ext_addr_env.startswith("0x") else int(ext_addr_env, 0)
+                except Exception:
+                    ext_addr = 0x21
+                ext_key = f"0x{ext_addr:02x}".lower()
+                ext_present = False
+                if self._dev_data.get(ext_key) is not None:
+                    ext_present = True
+
                 return {
                     "ok": True,
                     "bus": bus_num,
                     "address": addr_key,
                     "ports": {"gpio_a": a, "gpio_b": b},
                     "modules": modules,
+                    "ext_present": ext_present,
                 }
 
         if not _HAS_SMBUS:
@@ -543,12 +555,30 @@ class HomeControllerBackend:
                     "24v_b": bool((b >> i) & 1),
                 }
 
+            # detect optional extension board at configurable address (env HC_HAT_EXT_ADDR)
+            try:
+                ext_addr_env = os.getenv("HC_HAT_EXT_ADDR", "0x21")
+                ext_addr = int(ext_addr_env, 16) if isinstance(ext_addr_env, str) and ext_addr_env.startswith("0x") else int(ext_addr_env, 0)
+            except Exception:
+                ext_addr = 0x21
+
+            ext_present = False
+            if _HAS_SMBUS:
+                try:
+                    with smbus2.SMBus(bus_num) as bus:
+                        # try a quick read from the ext address; if it doesn't raise, consider present
+                        _ = bus.read_byte(ext_addr)
+                        ext_present = True
+                except Exception:
+                    ext_present = False
+
             return {
                 "ok": True,
                 "bus": bus_num,
                 "address": f"0x{address:02x}",
                 "ports": {"gpio_a": a, "gpio_b": b},
                 "modules": modules,
+                "ext_present": ext_present,
             }
         except Exception as e:
             return {"ok": False, "error": f"hat I2C read error: {e}", "bus": bus_num, "address": f"0x{address:02x}"}
