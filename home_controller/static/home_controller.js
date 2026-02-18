@@ -734,7 +734,7 @@ async function onExtClick(event) {
   // Fetch and inject expander SVG
   if (!_expanderSVGCache) {
     try {
-      const res = await fetch("/modules/i2c/I2C_EXPANDER.svg");
+      const res = await fetch("/modules/svg/i2c");
       if (!res.ok) throw new Error("Failed to load expander SVG");
       _expanderSVGCache = await res.text();
     } catch (e) {
