@@ -554,7 +554,9 @@ async function loadModules() {
       extRow.appendChild(card);
 
       try {
-        const svgRes = await fetch(`/modules/svg/${m.type}`);
+        // Use i2c expander SVG for ext modules
+        const svgType = String(m.type).toLowerCase() === "ext" ? "i2c" : m.type;
+        const svgRes = await fetch(`/modules/svg/${svgType}`);
         if (!svgRes.ok) throw new Error("SVG not found");
         const svgText = await svgRes.text();
         svgHolder.innerHTML = svgText;
