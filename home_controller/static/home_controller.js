@@ -396,7 +396,7 @@ async function loadModules() {
   if (!row) return;
 
   const res = await fetch("/modules");
-    attachExtClickHandler();
+  const data = await res.json();
 // Attach the click handler for the external module (global scope)
 function attachExtClickHandler() {
   // Called after head SVG is inserted
