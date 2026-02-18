@@ -1,12 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="170" height="430" viewBox="0 0 170 430" xmlns="http://www.w3.org/2000/svg">
+<svg width="170" height="430" viewBox="0 0 170 430"
+     xmlns="http://www.w3.org/2000/svg">
+
   <defs>
     <style>
-      .shadow { fill:#000; opacity:0.18; }
+      .shadow { fill:#000; opacity:0; }
       .card { fill:#eeeeee; stroke:#cfcfcf; stroke-width:2; }
       .inner { fill:none; stroke:#d7d7d7; stroke-width:2; }
       .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1a1a1a; }
       .label { font-family:Arial,Helvetica,sans-serif; font-size:10px; font-weight:700; fill:#2a2a2a; }
+
+      .ledOuter { fill:#e7e7e7; stroke:#9c9c9c; stroke-width:2; }
+      .ledPwr { fill:#39d353; stroke:#222; stroke-width:2; }
+      .ledNet { fill:#2f81f7; stroke:#222; stroke-width:2; }
+
+      .pi { fill:#e5e5e5; stroke:#bdbdbd; stroke-width:2; }
+      .piWindow { fill:#d9d9d9; stroke:#bdbdbd; stroke-width:2; }
+
       .ipBox { fill:#ffffff; stroke:#8a8a8a; stroke-width:2; }
       .ipText {
         font-family:"Courier New",Courier,monospace;
@@ -14,7 +24,11 @@
         font-weight:700;
         fill:#000000;
       }
+      .hat-ind { rx:2; }
       .hat-off { fill:#cfcfcf; }
+      .hat-a { fill:#ffd43b; }
+      .hat-b { fill:#ff4d4f; }
+      .hat-ab { fill:#39d353; }
     </style>
   </defs>
 
@@ -27,35 +41,72 @@
   <!-- Header -->
   <text class="title" x="83" y="32" text-anchor="middle">I2C EXPANDER</text>
 
+  <!-- Power LEDs -->
+  <!-- power and network LEDs rendered inside Pi enclosure below -->
+
   <!-- Inner panel -->
   <rect class="inner" x="22" y="103" width="122" height="300" rx="12"/>
 
-  <!-- IP label and box (visual only) -->
+  <!-- Pi enclosure silhouette -->
+  <g transform="translate(30,110)">
+    <rect class="pi" x="0" y="0" width="106" height="88" rx="10"/>
+    <path class="inner" d="M64,0 V12"/>
+    <rect class="piWindow" x="18" y="16" width="50" height="28" rx="6"/>
+    <rect class="inner" x="22" y="20" width="42" height="20" rx="4"/>
+
+    <!-- moved power/net LEDs inside the Pi enclosure (shifted down by ~48px / 0.5in) -->
+    <text class="label" x="12" y="61">PWR</text>
+    <circle class="ledOuter" cx="26" cy="73" r="10"/>
+    <circle id="led_pwr" class="ledPwr" cx="26" cy="73" r="6"/>
+
+    <text class="label" x="94" y="61" text-anchor="end">NET</text>
+    <circle class="ledOuter" cx="80" cy="73" r="10"/>
+    <circle id="led_net" class="ledNet" cx="80" cy="73" r="6"/>
+  </g>
+
+  <!-- IP label -->
   <text class="label" x="34" y="227">IP ADDRESS</text>
   <rect class="ipBox" x="30" y="237" width="110" height="34" rx="8"/>
-  <text class="ipText" x="35" y="259" textLength="100" lengthAdjust="spacingAndGlyphs">0.0.0.0</text>
 
-  <!-- Module grid, same position as head module -->
+  <!-- AUTO-FIT IP TEXT -->
+  <text class="ipText"
+    x="35"
+    y="259"
+    textLength="100"
+    lengthAdjust="spacingAndGlyphs">0.0.0.0</text>
+
+  <!-- Hat module indicators (1..8) arranged in 2 columns x 4 rows under the IP box -->
   <g id="hat_indicators" transform="translate(57,305)">
     <text class="label" x="0" y="-8">MODULES</text>
+    <!-- left column (1-4) with labels to the left -->
     <text class="label" x="-6" y="8" text-anchor="end">1</text>
-    <rect id="exp_mod_1" class="hat-off" x="0" y="0" width="16" height="10" rx="2"><title>Module 1</title></rect>
+    <rect id="hat_mod_1" class="hat-off" x="0" y="0" width="16" height="10" rx="2"><title>Module 1</title></rect>
+
     <text class="label" x="-6" y="26" text-anchor="end">2</text>
-    <rect id="exp_mod_2" class="hat-off" x="0" y="18" width="16" height="10" rx="2"><title>Module 2</title></rect>
+    <rect id="hat_mod_2" class="hat-off" x="0" y="18" width="16" height="10" rx="2"><title>Module 2</title></rect>
+
     <text class="label" x="-6" y="44" text-anchor="end">3</text>
-    <rect id="exp_mod_3" class="hat-off" x="0" y="36" width="16" height="10" rx="2"><title>Module 3</title></rect>
+    <rect id="hat_mod_3" class="hat-off" x="0" y="36" width="16" height="10" rx="2"><title>Module 3</title></rect>
+
     <text class="label" x="-6" y="62" text-anchor="end">4</text>
-    <rect id="exp_mod_4" class="hat-off" x="0" y="54" width="16" height="10" rx="2"><title>Module 4</title></rect>
-    <rect id="exp_mod_5" class="hat-off" x="36" y="0" width="16" height="10" rx="2"><title>Module 5</title></rect>
+    <rect id="hat_mod_4" class="hat-off" x="0" y="54" width="16" height="10" rx="2"><title>Module 4</title></rect>
+
+    <!-- right column (5-8) with labels to the right -->
+    <rect id="hat_mod_5" class="hat-off" x="36" y="0" width="16" height="10" rx="2"><title>Module 5</title></rect>
     <text class="label" x="58" y="8" text-anchor="start">5</text>
-    <rect id="exp_mod_6" class="hat-off" x="36" y="18" width="16" height="10" rx="2"><title>Module 6</title></rect>
+
+    <rect id="hat_mod_6" class="hat-off" x="36" y="18" width="16" height="10" rx="2"><title>Module 6</title></rect>
     <text class="label" x="58" y="26" text-anchor="start">6</text>
-    <rect id="exp_mod_7" class="hat-off" x="36" y="36" width="16" height="10" rx="2"><title>Module 7</title></rect>
+
+    <rect id="hat_mod_7" class="hat-off" x="36" y="36" width="16" height="10" rx="2"><title>Module 7</title></rect>
     <text class="label" x="58" y="44" text-anchor="start">7</text>
-    <rect id="exp_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
+
+    <rect id="hat_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
     <text class="label" x="58" y="62" text-anchor="start">8</text>
-    <!-- Back button below module grid -->
+
+    <!-- EXT indicator below the two-column grid, same size as module LEDs, label to the left -->
     <text class="label" x="24" y="80" text-anchor="end">BACK</text>
-    <rect id="expander_back_btn" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer" onclick="onExpanderBackClick(event)"><title>Back</title></rect>
+    <rect id="expander_back_btn" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>Back</title></rect>
   </g>
+
 </svg>
