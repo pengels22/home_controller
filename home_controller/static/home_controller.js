@@ -13,6 +13,22 @@ let MODAL_CTX = {
 // ============================================================
 // HEAD MODULE (Pi enclosure) — injected FIRST, but NOT part of MODULE_SVGS
 // ============================================================
+function ensureSvgVisible(svgRoot) {
+  if (!svgRoot) return;
+
+  svgRoot.style.opacity = "1";
+  svgRoot.style.filter = "none";
+
+  const all = svgRoot.querySelectorAll("*");
+  all.forEach(el => {
+    if (el.style.opacity && el.style.opacity !== "1") {
+      el.style.opacity = "";
+    }
+    if (el.style.filter) {
+      el.style.filter = "";
+    }
+  });
+}
 
 const HEAD_MODULE_SVG = `
 <div class="module-card head-card" id="head_module_card">
