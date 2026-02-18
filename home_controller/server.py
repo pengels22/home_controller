@@ -449,6 +449,7 @@ def module_svg(module_type: str):
         "do": ("do", "DO.svg"),
         "aio": ("aio", "AIO.svg"),
         "head": ("head", "HEAD.svg"),  # optional if you want server-served HEAD.svg later
+        "i2c": ("i2c", "I2C_EXPANDER.svg"),
     }
 
     if module_type not in svg_map:
