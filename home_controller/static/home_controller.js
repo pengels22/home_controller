@@ -25,7 +25,6 @@ const HEAD_MODULE_SVG = `
 
   <div class="module-svg" id="head_module_svg">
     <svg id="head_svg" width="170" height="430" viewBox="0 0 170 430" xmlns="http://www.w3.org/2000/svg">
-      <!-- NOTE: keep styles minimal / scoped; but HEAD is not included in test logic anyway -->
       <defs>
         <style>
           #head_svg .shadow { fill:#000; opacity:0.18; }
@@ -55,8 +54,6 @@ const HEAD_MODULE_SVG = `
 
       <text class="title" x="83" y="32" text-anchor="middle">HEAD MODULE</text>
 
-      <!-- power and network LEDs will be rendered inside the Pi enclosure below -->
-
       <rect class="inner" x="22" y="103" width="122" height="300" rx="12"/>
 
       <g transform="translate(30,110)">
@@ -65,7 +62,6 @@ const HEAD_MODULE_SVG = `
         <rect class="piWindow" x="18" y="16" width="50" height="28" rx="6"/>
         <rect class="inner" x="22" y="20" width="42" height="20" rx="4"/>
 
-        <!-- moved power/net LEDs inside the Pi enclosure (shifted down by 0.5in -> ~48px) -->
         <text class="label" x="12" y="61">PWR</text>
         <circle class="ledOuter" cx="26" cy="73" r="10"/>
         <circle id="led_pwr" class="ledPwr" cx="26" cy="73" r="6"/>
@@ -81,10 +77,10 @@ const HEAD_MODULE_SVG = `
       <text id="ip_text" class="ipText"
         x="35" y="259"
         textLength="100" lengthAdjust="spacingAndGlyphs">0.0.0.0</text>
-      <!-- Hat module indicators (1..8) arranged in 2 columns x 4 rows under the IP box -->
+
       <g id="hat_indicators" transform="translate(57,305)">
         <text class="label" x="0" y="-8">MODULES</text>
-        <!-- left column (1-4) with labels to the left -->
+
         <text class="label" x="-6" y="8" text-anchor="end">1</text>
         <rect id="hat_mod_1" class="hat-off" x="0" y="0" width="16" height="10" rx="2"><title>Module 1</title></rect>
 
@@ -97,7 +93,6 @@ const HEAD_MODULE_SVG = `
         <text class="label" x="-6" y="62" text-anchor="end">4</text>
         <rect id="hat_mod_4" class="hat-off" x="0" y="54" width="16" height="10" rx="2"><title>Module 4</title></rect>
 
-        <!-- right column (5-8) with labels to the right -->
         <rect id="hat_mod_5" class="hat-off" x="36" y="0" width="16" height="10" rx="2"><title>Module 5</title></rect>
         <text class="label" x="58" y="8" text-anchor="start">5</text>
 
@@ -110,10 +105,8 @@ const HEAD_MODULE_SVG = `
         <rect id="hat_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
         <text class="label" x="58" y="62" text-anchor="start">8</text>
 
-        <!-- EXT indicator below the two-column grid, same size as module LEDs, label to the left -->
         <text class="label" x="24" y="80" text-anchor="end">EXT</text>
         <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
-      </g>
       </g>
     </svg>
   </div>
@@ -122,7 +115,6 @@ const HEAD_MODULE_SVG = `
 
 // Attach the click handler for the external module (global scope)
 function attachExtClickHandler() {
-  // Called after head SVG is inserted
   const headCard = document.getElementById("head_module_card");
   if (!headCard) return;
   const extRect = headCard.querySelector("#hat_ext");
@@ -166,23 +158,18 @@ async function _refreshHeadStatusOnce() {
     if (!r.ok) throw new Error("HTTP " + r.status);
     const s = await r.json();
 
-    // Server reachable => power on
     _setHeadLed(svg, "#led_pwr", true, false);
-
-    // Internet OK => blink green
     _setHeadLed(svg, "#led_net", !!s.internet_ok, true);
 
-    // IP
     const ipt = svg.querySelector("#ip_text");
     if (ipt) ipt.textContent = (typeof s.ip === "string" && s.ip) ? s.ip : "0.0.0.0";
-    
+
     // Hat status indicators (modules 1..8)
     try {
       const hr = await fetch('/api/hat_status', { cache: 'no-store' });
       if (hr.ok) {
         const hs = await hr.json();
         if (hs && hs.ok) {
-          // prefer explicit modules map if provided
           for (let i = 1; i <= 8; i++) {
             const el = svg.querySelector(`#hat_mod_${i}`);
             if (!el) continue;
@@ -198,11 +185,17 @@ async function _refreshHeadStatusOnce() {
               b = !!((gb >> (i - 1)) & 1);
             }
 
-            // color rules: both -> green, only A -> yellow, only B -> red, none -> gray
             if (a && b) el.style.fill = '#39d353';
             else if (a && !b) el.style.fill = '#ffd43b';
             else if (!a && b) el.style.fill = '#ff4d4f';
             else el.style.fill = '#cfcfcf';
+          }
+
+          // EXT indicator (optional, if your API provides it)
+          const extEl = svg.querySelector('#hat_ext');
+          if (extEl) {
+            if (hs.ext_present) extEl.style.fill = '#39d353';
+            else extEl.style.fill = '#cfcfcf';
           }
         }
       }
@@ -210,7 +203,6 @@ async function _refreshHeadStatusOnce() {
       // ignore hat indicator errors
     }
   } catch (e) {
-    // API failed
     _setHeadLed(svg, "#led_pwr", false, false);
     _setHeadLed(svg, "#led_net", false, false);
     const ipt = svg.querySelector("#ip_text");
@@ -246,31 +238,18 @@ function _allLedOff() {
     const root = info.svgRoot;
     if (!root) continue;
 
-    // Turn off any that were turned on
     const ons = root.querySelectorAll(".led-on");
     ons.forEach((el) => {
       el.classList.remove("led-on");
       el.classList.add("led-off");
     });
 
-    // Also ensure every channel group is at least "off" once (helps initial state)
     for (let ch = 1; ch <= 16; ch++) {
       const el = _findLedElement(info.type, root, ch);
       if (el) {
         el.classList.remove("led-on");
         el.classList.add("led-off");
       }
-
-          // EXT indicator (extension board presence)
-          try {
-            const extEl = svg.querySelector('#hat_ext');
-            if (extEl) {
-              if (hs.ext_present) extEl.style.fill = '#39d353';
-              else extEl.style.fill = '#cfcfcf';
-            }
-          } catch (e) {
-            // ignore
-          }
     }
   }
 }
@@ -287,17 +266,14 @@ function _findLedElement(moduleType, svgRoot, channelIndex) {
 
   const mt = String(moduleType || "").toLowerCase();
 
-  // Preferred: ch01..ch16
   const id2 = `ch${String(channelIndex).padStart(2, "0")}`;
   let el = svgRoot.querySelector(`#${id2}`);
   if (el) return el;
 
-  // Fallback: ch1..ch16
   const id1 = `ch${channelIndex}`;
   el = svgRoot.querySelector(`#${id1}`);
   if (el) return el;
 
-  // Fallback: AIO in/out
   if (mt === "aio") {
     if (channelIndex >= 1 && channelIndex <= 8) {
       el = svgRoot.querySelector(`#in${channelIndex}`);
@@ -397,17 +373,6 @@ async function loadModules() {
 
   const res = await fetch("/modules");
   const data = await res.json();
-// Attach the click handler for the external module (global scope)
-function attachExtClickHandler() {
-  // Called after head SVG is inserted
-  const headCard = document.getElementById("head_module_card");
-  if (!headCard) return;
-  const extRect = headCard.querySelector("#hat_ext");
-  if (extRect) {
-    extRect.onclick = onExtClick;
-    extRect.style.cursor = "pointer";
-  }
-}
 
   row.innerHTML = "";
   MODULE_SVGS.clear(); // prevent stale svg references
@@ -468,7 +433,6 @@ function attachExtClickHandler() {
 
       const svgRoot = svgHolder.querySelector("svg");
       if (svgRoot) {
-        // IMPORTANT: only real modules go in MODULE_SVGS; head never does.
         MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
       }
     } catch (e) {
@@ -548,7 +512,6 @@ async function openModal(module) {
   $("modal_module_name").value = module.name || "";
   $("modal_address_display").textContent = module.address || "0x00";
 
-  // setup change address button and prompt
   const changeBtn = $("change_addr_btn");
   const addrPrompt = $("addr_prompt");
   const addrInput = $("addr_prompt_input");
@@ -564,22 +527,29 @@ async function openModal(module) {
       addrInput.focus();
     };
   }
-  if (addrCancel) addrCancel.onclick = () => { addrPrompt.style.display = 'none'; if (addrErr) { addrErr.style.display='none'; addrErr.textContent=''; } };
+
+  if (addrCancel) addrCancel.onclick = () => {
+    addrPrompt.style.display = 'none';
+    if (addrErr) { addrErr.style.display='none'; addrErr.textContent=''; }
+  };
+
   if (addrOk) addrOk.onclick = async () => {
     const newAddr = addrInput.value.trim();
     if (!newAddr) {
       if (addrErr) { addrErr.textContent = 'Address required'; addrErr.style.display = 'block'; }
       return;
     }
-    // call change address
     try {
-      const res = await fetch('/modules/change_address', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id: MODAL_CTX.id, address: newAddr }) });
+      const res = await fetch('/modules/change_address', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ id: MODAL_CTX.id, address: newAddr })
+      });
       const j = await res.json();
       if (!j.ok) {
         if (addrErr) { addrErr.textContent = j.error || 'change failed'; addrErr.style.display = 'block'; }
         return;
       }
-      // success: update modal and UI
       MODAL_CTX.id = j.module.id || MODAL_CTX.id;
       MODAL_CTX.address = j.module.address || MODAL_CTX.address;
       $("modal_address_display").textContent = MODAL_CTX.address;
@@ -715,23 +685,31 @@ window.saveModal = saveModal;
 window.removeFromModal = removeFromModal;
 
 // ============================================================
-// BOOT
+// EXT / EXPANDER SWAP LOGIC
 // ============================================================
 
-
-// --- SVG SWAP LOGIC FOR EXT/EXPANDER ---
 let _originalHeadModuleHTML = null;
 let _expanderSVGCache = null;
 
+function _forceCloseBackdrop() {
+  const b = $("modal_backdrop");
+  if (b) b.style.display = "none";
+  document.body.classList.remove("modal-open");
+}
 
 async function onExtClick(event) {
   event?.stopPropagation?.();
+
+  // Prevent the “dim/opaque overlay” from sticking around
+  _forceCloseBackdrop();
+
   const headCard = document.getElementById("head_module_card");
   if (!headCard) return;
+
   if (!_originalHeadModuleHTML) {
     _originalHeadModuleHTML = headCard.innerHTML;
   }
-  // Fetch and inject expander SVG
+
   if (!_expanderSVGCache) {
     try {
       const res = await fetch("/modules/svg/i2c");
@@ -742,7 +720,7 @@ async function onExtClick(event) {
       return;
     }
   }
-  // Always preserve both module-card and head-card classes for structure and CSS
+
   headCard.className = 'module-card head-card';
   headCard.innerHTML = `
     <div class="module-header">
@@ -753,29 +731,27 @@ async function onExtClick(event) {
     </div>
     <div class="module-svg" id="expander_module_svg"></div>
   `;
-  // Ensure module-svg class is present
+
   const svgContainer = headCard.querySelector('#expander_module_svg');
   if (svgContainer) {
     svgContainer.classList.add('module-svg');
-    // Inject SVG as a string so internal <style> is applied in all browsers
     svgContainer.innerHTML = _expanderSVGCache;
   }
-  // Attach back and settings button handlers after SVG is in DOM
+
   setTimeout(() => {
-    const backBtn = document.getElementById("head_module_card").querySelector("#expander_back_btn");
-    if (backBtn) {
-      backBtn.onclick = onExpanderBackClick;
-    }
+    const backBtn = document.getElementById("head_module_card")?.querySelector("#expander_back_btn");
+    if (backBtn) backBtn.onclick = onExpanderBackClick;
+
     const settingsBtn = document.getElementById("expander_settings_btn");
     if (settingsBtn) {
-      fetch('/modules').then(r => r.json()).then(modules => {
-        const expander = modules.find(m => String(m.type).toLowerCase() === 'i2c');
-        if (expander) {
-          settingsBtn.onclick = () => openModal(expander);
-        } else {
-          settingsBtn.onclick = () => alert('Expander module not found.');
-        }
-      });
+      fetch('/modules')
+        .then(r => r.json())
+        .then(modules => {
+          const expander = modules.find(m => String(m.type).toLowerCase() === 'i2c');
+          if (expander) settingsBtn.onclick = () => openModal(expander);
+          else settingsBtn.onclick = () => alert('Expander module not found.');
+        })
+        .catch(() => { settingsBtn.onclick = () => alert('Expander module not found.'); });
     }
   }, 0);
 }
@@ -784,6 +760,9 @@ window.onExtClick = onExtClick;
 
 function onExpanderBackClick(event) {
   event?.stopPropagation?.();
+
+  _forceCloseBackdrop();
+
   const headCard = document.getElementById("head_module_card");
   if (!headCard || !_originalHeadModuleHTML) return;
   headCard.innerHTML = _originalHeadModuleHTML;
@@ -792,7 +771,9 @@ function onExpanderBackClick(event) {
 
 window.onExpanderBackClick = onExpanderBackClick;
 
-// --- END SVG SWAP LOGIC ---
+// ============================================================
+// BOOT
+// ============================================================
 
 loadStatus();
 loadModules();
