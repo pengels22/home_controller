@@ -1,7 +1,5 @@
 # TEST ROUTE FOR DEBUGGING
-@app.route("/test123")
-def test123():
-    return "Test route is working!"
+
 import os
 import json
 from pathlib import Path
@@ -149,7 +147,9 @@ def internet_ok_tcp() -> bool:
 # ------------------------------------------------------------
 # Health check (API)
 # ------------------------------------------------------------
-
+@app.route("/test123")
+def test123():
+    return "Test route is working!"
 @app.route("/expansion_config", methods=["GET", "POST"])
 def expansion_config():
     print("[DEBUG] /expansion_config route accessed, method:", request.method)
