@@ -1,3 +1,57 @@
+# ------------------------------------------------------------
+# Per-module config API (invert/override for DI/DO)
+# ------------------------------------------------------------
+@app.get("/api/module_config_get")
+def api_module_config_get():
+    """Get per-channel config (invert/override) for a module."""
+    module_id = request.args.get("module_id", "").strip()
+    if not module_id:
+        return jsonify({"ok": False, "error": "module_id required"}), 400
+    idx = backend._find_module_index(module_id)
+    if idx < 0:
+        return jsonify({"ok": False, "error": "module not found"}), 404
+    m = backend.cfg.modules[idx]
+    # Only DI/DO for now
+    if m.type not in ("di", "do"):
+        return jsonify({"ok": False, "error": "not a DI/DO module"}), 400
+    cfg = backend.load_module_config(m.type, m.address_hex)
+    # Always return dicts for invert/override
+    invert = cfg.get("invert", {})
+    override = cfg.get("override", {})
+    return jsonify({"ok": True, "invert": invert, "override": override})
+
+@app.post("/api/module_config_set")
+def api_module_config_set():
+    """Set per-channel config (invert/override) for a module."""
+    data = request.get_json(force=True, silent=True) or {}
+    module_id = str(data.get("module_id", "")).strip()
+    if not module_id:
+        return jsonify({"ok": False, "error": "module_id required"}), 400
+    idx = backend._find_module_index(module_id)
+    if idx < 0:
+        return jsonify({"ok": False, "error": "module not found"}), 404
+    m = backend.cfg.modules[idx]
+    if m.type not in ("di", "do"):
+        return jsonify({"ok": False, "error": "not a DI/DO module"}), 400
+    cfg = backend.load_module_config(m.type, m.address_hex)
+    # Update invert/override dicts
+    invert = cfg.get("invert", {})
+    override = cfg.get("override", {})
+    # Accept full dicts or single channel update
+    if "invert" in data:
+        if isinstance(data["invert"], dict):
+            invert.update({str(k): bool(v) for k, v in data["invert"].items()})
+        elif "channel" in data and isinstance(data["invert"], bool):
+            invert[str(data["channel"])] = data["invert"]
+    if "override" in data:
+        if isinstance(data["override"], dict):
+            override.update({str(k): str(v) for k, v in data["override"].items()})
+        elif "channel" in data and data["override"] in ("on", "off", "none"):
+            override[str(data["channel"])] = str(data["override"])
+    cfg["invert"] = invert
+    cfg["override"] = override
+    backend.save_module_config(m.type, m.address_hex, cfg)
+    return jsonify({"ok": True, "invert": invert, "override": override})
 
 import json
 from pathlib import Path
