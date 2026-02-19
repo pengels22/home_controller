@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-from __future__ import annotations
-
 import os
 import json
 from pathlib import Path
@@ -18,23 +15,11 @@ from flask import (
     abort,
 )
 import traceback
-
-
 from home_controller.core.backend import HomeControllerBackend
-# ------------------------------------------------------------
-# AIO max voltage config API (moved to bottom)
-# ------------------------------------------------------------
 from home_controller.config import aio_max_voltage
 
-
-
+app = Flask(__name__)
 def _parse_i2c_address(addr_str: str) -> int:
-    """
-    Accepts '0x20', '20', '32' etc.
-    If it includes 0x -> hex.
-    If it is all hex digits -> treat as hex (common for i2c).
-    If it is decimal digits only -> decimal.
-    """
     s = (addr_str or "").strip().lower()
     if not s:
         raise ValueError("address is empty")
