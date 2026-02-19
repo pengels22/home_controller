@@ -172,6 +172,19 @@ function showIoChannelPopup(name, status) {
     return;
   }
   // Otherwise, show full settings popup (gear/settings button)
+  // Always ensure ctx has module_id, type, etc. If missing, try to find from modules list
+  if (!ctx.module_id || !ctx.type) {
+    // Try to find module by name or fallback to first DI/DO module
+    if (window.MODULE_SVGS && window.MODULE_SVGS.size > 0) {
+      for (const [modId, modInfo] of window.MODULE_SVGS.entries()) {
+        if (!ctx.type || modInfo.type === ctx.type) {
+          ctx.module_id = modId;
+          ctx.type = modInfo.type;
+          break;
+        }
+      }
+    }
+  }
   popup.querySelector('.popup-title').textContent = ctx.name || name;
   popup.querySelector('.popup-status').textContent = `Status: ${ctx.status || status}`;
   const controls = popup.querySelector('.popup-controls');
@@ -181,36 +194,34 @@ function showIoChannelPopup(name, status) {
   else if (ctx.type === 'do') url = '/do_config_popup';
   else if (ctx.type === 'aio') url = '/aio_config_popup';
   else if (ctx.type === 'ext') url = '/ext_config_popup';
-  if (url) {
+  if (url && ctx.module_id) {
     fetch(url)
       .then(r => r.text())
       .then(async html => {
         controls.innerHTML = html;
         // If DI/DO, fetch per-channel invert/override state from backend and update form
         if (ctx.type === 'di' || ctx.type === 'do') {
-          if (ctx.module_id) {
-            try {
-              const res = await fetch(`/api/module_config_get?module_id=${encodeURIComponent(ctx.module_id)}`);
-              const data = await res.json();
-              if (data.ok) {
-                // For each channel 1-16, update override/invert controls
-                for (let i = 1; i <= 16; i++) {
-                  // Override
-                  const ov = data.override && data.override[String(i)];
-                  const ovSel = controls.querySelector(`[name='ch${i}_override']`);
-                  if (ovSel && typeof ov === 'string') ovSel.value = ov;
-                  // Invert (handle boolean or string 'true'/'false')
-                  let inv = data.invert && data.invert[String(i)];
-                  if (typeof inv === 'string') {
-                    inv = inv === 'true';
-                  }
-                  const invChk = controls.querySelector(`[name='ch${i}_invert']`);
-                  if (invChk) invChk.checked = !!inv;
+          try {
+            const res = await fetch(`/api/module_config_get?module_id=${encodeURIComponent(ctx.module_id)}`);
+            const data = await res.json();
+            if (data.ok) {
+              // For each channel 1-16, update override/invert controls
+              for (let i = 1; i <= 16; i++) {
+                // Override
+                const ov = data.override && data.override[String(i)];
+                const ovSel = controls.querySelector(`[name='ch${i}_override']`);
+                if (ovSel && typeof ov === 'string') ovSel.value = ov;
+                // Invert (handle boolean or string 'true'/'false')
+                let inv = data.invert && data.invert[String(i)];
+                if (typeof inv === 'string') {
+                  inv = inv === 'true';
                 }
+                const invChk = controls.querySelector(`[name='ch${i}_invert']`);
+                if (invChk) invChk.checked = !!inv;
               }
-            } catch (e) {
-              // ignore errors, fallback to defaults
             }
+          } catch (e) {
+            // ignore errors, fallback to defaults
           }
           // Add save handler for the global popup form
           const form = controls.querySelector('form');
@@ -218,7 +229,7 @@ function showIoChannelPopup(name, status) {
             form.onsubmit = async function(e) {
               e.preventDefault();
               if (!ctx.module_id) {
-                alert('Module ID missing in context.');
+                // Optionally show error, but no alert
                 return;
               }
               // Gather all override/invert values for channels 1-16
@@ -255,7 +266,7 @@ function showIoChannelPopup(name, status) {
         }
       });
   } else {
-    controls.innerHTML = '<div>No config popup for this module type.</div>';
+    controls.innerHTML = '<div>No config popup for this module type or module_id missing.</div>';
   }
   popup.classList.add('active');
   overlay.style.display = 'block';
