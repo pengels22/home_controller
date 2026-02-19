@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import datetime
 from home_controller.config import aio_max_voltage
+
 #!/usr/bin/env python3
 """
 home_controller/core/backend.py
@@ -14,7 +17,7 @@ GOALS (v0):
 
 ASSUMPTIONS:
 - I2C bus is fixed to the main SDA/SCL pins (BCM2/BCM3).
-  On Raspberry Pi this is typically /dev/i2c-1 (bus_num = 1).
+    On Raspberry Pi this is typically /dev/i2c-1 (bus_num = 1).
 """
 
 from __future__ import annotations
