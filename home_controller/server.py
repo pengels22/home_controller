@@ -1,6 +1,4 @@
-# TEST ROUTE FOR DEBUGGING
 
-import os
 import json
 from pathlib import Path
 import socket
@@ -161,6 +159,39 @@ def internet_ok_tcp() -> bool:
 # ------------------------------------------------------------
 # Health check (API)
 # ------------------------------------------------------------
+# API endpoint for expansion config (GET/POST, JSON)
+@app.route("/api/expansion_config", methods=["GET", "POST"])
+def api_expansion_config():
+    exp_cfg_path = os.path.join(os.path.dirname(__file__), "config", "expansion_config.json")
+    if os.path.exists(exp_cfg_path):
+        with open(exp_cfg_path, "r", encoding="utf-8") as f:
+            exp = json.load(f)
+    else:
+        exp = {
+            "name": "Expansion Card",
+            "address_hex": "0x40",
+            "channels": [
+                {"name": f"ch{i+1}", "type": "di", "address_hex": f"0x{0x20+i:02x}"} for i in range(8)
+            ]
+        }
+
+    if request.method == "POST":
+        data = request.get_json(force=True, silent=True) or {}
+        exp["name"] = data.get("name", exp["name"])
+        exp["address_hex"] = data.get("address_hex", exp["address_hex"])
+        channels = data.get("channels", exp["channels"])
+        # Validate channels: must be a list of dicts with name, type, address_hex
+        if isinstance(channels, list) and all(isinstance(ch, dict) for ch in channels):
+            exp["channels"] = channels
+        # Save
+        with open(exp_cfg_path, "w", encoding="utf-8") as f:
+            json.dump(exp, f, indent=2)
+        return jsonify({"ok": True, "exp": exp})
+
+    return jsonify({"ok": True, "exp": exp})
+# TEST ROUTE FOR DEBUGGING
+
+import os
 @app.route("/test123")
 def test123():
     return "Test route is working!"
