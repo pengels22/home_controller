@@ -6,31 +6,79 @@
     <label>I2C Address: <input type="text" name="i2c_address" /></label><br>
     <div class="channels">
       <h3>Channel Names</h3>
-      <div style="display:flex;gap:24px">
+      <div style="display:flex;gap:32px">
         <div>
-          <h4>Channels 1-8</h4>
+          <h4>In 1-8</h4>
           <div style="display:flex;flex-direction:column;gap:4px">
-            <input type="text" name="ch1" placeholder="Channel 1" />
-            <input type="text" name="ch2" placeholder="Channel 2" />
-            <input type="text" name="ch3" placeholder="Channel 3" />
-            <input type="text" name="ch4" placeholder="Channel 4" />
-            <input type="text" name="ch5" placeholder="Channel 5" />
-            <input type="text" name="ch6" placeholder="Channel 6" />
-            <input type="text" name="ch7" placeholder="Channel 7" />
-            <input type="text" name="ch8" placeholder="Channel 8" />
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="in1" placeholder="IN1 Name" style="width:90px" />
+              <input type="number" name="in1_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="in2" placeholder="IN2 Name" style="width:90px" />
+              <input type="number" name="in2_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="in3" placeholder="IN3 Name" style="width:90px" />
+              <input type="number" name="in3_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="in4" placeholder="IN4 Name" style="width:90px" />
+              <input type="number" name="in4_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="in5" placeholder="IN5 Name" style="width:90px" />
+              <input type="number" name="in5_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="in6" placeholder="IN6 Name" style="width:90px" />
+              <input type="number" name="in6_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="in7" placeholder="IN7 Name" style="width:90px" />
+              <input type="number" name="in7_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="in8" placeholder="IN8 Name" style="width:90px" />
+              <input type="number" name="in8_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
           </div>
         </div>
         <div>
-          <h4>Channels 9-16</h4>
+          <h4>Out 1-8</h4>
           <div style="display:flex;flex-direction:column;gap:4px">
-            <input type="text" name="ch9" placeholder="Channel 9" />
-            <input type="text" name="ch10" placeholder="Channel 10" />
-            <input type="text" name="ch11" placeholder="Channel 11" />
-            <input type="text" name="ch12" placeholder="Channel 12" />
-            <input type="text" name="ch13" placeholder="Channel 13" />
-            <input type="text" name="ch14" placeholder="Channel 14" />
-            <input type="text" name="ch15" placeholder="Channel 15" />
-            <input type="text" name="ch16" placeholder="Channel 16" />
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="out1" placeholder="OUT1 Name" style="width:90px" />
+              <input type="number" name="out1_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="out2" placeholder="OUT2 Name" style="width:90px" />
+              <input type="number" name="out2_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="out3" placeholder="OUT3 Name" style="width:90px" />
+              <input type="number" name="out3_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="out4" placeholder="OUT4 Name" style="width:90px" />
+              <input type="number" name="out4_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="out5" placeholder="OUT5 Name" style="width:90px" />
+              <input type="number" name="out5_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="out6" placeholder="OUT6 Name" style="width:90px" />
+              <input type="number" name="out6_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="out7" placeholder="OUT7 Name" style="width:90px" />
+              <input type="number" name="out7_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="out8" placeholder="OUT8 Name" style="width:90px" />
+              <input type="number" name="out8_maxv" placeholder="Max V" step="0.5" style="width:70px" />
+            </div>
           </div>
         </div>
       </div>
