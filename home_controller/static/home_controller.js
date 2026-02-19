@@ -647,11 +647,16 @@ async function loadModules() {
       <div class="module-sub">${String(m.type || "").toUpperCase()} • ${m.address}</div>
     `;
 
+
     const gear = document.createElement("button");
     gear.className = "icon-btn";
     gear.title = "Settings";
     gear.textContent = "⚙️";
-    gear.onclick = () => openModal(m);
+    if (String(m.type).toLowerCase() === "ext") {
+      gear.onclick = () => { window.location.href = "/expansion_config"; };
+    } else {
+      gear.onclick = () => openModal(m);
+    }
 
     header.appendChild(left);
     header.appendChild(gear);
