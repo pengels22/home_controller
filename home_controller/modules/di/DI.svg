@@ -60,13 +60,13 @@
   <g id="ch08"><text class="lednum" x="18" y="197">8</text><circle class="led" cx="30" cy="197" r="6"/></g>
 
   <!-- Right LEDs 9–16, numbers right of circles -->
-  <g id="ch09"><circle class="led" cx="70" cy="85" r="6"/><text class="lednum" x="82" y="85">9</text></g>
-  <g id="ch10"><circle class="led" cx="70" cy="101" r="6"/><text class="lednum" x="82" y="101">10</text></g>
-  <g id="ch11"><circle class="led" cx="70" cy="117" r="6"/><text class="lednum" x="82" y="117">11</text></g>
-  <g id="ch12"><circle class="led" cx="70" cy="133" r="6"/><text class="lednum" x="82" y="133">12</text></g>
-  <g id="ch13"><circle class="led" cx="70" cy="149" r="6"/><text class="lednum" x="82" y="149">13</text></g>
-  <g id="ch14"><circle class="led" cx="70" cy="165" r="6"/><text class="lednum" x="82" y="165">14</text></g>
-  <g id="ch15"><circle class="led" cx="70" cy="181" r="6"/><text class="lednum" x="82" y="181">15</text></g>
-  <g id="ch16"><circle class="led" cx="70" cy="197" r="6"/><text class="lednum" x="82" y="197">16</text></g>
+  <g id="ch09"><circle class="led" cx="60" cy="85" r="6"/><text class="lednum" x="72" y="85">9</text></g>
+  <g id="ch10"><circle class="led" cx="60" cy="101" r="6"/><text class="lednum" x="72" y="101">10</text></g>
+  <g id="ch11"><circle class="led" cx="60" cy="117" r="6"/><text class="lednum" x="72" y="117">11</text></g>
+  <g id="ch12"><circle class="led" cx="60" cy="133" r="6"/><text class="lednum" x="72" y="133">12</text></g>
+  <g id="ch13"><circle class="led" cx="60" cy="149" r="6"/><text class="lednum" x="72" y="149">13</text></g>
+  <g id="ch14"><circle class="led" cx="60" cy="165" r="6"/><text class="lednum" x="72" y="165">14</text></g>
+  <g id="ch15"><circle class="led" cx="60" cy="181" r="6"/><text class="lednum" x="72" y="181">15</text></g>
+  <g id="ch16"><circle class="led" cx="60" cy="197" r="6"/><text class="lednum" x="72" y="197">16</text></g>
 
 </svg>
