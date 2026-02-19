@@ -226,7 +226,7 @@ def api_set_aio_max_voltage(module_id: str):
 # ------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent  # .../home_controller/
 TEMPLATES_DIR = BASE_DIR / "web" / "templates"
-STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR = BASE_DIR / "web" / "static"
 
 # UI labels storage (module + channel naming)
 LABELS_DIR = BASE_DIR / "config"
