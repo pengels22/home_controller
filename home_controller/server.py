@@ -228,6 +228,24 @@ if DEV_MODE:
     backend.enable_dev_mode(dev_file)
     print(f"DEV MODE enabled; dev file={backend._dev_file}")
 
+# On startup, scan I2C and warn if any configured module is missing
+def _startup_module_check():
+    addrs, _err = _scan_i2c_addresses(I2C_BUS)
+    present_hex = {f"0x{a:02x}" for a in addrs}
+    missing = []
+    for m in backend.list_modules():
+        if m.address_hex.lower() not in present_hex:
+            missing.append(m)
+    if missing:
+        print("[WARNING] The following modules are configured but not detected on the I2C bus:")
+        for m in missing:
+            print(f"  - id={m.id} type={m.type} address={m.address_hex}")
+        print("They will NOT be deleted from config. Please check wiring and power.")
+    else:
+        print("All configured modules detected on I2C bus.")
+
+_startup_module_check()
+
 
 # ------------------------------------------------------------
 # Helpers
