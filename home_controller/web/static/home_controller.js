@@ -223,16 +223,16 @@ function showIoChannelPopup(name, status) {
           } catch (e) {
             // ignore errors, fallback to defaults
           }
-          // Add save handler for the global popup form
+          // Save handler for the global popup form: auto-save on close
           const form = controls.querySelector('form');
           if (form) {
-            form.onsubmit = async function(e) {
-              e.preventDefault();
-              if (!ctx.module_id) {
-                // Optionally show error, but no alert
-                return;
-              }
-              // Gather all override/invert values for channels 1-16
+            // Remove any submit button
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.remove();
+            // Save on close
+            const closeBtn = form.parentElement.querySelector('button[onclick*="closePopup"]');
+            async function saveAndClose() {
+              if (!ctx.module_id) return;
               const override = {};
               const invert = {};
               for (let i = 1; i <= 16; i++) {
@@ -241,8 +241,7 @@ function showIoChannelPopup(name, status) {
                 if (ovSel) override[i] = ovSel.value;
                 if (invChk) invert[i] = !!invChk.checked;
               }
-              // Save to backend
-              const res = await fetch('/api/module_config_set', {
+              await fetch('/api/module_config_set', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -251,17 +250,20 @@ function showIoChannelPopup(name, status) {
                   invert: invert
                 })
               });
-              const data = await res.json();
-              if (data.ok) {
-                // After save, close the popup so user must reopen and always gets latest state
-                hideIoChannelPopup();
-                window._lastModuleConfigPopupReload = Date.now();
-                // Reload module cards to reflect new state
-                if (typeof loadModules === 'function') loadModules();
-              } else {
-                // Optionally show error, but no alert
-              }
-            };
+              hideIoChannelPopup();
+              window._lastModuleConfigPopupReload = Date.now();
+              if (typeof loadModules === 'function') loadModules();
+            }
+            if (closeBtn) {
+              closeBtn.onclick = saveAndClose;
+            }
+            // Also save if overlay is clicked to close
+            const overlay = document.querySelector('.io-channel-popup-overlay');
+            if (overlay) {
+              overlay.onclick = function(e) {
+                if (e.target === overlay) saveAndClose();
+              };
+            }
           }
         }
       });
