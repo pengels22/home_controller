@@ -1,3 +1,7 @@
+# TEST ROUTE FOR DEBUGGING
+@app.route("/test123")
+def test123():
+    return "Test route is working!"
 import os
 import json
 from pathlib import Path
