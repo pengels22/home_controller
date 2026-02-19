@@ -574,8 +574,8 @@ async function loadModules() {
         MODULE_SVGS.delete(m.id);
       }
     }
-    // Insert ext row after head module
-    row.parentNode.insertBefore(extRow, row.nextSibling);
+    // Always append ext row to avoid stacking issues
+    row.parentNode.appendChild(extRow);
   }
 
   _clearAnyDimState();

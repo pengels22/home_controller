@@ -95,6 +95,8 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
   overflow-x: auto;
   padding-top: 6px;
   padding-bottom: 10px;
+  background: #0b0d12 !important;
+  z-index: 1;
 }
 
 /* ------------------ MODULE CARD ------------------ */
@@ -106,6 +108,7 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
   border: 1px solid #23272f;
   background: #181c23;
   margin: 0;
+  z-index: 2;
 }
 
 .module-header {
