@@ -333,19 +333,12 @@ function _allLedOff() {
     const root = info.svgRoot;
     if (!root) continue;
 
-    const ons = root.querySelectorAll(".led-on");
-    ons.forEach((el) => {
+    // Only toggle led-on/led-off on circles, not numbers
+    const circles = root.querySelectorAll("g[id^='ch'] circle.led, g[id^='ch'] circle.led-on, g[id^='ch'] circle.led-off");
+    circles.forEach((el) => {
       el.classList.remove("led-on");
       el.classList.add("led-off");
     });
-
-    for (let ch = 1; ch <= 16; ch++) {
-      const el = _findLedElement(info.type, root, ch);
-      if (el) {
-        el.classList.remove("led-on");
-        el.classList.add("led-off");
-      }
-    }
   }
 }
 
@@ -377,12 +370,15 @@ function _findLedElement(moduleType, svgRoot, channelIndex) {
 
 function _flashLed(el, on) {
   if (!el) return;
-  if (on) {
-    el.classList.add("led-on");
-    el.classList.remove("led-off");
-  } else {
-    el.classList.remove("led-on");
-    el.classList.add("led-off");
+  // Only toggle led-on/led-off on circles, not numbers
+  if (el.tagName && el.tagName.toLowerCase() === 'circle') {
+    if (on) {
+      el.classList.add("led-on");
+      el.classList.remove("led-off");
+    } else {
+      el.classList.remove("led-on");
+      el.classList.add("led-off");
+    }
   }
 }
 
@@ -552,6 +548,28 @@ async function loadModules() {
         scopeSvgStyles(svgRoot, scopeClass);
         ensureSvgVisible(svgRoot);
         MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
+
+        // Add onclick to IO bubbles (circles) for popup
+        if (["di", "do", "aio"].includes(String(m.type).toLowerCase())) {
+          const channelGroups = svgRoot.querySelectorAll("g[id^='ch']");
+          channelGroups.forEach((g, idx) => {
+            const circle = g.querySelector("circle.led");
+            if (circle) {
+              circle.style.cursor = "pointer";
+              circle.onclick = (e) => {
+                e.stopPropagation();
+                const chNum = idx + 1;
+                // Try to get custom channel name from labels if available
+                let chName = `Channel ${chNum}`;
+                if (m.labels && m.labels.channels && m.labels.channels[String(chNum)]) {
+                  chName = m.labels.channels[String(chNum)];
+                }
+                const status = circle.classList.contains("led-on") ? "ON" : "OFF";
+                showIoChannelPopup(chName, status);
+              };
+            }
+          });
+        }
       }
     } catch (e) {
       svgHolder.textContent = `No SVG for type: ${m.type}`;

@@ -1,3 +1,50 @@
+/* ------------------ IO Channel Popup ------------------ */
+.io-channel-popup {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: #181c23;
+  color: var(--text);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px #000a;
+  z-index: 10001;
+  min-width: 220px;
+  max-width: 90vw;
+  padding: 22px 28px 18px 28px;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  font-family: inherit;
+}
+.io-channel-popup.active {
+  display: flex;
+}
+.io-channel-popup .popup-title {
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.io-channel-popup .popup-status {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.io-channel-popup .popup-close {
+  margin-top: 8px;
+  padding: 6px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #23272f;
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+  font-size: 13px;
+}
+.io-channel-popup .popup-close:hover {
+  background: #2c313a;
+}
 #modules,
 #modules:parent,
 .modules-outer {
