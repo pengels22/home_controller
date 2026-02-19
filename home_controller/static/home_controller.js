@@ -45,6 +45,8 @@ function _clearAnyDimState() {
     });
 }
 
+// Ensures SVG isn’t inheriting odd filter/opacity from Safari quirks
+
 
 // ============================================================
 // HEAD MODULE (Pi enclosure) — injected FIRST, NOT in MODULE_SVGS
