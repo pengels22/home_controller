@@ -455,8 +455,10 @@ async function loadModules() {
     }
   }
 
-  // Render normal modules in first row (beside head)
-  for (const m of normalModules) {
+  // Render all modules in one row (avoid Safari dimming when stacking rows)
+  const orderedModules = normalModules.concat(extModules).concat(extSubsystem);
+
+  for (const m of orderedModules) {
     const card = document.createElement("div");
     card.className = "module-card";
 
@@ -493,10 +495,10 @@ async function loadModules() {
     row.appendChild(card);
 
     try {
-      // Use i2c_expander.svg for ext modules (fixes SVG path)
+      // Use i2c expander SVG for ext modules (fixes SVG path)
       const svgType = String(m.type || "").toLowerCase();
-      // If module type is 'ext', fetch 'i2c_expander' SVG, else use module type
-      const fetchType = svgType === "ext" ? "i2c_expander" : svgType;
+      // If module type is 'ext', fetch 'i2c' SVG, else use module type
+      const fetchType = svgType === "ext" ? "i2c" : svgType;
       const svgRes = await fetch(`/modules/svg/${fetchType}`);
       if (!svgRes.ok) throw new Error("SVG not found");
       const svgText = await svgRes.text();
@@ -513,79 +515,7 @@ async function loadModules() {
     }
   }
 
-  // If ext module(s) present, render a new row under head for ext and its subsystem
-  if (extModules.length > 0 || extSubsystem.length > 0) {
-    const extRow = document.createElement("div");
-    extRow.className = "modules-row ext-row";
-    // Use positive margin for separation, no overlap
-    extRow.style.marginTop = "6px";
-    extRow.style.marginBottom = "8px";
-
-    for (const m of extModules.concat(extSubsystem)) {
-      const card = document.createElement("div");
-      card.className = "module-card";
-
-      const header = document.createElement("div");
-      header.className = "module-header";
-
-      const left = document.createElement("div");
-
-      const displayName =
-        (m.name && String(m.name).trim().length > 0)
-          ? String(m.name).trim()
-          : `${String(m.type || "").toUpperCase()} MODULE`;
-
-      left.innerHTML = `
-        <div class="module-title">${displayName}</div>
-        <div class="module-sub">${String(m.type || "").toUpperCase()} • ${m.address}</div>
-      `;
-
-      const gear = document.createElement("button");
-      gear.className = "icon-btn";
-      gear.title = "Settings";
-      gear.textContent = "⚙️";
-      gear.onclick = () => openModal(m);
-
-      header.appendChild(left);
-      header.appendChild(gear);
-
-      const svgHolder = document.createElement("div");
-      svgHolder.className = "module-svg";
-      svgHolder.textContent = "Loading…";
-
-      card.appendChild(header);
-      card.appendChild(svgHolder);
-      extRow.appendChild(card);
-
-      try {
-        // Use i2c expander SVG for ext modules (server route name is 'i2c')
-        const svgType = String(m.type || "").toLowerCase();
-        const fetchType = svgType === "ext" ? "i2c" : svgType;
-        const svgRes = await fetch(`/modules/svg/${fetchType}`);
-        if (!svgRes.ok) throw new Error("SVG not found");
-        const svgText = await svgRes.text();
-        svgHolder.innerHTML = svgText;
-
-        const svgRoot = svgHolder.querySelector("svg");
-        if (svgRoot) {
-          ensureSvgVisible(svgRoot);
-          MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
-        }
-      } catch (e) {
-        svgHolder.textContent = `No SVG for type: ${m.type}`;
-        MODULE_SVGS.delete(m.id);
-      }
-    }
-    // Always append ext row to avoid stacking issues
-    // Insert ext row immediately after the main modules row
-    extRow.classList.add('ext-row');
-    if (typeof row.after === 'function') {
-      row.after(extRow);
-    } else {
-      // Fallback for older browsers
-      row.parentNode.insertBefore(extRow, row.nextSibling);
-    }
-  }
+  // (Ext row removed: all modules rendered together)
 
   _clearAnyDimState();
 
