@@ -314,7 +314,10 @@ def root():
     # Serve the main UI by default
     try:
         return render_template("index.html")
-    except Exception:
+    except Exception as e:
+        import traceback
+        print("[UI ERROR] Could not render index.html:", e)
+        traceback.print_exc()
         # fallback to JSON health if template rendering fails
         return jsonify(
             {
@@ -322,6 +325,7 @@ def root():
                 "status": "running",
                 "controller_name": backend.cfg.controller_name,
                 "modules": len(backend.list_modules()),
+                "ui_error": str(e),
             }
         )
 
