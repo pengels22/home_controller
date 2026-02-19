@@ -1,3 +1,39 @@
+// Add a transparent overlay for popup dismissal
+function ensureIoChannelPopupOverlay() {
+  let overlay = document.querySelector('.io-channel-popup-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'io-channel-popup-overlay';
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.background = 'rgba(0,0,0,0.01)';
+    overlay.style.zIndex = '10000';
+    overlay.style.display = 'none';
+    document.body.appendChild(overlay);
+    overlay.onclick = hideIoChannelPopup;
+  }
+  return overlay;
+}
+
+function showIoChannelPopup(name, status) {
+  const popup = ensureIoChannelPopup();
+  const overlay = ensureIoChannelPopupOverlay();
+  popup.querySelector('.popup-title').textContent = name;
+  popup.querySelector('.popup-status').textContent = `Status: ${status}`;
+  popup.classList.add('active');
+  overlay.style.display = 'block';
+  document.body.classList.add('modal-open');
+}
+
+function hideIoChannelPopup() {
+  const popup = document.querySelector('.io-channel-popup');
+  const overlay = document.querySelector('.io-channel-popup-overlay');
+  if (popup) popup.classList.remove('active');
+  if (overlay) overlay.style.display = 'none';
+  document.body.classList.remove('modal-open');
+}
+window.showIoChannelPopup = showIoChannelPopup;
+window.hideIoChannelPopup = hideIoChannelPopup;
 // ---------------- IO Channel Popup Modal ----------------
 function ensureIoChannelPopup() {
   // Remove any duplicate popups (defensive)
