@@ -32,7 +32,10 @@ function scopeSvgStyles(svgRoot, scopeClass) {
     // Skip keyframes blocks to avoid breaking animations
     if (!css || css.includes("@keyframes")) return;
 
-    const scoped = css.replace(/(^|})\\s*([^@}][^}]*)/g, (m, sep, rules) => {
+    // Prefix every selector with the scope class
+    const scoped = css.replace(/(^|})\s*([^@}][^}]*)/g, (m, sep, rules) => {
+      // keep empty groups intact
+      if (!rules || !rules.trim()) return m;
       const parts = rules.split(",");
       const prefixed = parts
         .map((p) => p.trim())
