@@ -64,19 +64,8 @@
     <circle id="led_net" class="ledNet" cx="80" cy="73" r="6"/>
   </g>
 
-  <!-- IP label -->
-  <text class="label" x="34" y="227">IP ADDRESS</text>
-  <rect class="ipBox" x="30" y="237" width="110" height="34" rx="8"/>
-
-  <!-- AUTO-FIT IP TEXT -->
-  <text class="ipText"
-    x="35"
-    y="259"
-    textLength="100"
-    lengthAdjust="spacingAndGlyphs">0.0.0.0</text>
-
-  <!-- Hat module indicators (1..8) arranged in 2 columns x 4 rows under the IP box -->
-  <g id="hat_indicators" transform="translate(57,305)">
+  <!-- Hat module indicators (1..8) arranged in 2 columns x 4 rows (moved up after removing IP box) -->
+  <g id="hat_indicators" transform="translate(57,245)">
     <text class="label" x="0" y="-8">MODULES</text>
     <!-- left column (1-4) with labels to the left -->
     <text class="label" x="-6" y="8" text-anchor="end">1</text>
