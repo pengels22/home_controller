@@ -49,9 +49,66 @@ function showIoChannelPopup(name, status) {
   const popup = ensureIoChannelPopup();
   const overlay = ensureIoChannelPopupOverlay();
   let ctx = typeof name === 'object' ? name : { name, status };
+  // If this is a per-channel popup (has channel property), show minimal info
+  if (ctx.channel) {
+    popup.querySelector('.popup-title').textContent = ctx.name || `Channel ${ctx.channel}`;
+    popup.querySelector('.popup-status').textContent = ctx.status ? `Status: ${ctx.status}` : '';
+    const controls = popup.querySelector('.popup-controls');
+    // For AIO, distinguish between AI and AO by channel number (1-8 = AI, 9-16 = AO)
+    if (ctx.type === 'aio') {
+      let isAI = ctx.channel >= 1 && ctx.channel <= 8;
+      let isAO = ctx.channel >= 9 && ctx.channel <= 16;
+      let chNum = ctx.channel;
+      let html = '';
+      if (isAI) {
+        html = `
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:220px">
+            <div><b>Name:</b> <span id="aio_ch_name">${ctx.name || `AI${chNum}`}</span></div>
+            <div><b>Max Voltage:</b> <span id="aio_ch_maxv">${ctx.max_voltage !== undefined ? ctx.max_voltage : ''}</span> V</div>
+          </div>
+        `;
+      } else if (isAO) {
+        html = `
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:220px">
+            <div><b>Name:</b> <span id="aio_ch_name">${ctx.name || `AO${chNum-8}`}</span></div>
+            <div><b>Max Voltage:</b> <span id="aio_ch_maxv">${ctx.max_voltage !== undefined ? ctx.max_voltage : ''}</span> V</div>
+            <div><b>Set Voltage:</b> <input id="aio_set_voltage" type="number" min="0" max="24" step="0.5" style="width:80px" /> V</div>
+            <button id="aio_drive_btn">Drive</button>
+          </div>
+        `;
+      } else {
+        html = `<div>Unknown channel</div>`;
+      }
+      controls.innerHTML = html;
+      // Optionally: wire up drive button for AO
+      if (isAO) {
+        controls.querySelector('#aio_drive_btn').onclick = function() {
+          const v = parseFloat(controls.querySelector('#aio_set_voltage').value);
+          if (isNaN(v) || v < 0 || v > 24) {
+            alert('Enter a voltage between 0 and 24V');
+            return;
+          }
+          // TODO: send to backend to drive AO
+          alert(`Would drive AO${chNum-8} to ${v}V (implement backend)`);
+        };
+      }
+    } else {
+      // For DI/DO: just show name and status
+      controls.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:220px">
+          <div><b>Name:</b> <span>${ctx.name || `Channel ${ctx.channel}`}</span></div>
+          <div><b>Status:</b> <span>${ctx.status || ''}</span></div>
+        </div>
+      `;
+    }
+    popup.classList.add('active');
+    overlay.style.display = 'block';
+    document.body.classList.add('modal-open');
+    return;
+  }
+  // Otherwise, show full settings popup (gear/settings button)
   popup.querySelector('.popup-title').textContent = ctx.name || name;
   popup.querySelector('.popup-status').textContent = `Status: ${ctx.status || status}`;
-  // Render controls
   const controls = popup.querySelector('.popup-controls');
   controls.innerHTML = '<div>Loading…</div>';
   let url = '';
