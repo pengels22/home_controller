@@ -184,6 +184,10 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
   max-width: none;
   height: auto;
   display: block;
+  /* Force full-strength rendering in Safari; boosts contrast/brightness to defeat phantom opacity */
+  filter: brightness(1.8) contrast(2) saturate(1.4) !important;
+  opacity: 1 !important;
+  mix-blend-mode: normal !important;
 }
 
 /* ------------------ Gear button ------------------ */
