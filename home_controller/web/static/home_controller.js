@@ -1126,7 +1126,6 @@ async function showExpanderSettingsPopup() {
   overlay.style.display = 'block';
 }
 window.showExpanderSettingsPopup = showExpanderSettingsPopup;
-}
 window.onExtClick = onExtClick;
 
 function onExpanderBackClick(event) {
