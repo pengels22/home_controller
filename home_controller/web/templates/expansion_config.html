@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Expansion Card Settings</h1>
+
+<div class="card">
+  <form method="post">
+    <div style="margin-bottom:10px;">
+      <label>Expansion Card Name</label><br/>
+      <input name="exp_name" value="{{ exp.name }}" />
+    </div>
+    <div style="margin-bottom:10px;">
+      <label>Expansion Card I2C Address</label><br/>
+      <input name="exp_address" value="{{ exp.address_hex }}" />
+    </div>
+    <hr/>
+    <h3>Channels</h3>
+    {% for ch in exp.channels %}
+    <div style="margin-bottom:10px;">
+      <label>Channel {{ loop.index }} Name</label><br/>
+      <input name="ch{{ loop.index }}_name" value="{{ ch.name }}" />
+      <label>Type</label>
+      <select name="ch{{ loop.index }}_type">
+        <option value="di" {% if ch.type == 'di' %}selected{% endif %}>DI</option>
+        <option value="do" {% if ch.type == 'do' %}selected{% endif %}>DO</option>
+        <option value="aio" {% if ch.type == 'aio' %}selected{% endif %}>AIO</option>
+      </select>
+      <label>I2C Address</label>
+      <input name="ch{{ loop.index }}_address" value="{{ ch.address_hex }}" />
+    </div>
+    {% endfor %}
+    <button type="submit">Save</button>
+  </form>
+</div>
+
+<div class="card">
+  <div class="muted">Saved in: <code>{{ exp_cfg_path }}</code></div>
+</div>
+
+{% endblock %}
