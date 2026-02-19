@@ -141,6 +141,13 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
     filter: none !important;
 }
 
+/* Last-resort visual lift for non-head module SVGs (Safari dimming fix) */
+.module-card:not(.head-card) .module-svg svg {
+  filter: brightness(1.35) contrast(1.6) saturate(1.25) !important;
+  opacity: 1 !important;
+  mix-blend-mode: normal !important;
+}
+
 .module-header {
   display: flex;
   justify-content: space-between;
