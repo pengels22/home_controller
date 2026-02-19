@@ -20,7 +20,7 @@ import traceback
 from home_controller.core.backend import HomeControllerBackend
 from home_controller.config import aio_max_voltage
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="web/templates", static_folder="web/static")
 def _parse_i2c_address(addr_str: str) -> int:
     s = (addr_str or "").strip().lower()
     if not s:
