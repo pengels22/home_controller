@@ -113,24 +113,25 @@ function showIoChannelPopup(name, status) {
           <button id=\"ch_save_btn\">Save</button>
         </div>
       `;
-      // Fetch current invert/override state for this channel
-      if (ctx.module_id && ctx.channel) {
-        fetch(`/api/module_config_get?module_id=${encodeURIComponent(ctx.module_id)}`)
-          .then(r => r.json())
-          .then(data => {
-            if (data.ok) {
-              const inv = data.invert && data.invert[String(ctx.channel)];
-              const ov = data.override && data.override[String(ctx.channel)];
-              if (typeof inv === 'boolean') controls.querySelector('#ch_invert').checked = inv;
-              if (typeof ov === 'string') controls.querySelector('#ch_override').value = ov;
-            }
-          });
+      // Fetch current invert/override state for this channel (always latest)
+      async function fetchAndSetChannelState() {
+        if (ctx.module_id && ctx.channel) {
+          const r = await fetch(`/api/module_config_get?module_id=${encodeURIComponent(ctx.module_id)}`);
+          const data = await r.json();
+          if (data.ok) {
+            let inv = data.invert && data.invert[String(ctx.channel)];
+            if (typeof inv === 'string') inv = inv === 'true';
+            const ov = data.override && data.override[String(ctx.channel)];
+            controls.querySelector('#ch_invert').checked = !!inv;
+            if (typeof ov === 'string') controls.querySelector('#ch_override').value = ov;
+          }
+        }
       }
+      fetchAndSetChannelState();
       // Save button
       controls.querySelector('#ch_save_btn').onclick = async function() {
         const override = controls.querySelector('#ch_override').value;
         const invert = controls.querySelector('#ch_invert').checked;
-        // Save to backend
         if (!ctx.module_id) {
           alert('Module ID missing in context.');
           return;
@@ -148,6 +149,8 @@ function showIoChannelPopup(name, status) {
         const data = await res.json();
         if (data.ok) {
           alert('Channel settings saved.');
+          // After save, always re-fetch state to ensure sync
+          await fetchAndSetChannelState();
         } else {
           alert('Save failed: ' + (data.error || 'Unknown error'));
         }
