@@ -1,3 +1,14 @@
+#modules,
+#modules:parent,
+.modules-outer {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+#modules:parent,
+.modules-outer {
+  background: #222 !important;
+}
 .modules-row.ext-row {
   border: 2px dashed #ff4a4a !important;
   background: #181c23 !important;
