@@ -186,17 +186,17 @@ const HEAD_MODULE_SVG = `
         <rect id="hat_mod_7" class="hat-off" x="36" y="36" width="16" height="10" rx="2"><title>Module 7</title></rect>
         <text class="label" x="58" y="44" text-anchor="start">7</text>
 
-      <rect id="hat_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
-      <text class="label" x="58" y="62" text-anchor="start">8</text>
+        <rect id="hat_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
+        <text class="label" x="58" y="62" text-anchor="start">8</text>
 
-      <text class="label" x="24" y="80" text-anchor="end">EXT</text>
-      <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
+        <text class="label" x="-6" y="80" text-anchor="end">EXT</text>
+        <rect id="hat_ext" class="hat-off" x="0" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
 
-      <text class="label" x="24" y="98" text-anchor="end">EXT</text>
-      <rect id="hat_ext_2" class="hat-off" x="28" y="90" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
-    </g>
-  </svg>
-</div>
+        <rect id="hat_ext_2" class="hat-off" x="36" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
+        <text class="label" x="58" y="80" text-anchor="start">EXT</text>
+      </g>
+    </svg>
+  </div>
 </div>
 `;
 
