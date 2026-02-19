@@ -96,10 +96,34 @@ function showIoChannelPopup(name, status) {
           alert(`Would drive AO${chNum-8} to ${v}V (implement backend)`);
         };
       }
-    } else {
-      // For DI/DO: just show name and status
+    } else if (ctx.type === 'di' || ctx.type === 'do') {
+      // For DI/DO: show name, status, override, and logic invert
       controls.innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:220px">
+        <div style=\"display:flex;flex-direction:column;gap:10px;align-items:flex-start;min-width:220px\">
+          <div><b>Name:</b> <span>${ctx.name || `Channel ${ctx.channel}`}</span></div>
+          <div><b>Status:</b> <span>${ctx.status || ''}</span></div>
+          <div><b>Override:</b>
+            <select id=\"ch_override\">
+              <option value=\"none\">None</option>
+              <option value=\"on\">On</option>
+              <option value=\"off\">Off</option>
+            </select>
+          </div>
+          <div><label><input type=\"checkbox\" id=\"ch_invert\" /> Logic Invert</label></div>
+          <button id=\"ch_save_btn\">Save</button>
+        </div>
+      `;
+      // Optionally: wire up save button to send override/invert to backend
+      controls.querySelector('#ch_save_btn').onclick = function() {
+        const override = controls.querySelector('#ch_override').value;
+        const invert = controls.querySelector('#ch_invert').checked;
+        // TODO: send to backend for this channel
+        alert(`Would set override: ${override}, invert: ${invert} for channel ${ctx.channel} (implement backend)`);
+      };
+    } else {
+      // For other types: just show name and status
+      controls.innerHTML = `
+        <div style=\"display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:220px\">
           <div><b>Name:</b> <span>${ctx.name || `Channel ${ctx.channel}`}</span></div>
           <div><b>Status:</b> <span>${ctx.status || ''}</span></div>
         </div>
