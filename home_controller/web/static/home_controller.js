@@ -603,11 +603,7 @@ async function loadModules() {
     gear.className = "icon-btn";
     gear.title = "Settings";
     gear.textContent = "⚙️";
-    if (String(m.type).toLowerCase() === "ext") {
-      gear.onclick = showExpanderSettingsPopup;
-    } else {
-      gear.onclick = () => openModal(m);
-    }
+    gear.onclick = () => showIoChannelPopup(m);
 
     header.appendChild(left);
     header.appendChild(gear);
