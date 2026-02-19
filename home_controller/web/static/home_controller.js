@@ -653,7 +653,7 @@ async function loadModules() {
     gear.title = "Settings";
     gear.textContent = "⚙️";
     if (String(m.type).toLowerCase() === "ext") {
-      gear.onclick = () => { window.location.href = "/expansion_config"; };
+      gear.onclick = showExpanderSettingsPopup;
     } else {
       gear.onclick = () => openModal(m);
     }
