@@ -1,0 +1,6 @@
+{
+  "id": "i2c1-0x44",
+  "type": "aio",
+  "address_hex": "0x44",
+  "name": ""
+}

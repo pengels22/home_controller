@@ -90,6 +90,26 @@ class ControllerConfig:
 # -----------------------------
 
 class HomeControllerBackend:
+        # -----------------------------
+        # Per-module config helpers
+        # -----------------------------
+        def _module_config_path(self, mtype: str, address_hex: str) -> str:
+            """Return the config file path for a module (by type and address)."""
+            fname = f"{mtype.lower()}_{address_hex.lower()}.json"
+            return os.path.join(self._repo_root, "home_controller", "config", "modules", fname)
+
+        def load_module_config(self, mtype: str, address_hex: str) -> dict:
+            path = self._module_config_path(mtype, address_hex)
+            if not os.path.exists(path):
+                return {}
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+
+        def save_module_config(self, mtype: str, address_hex: str, data: dict) -> None:
+            path = self._module_config_path(mtype, address_hex)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, sort_keys=True)
     """
     Main backend class. This will be imported by the Flask app later.
     """
