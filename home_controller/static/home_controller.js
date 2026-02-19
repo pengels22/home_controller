@@ -544,6 +544,25 @@ async function loadModules() {
   forceOpaque();
   setTimeout(forceOpaque, 30);
   setTimeout(forceOpaque, 120);
+  // Log computed opacity/filter to help diagnose remaining dim cases
+  (() => {
+    try {
+      document.querySelectorAll('.module-card').forEach((el, idx) => {
+        const s = getComputedStyle(el);
+        console.log(`[opacity-debug] card ${idx} opacity=${s.opacity} filter=${s.filter} blend=${s.mixBlendMode}`);
+        let p = el.parentElement;
+        while (p && p !== document.body) {
+          const sp = getComputedStyle(p);
+          if (parseFloat(sp.opacity) < 0.999 || (sp.filter && sp.filter !== 'none' && sp.filter !== 'blur(0px)')) {
+            console.warn('[opacity-debug] ancestor has opacity/filter', p, 'opacity=', sp.opacity, 'filter=', sp.filter, 'blend=', sp.mixBlendMode);
+          }
+          p = p.parentElement;
+        }
+      });
+    } catch (e) {
+      console.warn('[opacity-debug] failed', e);
+    }
+  })();
   // keep a short-lived MutationObserver to catch async SVG inserts
   const modulesContainer = document.getElementById('modules')?.parentNode;
   if (modulesContainer && !window._modulesOpacityObserver) {
@@ -827,8 +846,8 @@ async function onExtClick(event) {
 
   if (!_expanderSVGCache) {
     try {
-      // Fetch the correct expander SVG file (i2c_expander.svg)
-      const res = await fetch("/modules/svg/i2c_expander");
+      // Fetch the correct expander SVG file (server route name is 'i2c')
+      const res = await fetch("/modules/svg/i2c");
       if (!res.ok) throw new Error("Failed to load expander SVG");
       _expanderSVGCache = await res.text();
     } catch (e) {
