@@ -2,35 +2,53 @@
 <div class="module-settings-popup">
   <h2>DO Module Settings</h2>
   <form>
-    <label>Module Name: <input type="text" name="module_name" /></label><br>
-    <label>I2C Address: <input type="text" name="i2c_address" /></label><br>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <label style="min-width:110px">Module Name:</label>
+      <input type="text" name="module_name" style="flex:1;min-width:180px" />
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <label style="min-width:110px">I2C Address:</label>
+      <input type="text" name="i2c_address" style="flex:1;min-width:180px" />
+    </div>
     <div class="channels">
-      <h3>Channel Names</h3>
-      <div style="display:flex;gap:24px">
+      <h3>Channels</h3>
+      <div style="display:flex;gap:32px">
         <div>
           <h4>Channels 1-8</h4>
           <div style="display:flex;flex-direction:column;gap:4px">
-            <input type="text" name="ch1" placeholder="Channel 1" />
-            <input type="text" name="ch2" placeholder="Channel 2" />
-            <input type="text" name="ch3" placeholder="Channel 3" />
-            <input type="text" name="ch4" placeholder="Channel 4" />
-            <input type="text" name="ch5" placeholder="Channel 5" />
-            <input type="text" name="ch6" placeholder="Channel 6" />
-            <input type="text" name="ch7" placeholder="Channel 7" />
-            <input type="text" name="ch8" placeholder="Channel 8" />
+            <!-- Channel 1-8 -->
+            {% for i in range(1,9) %}
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="ch{{i}}" placeholder="Channel {{i}}" style="width:90px" />
+              <label>Override
+                <select name="ch{{i}}_override">
+                  <option value="none">None</option>
+                  <option value="on">On</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+              <label>Invert <input type="checkbox" name="ch{{i}}_invert" /></label>
+            </div>
+            {% endfor %}
           </div>
         </div>
         <div>
           <h4>Channels 9-16</h4>
           <div style="display:flex;flex-direction:column;gap:4px">
-            <input type="text" name="ch9" placeholder="Channel 9" />
-            <input type="text" name="ch10" placeholder="Channel 10" />
-            <input type="text" name="ch11" placeholder="Channel 11" />
-            <input type="text" name="ch12" placeholder="Channel 12" />
-            <input type="text" name="ch13" placeholder="Channel 13" />
-            <input type="text" name="ch14" placeholder="Channel 14" />
-            <input type="text" name="ch15" placeholder="Channel 15" />
-            <input type="text" name="ch16" placeholder="Channel 16" />
+            <!-- Channel 9-16 -->
+            {% for i in range(9,17) %}
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="ch{{i}}" placeholder="Channel {{i}}" style="width:90px" />
+              <label>Override
+                <select name="ch{{i}}_override">
+                  <option value="none">None</option>
+                  <option value="on">On</option>
+                  <option value="off">Off</option>
+                </select>
+              </label>
+              <label>Invert <input type="checkbox" name="ch{{i}}_invert" /></label>
+            </div>
+            {% endfor %}
           </div>
         </div>
       </div>
