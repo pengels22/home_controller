@@ -586,6 +586,18 @@ async function loadModules() {
   }
 
   _clearAnyDimState();
+
+  // DEBUG: Remove all opacity/filter from modules area after rendering
+  setTimeout(() => {
+    const modulesArea = document.getElementById('modules');
+    if (modulesArea) {
+      modulesArea.querySelectorAll('*').forEach(el => {
+        el.style.opacity = '1';
+        el.style.filter = 'none';
+      });
+      console.log('[DEBUG] Cleared opacity/filter from all elements in #modules');
+    }
+  }, 0);
 }
 
 // ============================================================
