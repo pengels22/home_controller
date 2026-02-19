@@ -25,37 +25,29 @@ function _clearAnyDimState() {
   // Remove any body classes that typically cause dim/blur
   document.body.classList.remove("modal-open", "dim", "busy", "disabled");
 
-  // Nuke any inline filter/opacity/backdropFilter on common containers
-  const kill = (el) => {
+  // Only pointer events and display are managed now
+  const reset = (el) => {
     if (!el) return;
-    /* opacity removed */
-    el.style.filter = "none";
-    el.style.backdropFilter = "none";
-    el.style.webkitBackdropFilter = "none";
     el.style.pointerEvents = "";
   };
 
-  kill(document.body);
-  kill(document.querySelector(".container"));
+  reset(document.body);
+  reset(document.querySelector(".container"));
 
   document.querySelectorAll(".card, .modules-row, #modules, .module-card, .module-card svg, .module-svg")
-    .forEach(kill);
+    .forEach(reset);
 
   // If any “overlay-ish” nodes exist, force them off
   document.querySelectorAll(".modal-backdrop, .overlay, .backdrop")
     .forEach(el => {
       el.style.display = "none";
       el.style.pointerEvents = "none";
-      el.style.opacity = "1";
-      el.style.filter = "none";
     });
 }
 
 // Ensures SVG isn’t inheriting odd filter/opacity from Safari quirks
 function ensureSvgVisible(svgRoot) {
   if (!svgRoot) return;
-  /* opacity removed */
-  svgRoot.style.filter = "none";
   svgRoot.style.pointerEvents = "auto";
 }
 
