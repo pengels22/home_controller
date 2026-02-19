@@ -1040,8 +1040,89 @@ async function onExtClick(event) {
 
     const settingsBtn = document.getElementById("expander_settings_btn");
     if (settingsBtn) {
-      settingsBtn.onclick = () => { window.location.href = "/expansion_config"; };
+      settingsBtn.onclick = showExpanderSettingsPopup;
     }
+  // Expansion Card Settings Popup (Expander/Extender)
+  async function showExpanderSettingsPopup() {
+    const popup = ensureIoChannelPopup();
+    const overlay = ensureIoChannelPopupOverlay();
+    popup.querySelector('.popup-title').textContent = "Expansion Card Settings";
+    popup.querySelector('.popup-status').textContent = "";
+    const controls = popup.querySelector('.popup-controls');
+    controls.innerHTML = "Loading…";
+
+    // Fetch config
+    const res = await fetch("/api/expansion_config");
+    const data = await res.json();
+    if (!data.ok) { controls.innerHTML = "Failed to load config"; return; }
+    const exp = data.exp;
+
+    // Build form
+    let html = `
+      <form id="expander_settings_form">
+        <div style="margin-bottom:10px;">
+          <label>Name</label><br/>
+          <input name="name" value="${exp.name || ""}" />
+        </div>
+        <div style="margin-bottom:10px;">
+          <label>I2C Address</label><br/>
+          <input name="address_hex" value="${exp.address_hex || ""}" />
+        </div>
+        <hr/>
+        <h3>Channels</h3>
+    `;
+    exp.channels.forEach((ch, i) => {
+      html += `
+        <div style="margin-bottom:10px;">
+          <label>Channel ${i+1} Name</label><br/>
+          <input name="ch${i}_name" value="${ch.name || ""}" />
+          <label>Type</label>
+          <select name="ch${i}_type">
+            <option value="di" ${ch.type === 'di' ? 'selected' : ''}>DI</option>
+            <option value="do" ${ch.type === 'do' ? 'selected' : ''}>DO</option>
+            <option value="aio" ${ch.type === 'aio' ? 'selected' : ''}>AIO</option>
+          </select>
+          <label>I2C Address</label>
+          <input name="ch${i}_address" value="${ch.address_hex || ""}" />
+        </div>
+      `;
+    });
+    html += `<button type="submit">Save</button></form>`;
+    controls.innerHTML = html;
+
+    // Handle form submit
+    controls.querySelector("#expander_settings_form").onsubmit = async function(e) {
+      e.preventDefault();
+      // Gather data
+      const form = e.target;
+      const payload = {
+        name: form.name.value,
+        address_hex: form.address_hex.value,
+        channels: exp.channels.map((ch, i) => ({
+          name: form[`ch${i}_name`].value,
+          type: form[`ch${i}_type`].value,
+          address_hex: form[`ch${i}_address`].value
+        }))
+      };
+      // Save
+      const saveRes = await fetch("/api/expansion_config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const saveData = await saveRes.json();
+      if (saveData.ok) {
+        alert("Expansion config saved!");
+        hideIoChannelPopup();
+      } else {
+        alert("Save failed: " + (saveData.error || "Unknown error"));
+      }
+    };
+
+    popup.classList.add('active');
+    overlay.style.display = 'block';
+  }
+  window.showExpanderSettingsPopup = showExpanderSettingsPopup;
   }, 0);
 }
 window.onExtClick = onExtClick;
