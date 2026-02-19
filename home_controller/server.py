@@ -145,8 +145,10 @@ def internet_ok_tcp() -> bool:
 # ------------------------------------------------------------
 # Health check (API)
 # ------------------------------------------------------------
+def expansion_config():
 @app.route("/expansion_config", methods=["GET", "POST"])
 def expansion_config():
+    print("[DEBUG] /expansion_config route accessed, method:", request.method)
     # Load expansion card config (stub: you may want to load from a dedicated file)
     exp_cfg_path = os.path.join(os.path.dirname(__file__), "config", "expansion_config.json")
     if os.path.exists(exp_cfg_path):
