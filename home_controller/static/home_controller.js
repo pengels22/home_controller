@@ -186,14 +186,17 @@ const HEAD_MODULE_SVG = `
         <rect id="hat_mod_7" class="hat-off" x="36" y="36" width="16" height="10" rx="2"><title>Module 7</title></rect>
         <text class="label" x="58" y="44" text-anchor="start">7</text>
 
-        <rect id="hat_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
-        <text class="label" x="58" y="62" text-anchor="start">8</text>
+      <rect id="hat_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
+      <text class="label" x="58" y="62" text-anchor="start">8</text>
 
-        <text class="label" x="24" y="80" text-anchor="end">EXT</text>
-        <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
-      </g>
-    </svg>
-  </div>
+      <text class="label" x="24" y="80" text-anchor="end">EXT</text>
+      <rect id="hat_ext" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
+
+      <text class="label" x="24" y="98" text-anchor="end">EXT</text>
+      <rect id="hat_ext_2" class="hat-off" x="28" y="90" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
+    </g>
+  </svg>
+</div>
 </div>
 `;
 
@@ -206,6 +209,11 @@ function attachExtClickHandler() {
   if (extRect) {
     extRect.onclick = null;
     extRect.style.cursor = "default";
+  }
+  const extRect2 = headCard.querySelector("#hat_ext_2");
+  if (extRect2) {
+    extRect2.onclick = null;
+    extRect2.style.cursor = "default";
   }
 }
 
@@ -273,16 +281,17 @@ async function _refreshHeadStatusOnce() {
               b = !!((gb >> (i - 1)) & 1);
             }
 
-            if (a && b) el.style.fill = "#39d353";
-            else if (a && !b) el.style.fill = "#ffd43b";
-            else if (!a && b) el.style.fill = "#ff4d4f";
-            else el.style.fill = "#cfcfcf";
-          }
+          if (a && b) el.style.fill = "#39d353";
+          else if (a && !b) el.style.fill = "#ffd43b";
+          else if (!a && b) el.style.fill = "#ff4d4f";
+          else el.style.fill = "#cfcfcf";
+        }
 
           const extEl = svg.querySelector("#hat_ext");
-          if (extEl) {
-            extEl.style.fill = hs.ext_present ? "#39d353" : "#cfcfcf";
-          }
+          const extEl2 = svg.querySelector("#hat_ext_2");
+          const extFill = hs.ext_present ? "#39d353" : "#cfcfcf";
+          if (extEl) extEl.style.fill = extFill;
+          if (extEl2) extEl2.style.fill = extFill;
         }
       }
     } catch (e) {

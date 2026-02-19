@@ -93,9 +93,6 @@
     <rect id="hat_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
     <text class="label" x="58" y="62" text-anchor="start">8</text>
 
-    <!-- EXT indicator below the two-column grid, same size as module LEDs, label to the left -->
-    <text class="label" x="24" y="80" text-anchor="end">BACK</text>
-    <rect id="expander_back_btn" class="hat-off" x="28" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>Back</title></rect>
   </g>
 
 </svg>
