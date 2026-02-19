@@ -1,4 +1,6 @@
 // ------------------ Unified IO Channel Popup Modal ------------------
+// DOM helper for getElementById (used throughout)
+function $(id) { return document.getElementById(id); }
 // Ensures a single overlay for popup dismissal
 function ensureIoChannelPopupOverlay() {
   let overlay = document.querySelector('.io-channel-popup-overlay');
