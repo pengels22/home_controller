@@ -29,22 +29,29 @@ function scopeSvgStyles(svgRoot, scopeClass) {
   const styles = svgRoot.querySelectorAll("style");
   styles.forEach((st) => {
     const css = st.textContent || "";
-    // Skip keyframes blocks to avoid breaking animations
-    if (!css || css.includes("@keyframes")) return;
+    if (!css) return;
 
-    // Prefix every selector with the scope class
-    const scoped = css.replace(/(^|})\s*([^@}][^}]*)/g, (m, sep, rules) => {
-      // keep empty groups intact
-      if (!rules || !rules.trim()) return m;
-      const parts = rules.split(",");
-      const prefixed = parts
-        .map((p) => p.trim())
+    // Simple selector-body parser that won't split on commas inside declarations
+    const out = [];
+    const regex = /([^{}]+){([^{}]*)}/g;
+    let m;
+    while ((m = regex.exec(css)) !== null) {
+      const sel = m[1].trim();
+      const body = m[2];
+      if (!sel || sel.startsWith("@")) {
+        out.push(`${sel}{${body}}`);
+        continue;
+      }
+      // prefix each selector in the group
+      const scopedSel = sel
+        .split(",")
+        .map((s) => s.trim())
         .filter(Boolean)
-        .map((p) => `.${scopeClass} ${p}`)
+        .map((s) => `.${scopeClass} ${s}`)
         .join(", ");
-      return `${sep} ${prefixed}`;
-    });
-    st.textContent = scoped;
+      out.push(`${scopedSel}{${body}}`);
+    }
+    if (out.length) st.textContent = out.join(" ");
   });
 }
 
