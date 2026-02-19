@@ -7,7 +7,7 @@ import socket
 import subprocess
 import time
 from typing import Set, Tuple, Optional
-
+import sys
 # Expansion card settings route
 
 from flask import (
@@ -28,6 +28,9 @@ from home_controller.config import aio_max_voltage
 BASE_DIR = Path(__file__).resolve().parent  # .../home_controller/
 TEMPLATES_DIR = BASE_DIR / "web" / "templates"
 STATIC_DIR = BASE_DIR / "web" / "static"
+# ------------------------------------------------------------
+# Flask app
+# ------------------------------------------------------------
 
 app = Flask(
     __name__,
@@ -158,10 +161,10 @@ def internet_ok_tcp() -> bool:
 # ------------------------------------------------------------
 # Health check (API)
 # ------------------------------------------------------------
-@app.get("/test123")
+@app.route("/test123")
 def test123():
     return "Test route is working!"
-@app.get("/expansion_config", methods=["GET", "POST"])
+@app.route("/expansion_config", methods=["GET", "POST"])
 def expansion_config():
     print("[DEBUG] /expansion_config route accessed, method:", request.method)
     # Load expansion card config (stub: you may want to load from a dedicated file)
@@ -275,16 +278,7 @@ def _save_labels(data: dict) -> None:
     tmp.replace(LABELS_FILE)
 
 
-# ------------------------------------------------------------
-# Flask app
-# ------------------------------------------------------------
-app = Flask(
-    __name__,
-    template_folder=str(TEMPLATES_DIR),
-    static_folder=str(STATIC_DIR),
-)
 
-import sys
 
 # Backend instance. Support developer simulation mode via `-dev` flag or env var.
 args = [a.lower() for a in sys.argv[1:]]
