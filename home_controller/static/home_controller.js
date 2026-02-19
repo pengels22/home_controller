@@ -22,6 +22,13 @@ function ensureSvgVisible(svgRoot) {
   svgRoot.style.mixBlendMode = "normal";
 }
 
+function _forceOpaque(el) {
+  if (!el) return;
+  el.style.setProperty("opacity", "1", "important");
+  el.style.setProperty("filter", "none", "important");
+  el.style.setProperty("mix-blend-mode", "normal", "important");
+}
+
 // ============================================================
 // “DIM/OVERLAY” DEFENSE (THIS IS THE REAL FIX)
 // ============================================================
@@ -461,11 +468,14 @@ async function loadModules() {
   for (const m of orderedModules) {
     const card = document.createElement("div");
     card.className = "module-card";
+    _forceOpaque(card);
 
     const header = document.createElement("div");
     header.className = "module-header";
+    _forceOpaque(header);
 
     const left = document.createElement("div");
+    _forceOpaque(left);
 
     const displayName =
       (m.name && String(m.name).trim().length > 0)
@@ -489,6 +499,7 @@ async function loadModules() {
     const svgHolder = document.createElement("div");
     svgHolder.className = "module-svg";
     svgHolder.textContent = "Loading…";
+    _forceOpaque(svgHolder);
 
     card.appendChild(header);
     card.appendChild(svgHolder);
@@ -507,6 +518,7 @@ async function loadModules() {
       const svgRoot = svgHolder.querySelector("svg");
       if (svgRoot) {
         ensureSvgVisible(svgRoot);
+        _forceOpaque(svgRoot);
         MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
       }
     } catch (e) {
