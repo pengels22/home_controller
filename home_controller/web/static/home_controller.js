@@ -179,8 +179,68 @@ function showIoChannelPopup(name, status) {
   if (url) {
     fetch(url)
       .then(r => r.text())
-      .then(html => {
+      .then(async html => {
         controls.innerHTML = html;
+        // If DI/DO, fetch per-channel invert/override state from backend and update form
+        if (ctx.type === 'di' || ctx.type === 'do') {
+          if (ctx.module_id) {
+            try {
+              const res = await fetch(`/api/module_config_get?module_id=${encodeURIComponent(ctx.module_id)}`);
+              const data = await res.json();
+              if (data.ok) {
+                // For each channel 1-16, update override/invert controls
+                for (let i = 1; i <= 16; i++) {
+                  // Override
+                  const ov = data.override && data.override[String(i)];
+                  const ovSel = controls.querySelector(`[name='ch${i}_override']`);
+                  if (ovSel && typeof ov === 'string') ovSel.value = ov;
+                  // Invert
+                  const inv = data.invert && data.invert[String(i)];
+                  const invChk = controls.querySelector(`[name='ch${i}_invert']`);
+                  if (invChk && typeof inv === 'boolean') invChk.checked = inv;
+                }
+              }
+            } catch (e) {
+              // ignore errors, fallback to defaults
+            }
+          }
+          // Add save handler for the global popup form
+          const form = controls.querySelector('form');
+          if (form) {
+            form.onsubmit = async function(e) {
+              e.preventDefault();
+              if (!ctx.module_id) {
+                alert('Module ID missing in context.');
+                return;
+              }
+              // Gather all override/invert values for channels 1-16
+              const override = {};
+              const invert = {};
+              for (let i = 1; i <= 16; i++) {
+                const ovSel = form.querySelector(`[name='ch${i}_override']`);
+                const invChk = form.querySelector(`[name='ch${i}_invert']`);
+                if (ovSel) override[i] = ovSel.value;
+                if (invChk) invert[i] = !!invChk.checked;
+              }
+              // Save to backend
+              const res = await fetch('/api/module_config_set', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  module_id: ctx.module_id,
+                  override: override,
+                  invert: invert
+                })
+              });
+              const data = await res.json();
+              if (data.ok) {
+                alert('Module settings saved.');
+              } else {
+                alert('Save failed: ' + (data.error || 'Unknown error'));
+              }
+            };
+          }
+        }
       });
   } else {
     controls.innerHTML = '<div>No config popup for this module type.</div>';
