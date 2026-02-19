@@ -55,26 +55,19 @@ function showIoChannelPopup(name, status) {
   const controls = popup.querySelector('.popup-controls');
   controls.innerHTML = '';
   if (ctx.type === 'di' || ctx.type === 'do') {
-    // Two-column layout for channels 1-16
+    // Two-column layout: channels 1-8 left, 9-16 right
     const wrapper = document.createElement('div');
     wrapper.style.display = 'flex';
     wrapper.style.gap = '18px';
     wrapper.style.marginBottom = '12px';
-    // Left column: 1-8
     const leftCol = document.createElement('div');
-    for (let i = 1; i <= 8; i++) {
-      const chBox = document.createElement('div');
-      chBox.style.marginBottom = '8px';
-      chBox.innerHTML = `<label style="margin-bottom:2px;display:block;">Channel ${i}</label><input style="padding:2px;" type="text" value="" />`;
-      leftCol.appendChild(chBox);
-    }
-    // Right column: 9-16
     const rightCol = document.createElement('div');
-    for (let i = 9; i <= 16; i++) {
+    for (let i = 1; i <= 16; i++) {
       const chBox = document.createElement('div');
       chBox.style.marginBottom = '8px';
       chBox.innerHTML = `<label style="margin-bottom:2px;display:block;">Channel ${i}</label><input style="padding:2px;" type="text" value="" />`;
-      rightCol.appendChild(chBox);
+      if (i <= 8) leftCol.appendChild(chBox);
+      else rightCol.appendChild(chBox);
     }
     wrapper.appendChild(leftCol);
     wrapper.appendChild(rightCol);
