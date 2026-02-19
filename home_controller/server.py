@@ -19,131 +19,13 @@ from flask import (
 )
 import traceback
 
+
 from home_controller.core.backend import HomeControllerBackend
 # ------------------------------------------------------------
 # AIO max voltage config API (moved to bottom)
 # ------------------------------------------------------------
-from __future__ import annotations
 from home_controller.config import aio_max_voltage
 
-@app.get("/api/aio_max_voltage/<module_id>")
-def api_get_aio_max_voltage(module_id: str):
-    # Find module by id and get its I2C address
-    idx = backend._find_module_index(module_id)
-    if idx < 0:
-        return jsonify({"ok": False, "error": "module not found"}), 404
-    m = backend.cfg.modules[idx]
-    if m.type != "aio":
-        return jsonify({"ok": False, "error": "not an AIO module"}), 400
-    data = aio_max_voltage.load_aio_max_voltage(m.address_hex)
-    return jsonify({"ok": True, "data": data})
-
-@app.post("/api/aio_max_voltage/<module_id>")
-def api_set_aio_max_voltage(module_id: str):
-    idx = backend._find_module_index(module_id)
-    if idx < 0:
-        return jsonify({"ok": False, "error": "module not found"}), 404
-    m = backend.cfg.modules[idx]
-    if m.type != "aio":
-        return jsonify({"ok": False, "error": "not an AIO module"}), 400
-    data = request.get_json(force=True, silent=True) or {}
-    # Expect {"in": {...}, "out": {...}}
-    if not ("in" in data and "out" in data):
-        return jsonify({"ok": False, "error": "missing in/out blocks"}), 400
-    aio_max_voltage.save_aio_max_voltage(m.address_hex, data)
-    return jsonify({"ok": True})
-#!/usr/bin/env python3
-from __future__ import annotations
-
-import os
-import json
-from pathlib import Path
-import socket
-import subprocess
-import time
-from typing import Set, Tuple, Optional
-
-from flask import (
-    Flask,
-    jsonify,
-    request,
-    render_template,
-    send_from_directory,
-    abort,
-)
-import traceback
-
-from home_controller.core.backend import HomeControllerBackend
-
-# ------------------------------------------------------------
-# Paths (absolute, based on this file)
-# ------------------------------------------------------------
-BASE_DIR = Path(__file__).resolve().parent  # .../home_controller/
-TEMPLATES_DIR = BASE_DIR / "templates"
-STATIC_DIR = BASE_DIR / "static"
-
-# UI labels storage (module + channel naming)
-LABELS_DIR = BASE_DIR / "config"
-LABELS_FILE = LABELS_DIR / "ui_labels.json"
-
-# I2C bus to scan (Pi default is usually 1)
-I2C_BUS = int(os.getenv("HC_I2C_BUS", "1"))
-
-# Small cache so we don't run i2cdetect constantly
-_I2C_CACHE: Tuple[float, Set[int], Optional[str]] = (0.0, set(), None)  # (ts, addrs, err)
-
-
-def _load_labels() -> dict:
-    try:
-        if not LABELS_FILE.exists():
-            return {}
-        with open(LABELS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data if isinstance(data, dict) else {}
-    except Exception:
-        return {}
-
-
-def _save_labels(data: dict) -> None:
-    LABELS_DIR.mkdir(parents=True, exist_ok=True)
-    tmp = LABELS_FILE.with_suffix(".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, sort_keys=True)
-    tmp.replace(LABELS_FILE)
-
-
-# ------------------------------------------------------------
-# Flask app
-# ------------------------------------------------------------
-app = Flask(
-    __name__,
-    template_folder=str(TEMPLATES_DIR),
-    static_folder=str(STATIC_DIR),
-)
-
-import sys
-
-# Backend instance. Support developer simulation mode via `-dev` flag or env var.
-args = [a.lower() for a in sys.argv[1:]]
-DEV_MODE = any(a in ("-dev", "--dev", "dev") for a in args) or os.getenv("HC_DEV", "0").lower() in ("1", "true", "yes")
-backend = HomeControllerBackend()
-if DEV_MODE:
-    dev_file = os.getenv("HC_DEV_FILE", None)
-    backend.enable_dev_mode(dev_file)
-    print(f"DEV MODE enabled; dev file={backend._dev_file}")
-
-
-# ------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------
-@app.after_request
-def _no_cache_for_api(resp):
-    # Prevent stale head/IP/network/I2C status in the browser
-    if request.path.startswith("/api/") or request.path == "/":
-        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-        resp.headers["Pragma"] = "no-cache"
-        resp.headers["Expires"] = "0"
-    return resp
 
 
 def _parse_i2c_address(addr_str: str) -> int:
@@ -276,6 +158,126 @@ def internet_ok_tcp() -> bool:
 # ------------------------------------------------------------
 # Health check (API)
 # ------------------------------------------------------------
+
+@app.get("/api/aio_max_voltage/<module_id>")
+def api_get_aio_max_voltage(module_id: str):
+    # Find module by id and get its I2C address
+    idx = backend._find_module_index(module_id)
+    if idx < 0:
+        return jsonify({"ok": False, "error": "module not found"}), 404
+    m = backend.cfg.modules[idx]
+    if m.type != "aio":
+        return jsonify({"ok": False, "error": "not an AIO module"}), 400
+    data = aio_max_voltage.load_aio_max_voltage(m.address_hex)
+    return jsonify({"ok": True, "data": data})
+
+@app.post("/api/aio_max_voltage/<module_id>")
+def api_set_aio_max_voltage(module_id: str):
+    idx = backend._find_module_index(module_id)
+    if idx < 0:
+        return jsonify({"ok": False, "error": "module not found"}), 404
+    m = backend.cfg.modules[idx]
+    if m.type != "aio":
+        return jsonify({"ok": False, "error": "not an AIO module"}), 400
+    data = request.get_json(force=True, silent=True) or {}
+    # Expect {"in": {...}, "out": {...}}
+    if not ("in" in data and "out" in data):
+        return jsonify({"ok": False, "error": "missing in/out blocks"}), 400
+    aio_max_voltage.save_aio_max_voltage(m.address_hex, data)
+    return jsonify({"ok": True})
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import os
+import json
+from pathlib import Path
+import socket
+import subprocess
+import time
+from typing import Set, Tuple, Optional
+
+from flask import (
+    Flask,
+    jsonify,
+    request,
+    render_template,
+    send_from_directory,
+    abort,
+)
+import traceback
+
+from home_controller.core.backend import HomeControllerBackend
+
+# ------------------------------------------------------------
+# Paths (absolute, based on this file)
+# ------------------------------------------------------------
+BASE_DIR = Path(__file__).resolve().parent  # .../home_controller/
+TEMPLATES_DIR = BASE_DIR / "templates"
+STATIC_DIR = BASE_DIR / "static"
+
+# UI labels storage (module + channel naming)
+LABELS_DIR = BASE_DIR / "config"
+LABELS_FILE = LABELS_DIR / "ui_labels.json"
+
+# I2C bus to scan (Pi default is usually 1)
+I2C_BUS = int(os.getenv("HC_I2C_BUS", "1"))
+
+# Small cache so we don't run i2cdetect constantly
+_I2C_CACHE: Tuple[float, Set[int], Optional[str]] = (0.0, set(), None)  # (ts, addrs, err)
+
+
+def _load_labels() -> dict:
+    try:
+        if not LABELS_FILE.exists():
+            return {}
+        with open(LABELS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _save_labels(data: dict) -> None:
+    LABELS_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = LABELS_FILE.with_suffix(".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, sort_keys=True)
+    tmp.replace(LABELS_FILE)
+
+
+# ------------------------------------------------------------
+# Flask app
+# ------------------------------------------------------------
+app = Flask(
+    __name__,
+    template_folder=str(TEMPLATES_DIR),
+    static_folder=str(STATIC_DIR),
+)
+
+import sys
+
+# Backend instance. Support developer simulation mode via `-dev` flag or env var.
+args = [a.lower() for a in sys.argv[1:]]
+DEV_MODE = any(a in ("-dev", "--dev", "dev") for a in args) or os.getenv("HC_DEV", "0").lower() in ("1", "true", "yes")
+backend = HomeControllerBackend()
+if DEV_MODE:
+    dev_file = os.getenv("HC_DEV_FILE", None)
+    backend.enable_dev_mode(dev_file)
+    print(f"DEV MODE enabled; dev file={backend._dev_file}")
+
+
+# ------------------------------------------------------------
+# Helpers
+# ------------------------------------------------------------
+@app.after_request
+def _no_cache_for_api(resp):
+    # Prevent stale head/IP/network/I2C status in the browser
+    if request.path.startswith("/api/") or request.path == "/":
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+    return resp
+
 @app.get("/")
 def root():
     # Serve the main UI by default
