@@ -10,6 +10,15 @@ let MODAL_CTX = {
   name: null
 };
 
+// Some browsers hide freshly injected inline SVGs unless we nudge display/visibility.
+// Keep this lightweight so a missing helper never blocks rendering.
+function ensureSvgVisible(svgRoot) {
+  if (!svgRoot) return;
+  if (!svgRoot.style.display) svgRoot.style.display = "block";
+  svgRoot.style.visibility = "visible";
+  if (!svgRoot.style.opacity) svgRoot.style.opacity = "1";
+}
+
 // ============================================================
 // “DIM/OVERLAY” DEFENSE (THIS IS THE REAL FIX)
 // ============================================================
@@ -481,9 +490,11 @@ async function loadModules() {
     row.appendChild(card);
 
     try {
-      // Use i2c expander SVG for ext modules
-      const svgType = String(m.type).toLowerCase() === "ext" ? "i2c" : m.type;
-      const svgRes = await fetch(`/modules/svg/${svgType}`);
+      // Use i2c_expander.svg for ext modules (fixes SVG path)
+      const svgType = String(m.type || "").toLowerCase();
+      // If module type is 'ext', fetch 'i2c_expander' SVG, else use module type
+      const fetchType = svgType === "ext" ? "i2c_expander" : svgType;
+      const svgRes = await fetch(`/modules/svg/${fetchType}`);
       if (!svgRes.ok) throw new Error("SVG not found");
       const svgText = await svgRes.text();
       svgHolder.innerHTML = svgText;
@@ -543,9 +554,11 @@ async function loadModules() {
       extRow.appendChild(card);
 
       try {
-        // Use i2c expander SVG for ext modules
-        const svgType = String(m.type).toLowerCase() === "ext" ? "i2c" : m.type;
-        const svgRes = await fetch(`/modules/svg/${svgType}`);
+        // Use i2c_expander.svg for ext modules (fixes SVG path)
+        const svgType = String(m.type || "").toLowerCase();
+        // If module type is 'ext', fetch 'i2c_expander' SVG, else use module type
+        const fetchType = svgType === "ext" ? "i2c_expander" : svgType;
+        const svgRes = await fetch(`/modules/svg/${fetchType}`);
         if (!svgRes.ok) throw new Error("SVG not found");
         const svgText = await svgRes.text();
         svgHolder.innerHTML = svgText;
@@ -839,7 +852,8 @@ async function onExtClick(event) {
 
   if (!_expanderSVGCache) {
     try {
-      const res = await fetch("/modules/svg/i2c");
+      // Fetch the correct expander SVG file (i2c_expander.svg)
+      const res = await fetch("/modules/svg/i2c_expander");
       if (!res.ok) throw new Error("Failed to load expander SVG");
       _expanderSVGCache = await res.text();
     } catch (e) {
