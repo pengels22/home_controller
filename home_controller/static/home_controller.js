@@ -1,4 +1,5 @@
-// Add a transparent overlay for popup dismissal
+// ------------------ Unified IO Channel Popup Modal ------------------
+// Ensures a single overlay for popup dismissal
 function ensureIoChannelPopupOverlay() {
   let overlay = document.querySelector('.io-channel-popup-overlay');
   if (!overlay) {
@@ -10,16 +11,81 @@ function ensureIoChannelPopupOverlay() {
     overlay.style.zIndex = '10000';
     overlay.style.display = 'none';
     document.body.appendChild(overlay);
-    overlay.onclick = hideIoChannelPopup;
+    overlay.onclick = (e) => {
+      // Only close if click is directly on overlay, not popup
+      if (e.target === overlay) hideIoChannelPopup();
+    };
   }
   return overlay;
 }
 
+// Ensures a single popup DOM node
+function ensureIoChannelPopup() {
+  document.querySelectorAll('.io-channel-popup').forEach((el, i) => { if (i > 0) el.remove(); });
+  let popup = document.querySelector('.io-channel-popup');
+  if (!popup) {
+    popup = document.createElement('div');
+    popup.className = 'io-channel-popup';
+    popup.innerHTML = `
+      <div class="popup-title"></div>
+      <div class="popup-status"></div>
+      <div class="popup-controls"></div>
+      <button class="popup-close">Close</button>
+    `;
+    document.body.appendChild(popup);
+    popup.querySelector('.popup-close').onclick = () => hideIoChannelPopup();
+  }
+  return popup;
+}
+
+/**
+ * Show IO Channel Popup with controls for DI/DO/AIO
+ * @param {object|string} name - Channel name or context object
+ * @param {string} [status] - Channel status (if name is string)
+ */
 function showIoChannelPopup(name, status) {
   const popup = ensureIoChannelPopup();
   const overlay = ensureIoChannelPopupOverlay();
-  popup.querySelector('.popup-title').textContent = name;
-  popup.querySelector('.popup-status').textContent = `Status: ${status}`;
+  let ctx = typeof name === 'object' ? name : { name, status };
+  popup.querySelector('.popup-title').textContent = ctx.name || name;
+  popup.querySelector('.popup-status').textContent = `Status: ${ctx.status || status}`;
+  // Render controls
+  const controls = popup.querySelector('.popup-controls');
+  controls.innerHTML = '';
+  if (ctx.type === 'di' || ctx.type === 'do') {
+    // On/Off toggle
+    const toggle = document.createElement('button');
+    toggle.textContent = (ctx.status === 'ON') ? 'Turn OFF' : 'Turn ON';
+    toggle.onclick = () => {
+      // TODO: send API call to toggle channel
+      alert('Toggle ' + ctx.name);
+    };
+    controls.appendChild(toggle);
+    // Invert checkbox
+    const invertWrap = document.createElement('label');
+    invertWrap.style.display = 'block';
+    invertWrap.style.marginTop = '10px';
+    const invert = document.createElement('input');
+    invert.type = 'checkbox';
+    invert.checked = !!ctx.invert;
+    invert.onchange = () => {
+      // TODO: send API call to set invert
+      alert('Invert ' + ctx.name + ': ' + invert.checked);
+    };
+    invertWrap.appendChild(invert);
+    invertWrap.appendChild(document.createTextNode(' Invert logic'));
+    controls.appendChild(invertWrap);
+  } else if (ctx.type === 'aio') {
+    // Voltage input
+    const voltWrap = document.createElement('div');
+    voltWrap.style.marginBottom = '8px';
+    voltWrap.innerHTML = '<label>Voltage: <input type="number" step="0.01" min="0" style="width:60px" value="' + (ctx.voltage || '') + '"></label>';
+    controls.appendChild(voltWrap);
+    // Max voltage input
+    const maxWrap = document.createElement('div');
+    maxWrap.innerHTML = '<label>Max Voltage: <input type="number" step="0.01" min="0" style="width:60px" value="' + (ctx.maxVoltage || '') + '"></label>';
+    controls.appendChild(maxWrap);
+  }
   popup.classList.add('active');
   overlay.style.display = 'block';
   document.body.classList.add('modal-open');
@@ -34,41 +100,6 @@ function hideIoChannelPopup() {
 }
 window.showIoChannelPopup = showIoChannelPopup;
 window.hideIoChannelPopup = hideIoChannelPopup;
-// ---------------- IO Channel Popup Modal ----------------
-function ensureIoChannelPopup() {
-  // Remove any duplicate popups (defensive)
-  document.querySelectorAll('.io-channel-popup').forEach((el, i) => { if (i > 0) el.remove(); });
-  let popup = document.querySelector('.io-channel-popup');
-  if (!popup) {
-    popup = document.createElement('div');
-    popup.className = 'io-channel-popup';
-    popup.innerHTML = `
-      <div class="popup-title"></div>
-      <div class="popup-status"></div>
-      <button class="popup-close">Close</button>
-    `;
-    document.body.appendChild(popup);
-    popup.querySelector('.popup-close').onclick = () => hideIoChannelPopup();
-  }
-  return popup;
-}
-
-function showIoChannelPopup(name, status) {
-  const popup = ensureIoChannelPopup();
-  popup.querySelector('.popup-title').textContent = name;
-  popup.querySelector('.popup-status').textContent = `Status: ${status}`;
-  popup.classList.add('active');
-  document.body.classList.add('modal-open');
-}
-
-function hideIoChannelPopup() {
-  const popup = document.querySelector('.io-channel-popup');
-  if (popup) popup.classList.remove('active');
-  document.body.classList.remove('modal-open');
-}
-window.showIoChannelPopup = showIoChannelPopup;
-window.hideIoChannelPopup = hideIoChannelPopup;
-function $(id) { return document.getElementById(id); }
 
 // cache: moduleId -> { type, svgRoot }
 const MODULE_SVGS = new Map();
@@ -635,7 +666,13 @@ async function loadModules() {
                   chName = m.labels.channels[String(chNum)];
                 }
                 const status = circle.classList.contains("led-on") ? "ON" : "OFF";
-                showIoChannelPopup(chName, status);
+                // Pass type and channel for popup controls
+                showIoChannelPopup({
+                  name: chName,
+                  status,
+                  type: m.type.toLowerCase(),
+                  channel: chNum
+                });
               };
             }
           });
