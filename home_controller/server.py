@@ -23,6 +23,7 @@ from home_controller.core.backend import HomeControllerBackend
 # ------------------------------------------------------------
 # AIO max voltage config API (moved to bottom)
 # ------------------------------------------------------------
+from __future__ import annotations
 from home_controller.config import aio_max_voltage
 
 @app.get("/api/aio_max_voltage/<module_id>")
