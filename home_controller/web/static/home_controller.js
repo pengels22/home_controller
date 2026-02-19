@@ -803,7 +803,14 @@ async function loadModules() {
     gear.className = "icon-btn";
     gear.title = "Settings";
     gear.textContent = "⚙️";
-    gear.onclick = () => showIoChannelPopup(m);
+    // Always pass correct context for global popup
+    gear.onclick = () => showIoChannelPopup({
+      module_id: m.id,
+      type: m.type && m.type.toLowerCase(),
+      name: m.name || `${String(m.type || '').toUpperCase()} MODULE`,
+      address: m.address,
+      status: m.status || undefined
+    });
 
     header.appendChild(left);
     header.appendChild(gear);
