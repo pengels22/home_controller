@@ -45,11 +45,6 @@ function _clearAnyDimState() {
     });
 }
 
-// Ensures SVG isn’t inheriting odd filter/opacity from Safari quirks
-function ensureSvgVisible(svgRoot) {
-  if (!svgRoot) return;
-  svgRoot.style.pointerEvents = "auto";
-}
 
 // ============================================================
 // HEAD MODULE (Pi enclosure) — injected FIRST, NOT in MODULE_SVGS
@@ -190,7 +185,6 @@ function _setHeadLed(svg, sel, on, blink) {
     el.style.fill = "#cfcfcf";
     el.classList.remove("blink");
   }
-  /* opacity removed */
 }
 
 async function _refreshHeadStatusOnce() {
