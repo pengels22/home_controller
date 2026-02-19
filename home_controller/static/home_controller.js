@@ -1,3 +1,37 @@
+// ---------------- IO Channel Popup Modal ----------------
+function ensureIoChannelPopup() {
+  // Remove any duplicate popups (defensive)
+  document.querySelectorAll('.io-channel-popup').forEach((el, i) => { if (i > 0) el.remove(); });
+  let popup = document.querySelector('.io-channel-popup');
+  if (!popup) {
+    popup = document.createElement('div');
+    popup.className = 'io-channel-popup';
+    popup.innerHTML = `
+      <div class="popup-title"></div>
+      <div class="popup-status"></div>
+      <button class="popup-close">Close</button>
+    `;
+    document.body.appendChild(popup);
+    popup.querySelector('.popup-close').onclick = () => hideIoChannelPopup();
+  }
+  return popup;
+}
+
+function showIoChannelPopup(name, status) {
+  const popup = ensureIoChannelPopup();
+  popup.querySelector('.popup-title').textContent = name;
+  popup.querySelector('.popup-status').textContent = `Status: ${status}`;
+  popup.classList.add('active');
+  document.body.classList.add('modal-open');
+}
+
+function hideIoChannelPopup() {
+  const popup = document.querySelector('.io-channel-popup');
+  if (popup) popup.classList.remove('active');
+  document.body.classList.remove('modal-open');
+}
+window.showIoChannelPopup = showIoChannelPopup;
+window.hideIoChannelPopup = hideIoChannelPopup;
 function $(id) { return document.getElementById(id); }
 
 // cache: moduleId -> { type, svgRoot }
