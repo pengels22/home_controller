@@ -1,0 +1,41 @@
+<!-- DO Module Settings Popup -->
+<div class="module-settings-popup">
+  <h2>DO Module Settings</h2>
+  <form>
+    <label>Module Name: <input type="text" name="module_name" /></label><br>
+    <label>I2C Address: <input type="text" name="i2c_address" /></label><br>
+    <div class="channels">
+      <h3>Channel Names</h3>
+      <div style="display:flex;gap:24px">
+        <div>
+          <h4>Channels 1-8</h4>
+          <div>
+            <input type="text" name="ch1" placeholder="Channel 1" />
+            <input type="text" name="ch2" placeholder="Channel 2" />
+            <input type="text" name="ch3" placeholder="Channel 3" />
+            <input type="text" name="ch4" placeholder="Channel 4" />
+            <input type="text" name="ch5" placeholder="Channel 5" />
+            <input type="text" name="ch6" placeholder="Channel 6" />
+            <input type="text" name="ch7" placeholder="Channel 7" />
+            <input type="text" name="ch8" placeholder="Channel 8" />
+          </div>
+        </div>
+        <div>
+          <h4>Channels 9-16</h4>
+          <div>
+            <input type="text" name="ch9" placeholder="Channel 9" />
+            <input type="text" name="ch10" placeholder="Channel 10" />
+            <input type="text" name="ch11" placeholder="Channel 11" />
+            <input type="text" name="ch12" placeholder="Channel 12" />
+            <input type="text" name="ch13" placeholder="Channel 13" />
+            <input type="text" name="ch14" placeholder="Channel 14" />
+            <input type="text" name="ch15" placeholder="Channel 15" />
+            <input type="text" name="ch16" placeholder="Channel 16" />
+          </div>
+        </div>
+      </div>
+    </div>
+    <button type="submit">Save</button>
+    <button type="button" onclick="closePopup()">Cancel</button>
+  </form>
+</div>

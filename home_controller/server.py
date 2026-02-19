@@ -157,8 +157,9 @@ def internet_ok_tcp() -> bool:
 
 
 # ------------------------------------------------------------
-# Health check (API)
-# ------------------------------------------------------------
+## Health check (API)
+## ------------------------------------------------------------
+
 # API endpoint for expansion config (GET/POST, JSON)
 @app.route("/api/expansion_config", methods=["GET", "POST"])
 def api_expansion_config():
@@ -178,6 +179,25 @@ def api_expansion_config():
     if request.method == "POST":
         data = request.get_json(force=True, silent=True) or {}
         exp["name"] = data.get("name", exp["name"])
+
+# ------------------------------------------------------------
+# Module config popup routes (DI, DO, AIO, EXT)
+# ------------------------------------------------------------
+@app.route("/di_config_popup")
+def di_config_popup():
+    return render_template("di_config.html")
+
+@app.route("/do_config_popup")
+def do_config_popup():
+    return render_template("do_config.html")
+
+@app.route("/aio_config_popup")
+def aio_config_popup():
+    return render_template("aio_config.html")
+
+@app.route("/ext_config_popup")
+def ext_config_popup():
+    return render_template("ext_config.html")
         exp["address_hex"] = data.get("address_hex", exp["address_hex"])
         channels = data.get("channels", exp["channels"])
         # Validate channels: must be a list of dicts with name, type, address_hex
