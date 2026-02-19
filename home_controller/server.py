@@ -185,28 +185,6 @@ def api_set_aio_max_voltage(module_id: str):
         return jsonify({"ok": False, "error": "missing in/out blocks"}), 400
     aio_max_voltage.save_aio_max_voltage(m.address_hex, data)
     return jsonify({"ok": True})
-#!/usr/bin/env python3
-from __future__ import annotations
-
-import os
-import json
-from pathlib import Path
-import socket
-import subprocess
-import time
-from typing import Set, Tuple, Optional
-
-from flask import (
-    Flask,
-    jsonify,
-    request,
-    render_template,
-    send_from_directory,
-    abort,
-)
-import traceback
-
-from home_controller.core.backend import HomeControllerBackend
 
 # ------------------------------------------------------------
 # Paths (absolute, based on this file)
