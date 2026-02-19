@@ -14,6 +14,8 @@
   background: #0b0d12;
   border: none;
   z-index: 1;
+  opacity: 1 !important;
+  filter: none !important;
 }
 /* SVG styles for module cards */
 .module-svg .shadow { fill:#000; }
@@ -291,4 +293,3 @@ button.danger { border-color: #ff4a4a; }
 circle.blink {
   animation: blink 0.8s infinite;
 }
-

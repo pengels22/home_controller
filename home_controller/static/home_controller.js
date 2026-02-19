@@ -556,10 +556,9 @@ async function loadModules() {
       extRow.appendChild(card);
 
       try {
-        // Use i2c_expander.svg for ext modules (fixes SVG path)
+        // Use i2c expander SVG for ext modules (server route name is 'i2c')
         const svgType = String(m.type || "").toLowerCase();
-        // If module type is 'ext', fetch 'i2c_expander' SVG, else use module type
-        const fetchType = svgType === "ext" ? "i2c_expander" : svgType;
+        const fetchType = svgType === "ext" ? "i2c" : svgType;
         const svgRes = await fetch(`/modules/svg/${fetchType}`);
         if (!svgRes.ok) throw new Error("SVG not found");
         const svgText = await svgRes.text();
@@ -588,16 +587,22 @@ async function loadModules() {
 
   _clearAnyDimState();
 
-  // DEBUG: Remove all opacity/filter from modules area after rendering
+  // DEBUG: Remove any stray opacity/filter that Safari might keep; include ext row.
   setTimeout(() => {
+    const nodes = [];
     const modulesArea = document.getElementById('modules');
-    if (modulesArea) {
-      modulesArea.querySelectorAll('*').forEach(el => {
+    if (modulesArea) nodes.push(modulesArea);
+    const extRows = document.querySelectorAll('.modules-row.ext-row');
+    extRows.forEach(r => nodes.push(r));
+
+    nodes.forEach(n => {
+      n.style.opacity = '1';
+      n.style.filter = 'none';
+      n.querySelectorAll('*').forEach(el => {
         el.style.opacity = '1';
         el.style.filter = 'none';
       });
-      console.log('[DEBUG] Cleared opacity/filter from all elements in #modules');
-    }
+    });
   }, 0);
 }
 
