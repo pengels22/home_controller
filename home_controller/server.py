@@ -591,6 +591,22 @@ def api_gui_action():
             return jsonify({"ok": False, "error": "invalid channel"}), 400
 
         value = data.get("value")
+        # Ensure value is int or float, not None
+        if value is None:
+            return jsonify({"ok": False, "error": "value is required"}), 400
+        # Try to convert to int or float
+        try:
+            if isinstance(value, (int, float)):
+                pass
+            elif isinstance(value, str):
+                if "." in value:
+                    value = float(value)
+                else:
+                    value = int(value)
+            else:
+                return jsonify({"ok": False, "error": "value must be int or float"}), 400
+        except Exception:
+            return jsonify({"ok": False, "error": "value must be int or float"}), 400
         try:
             res = backend.write_module(module_id=module_id, channel=channel, value=value)
             return jsonify(res)
