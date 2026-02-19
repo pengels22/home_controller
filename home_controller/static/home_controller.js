@@ -16,7 +16,8 @@ function ensureSvgVisible(svgRoot) {
   if (!svgRoot) return;
   if (!svgRoot.style.display) svgRoot.style.display = "block";
   svgRoot.style.visibility = "visible";
-  if (!svgRoot.style.opacity) svgRoot.style.opacity = "1";
+  // Remove any forced opacity to avoid accidental transparency
+  svgRoot.style.opacity = "1";
 }
 
 // ============================================================
