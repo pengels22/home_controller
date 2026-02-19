@@ -55,15 +55,13 @@ function showIoChannelPopup(name, status) {
   const controls = popup.querySelector('.popup-controls');
   controls.innerHTML = '';
   if (ctx.type === 'di' || ctx.type === 'do') {
-    // On/Off toggle
+    // ...existing code for DI/DO...
     const toggle = document.createElement('button');
     toggle.textContent = (ctx.status === 'ON') ? 'Turn OFF' : 'Turn ON';
     toggle.onclick = () => {
-      // TODO: send API call to toggle channel
       alert('Toggle ' + ctx.name);
     };
     controls.appendChild(toggle);
-    // Invert checkbox
     const invertWrap = document.createElement('label');
     invertWrap.style.display = 'block';
     invertWrap.style.marginTop = '10px';
@@ -71,22 +69,53 @@ function showIoChannelPopup(name, status) {
     invert.type = 'checkbox';
     invert.checked = !!ctx.invert;
     invert.onchange = () => {
-      // TODO: send API call to set invert
       alert('Invert ' + ctx.name + ': ' + invert.checked);
     };
     invertWrap.appendChild(invert);
     invertWrap.appendChild(document.createTextNode(' Invert logic'));
     controls.appendChild(invertWrap);
   } else if (ctx.type === 'aio') {
-    // Voltage input
-    const voltWrap = document.createElement('div');
-    voltWrap.style.marginBottom = '8px';
-    voltWrap.innerHTML = '<label>Voltage: <input type="number" step="0.01" min="0" style="width:60px" value="' + (ctx.voltage || '') + '"></label>';
-    controls.appendChild(voltWrap);
-    // Max voltage input
-    const maxWrap = document.createElement('div');
-    maxWrap.innerHTML = '<label>Max Voltage: <input type="number" step="0.01" min="0" style="width:60px" value="' + (ctx.maxVoltage || '') + '"></label>';
-    controls.appendChild(maxWrap);
+    // AIO: fetch and persist max voltage per channel
+    const moduleId = ctx.moduleId || ctx.id || ctx.module_id || ctx.address || ctx.name;
+    const chNum = ctx.channel;
+    controls.innerHTML = '<div>Loading channel config…</div>';
+    // Fetch max voltage config for this module
+    fetch(`/api/aio_max_voltage/${encodeURIComponent(moduleId)}`)
+      .then(r => r.json())
+      .then(j => {
+        controls.innerHTML = '';
+        let maxV = '';
+        if (j.ok && j.data && j.data.in && j.data.in[String(chNum)]) {
+          maxV = j.data.in[String(chNum)];
+        }
+        // Voltage input (read-only for now)
+        const voltWrap = document.createElement('div');
+        voltWrap.style.marginBottom = '8px';
+        voltWrap.innerHTML = '<label>Voltage: <input type="number" step="0.01" min="0" style="width:60px" value="' + (ctx.voltage || '') + '" readonly></label>';
+        controls.appendChild(voltWrap);
+        // Max voltage input
+        const maxWrap = document.createElement('div');
+        maxWrap.innerHTML = '<label>Max Voltage: <input id="aio_max_voltage_input" type="number" step="0.01" min="0" style="width:60px" value="' + (maxV || '') + '"></label>';
+        controls.appendChild(maxWrap);
+        // Save button
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Save Max Voltage';
+        saveBtn.onclick = async () => {
+          const val = parseFloat(document.getElementById('aio_max_voltage_input').value);
+          if (isNaN(val) || val <= 0) { alert('Enter a valid max voltage'); return; }
+          // Save to backend
+          let payload = { in: {}, out: {} };
+          if (j.ok && j.data) { payload = j.data; }
+          payload.in[String(chNum)] = val;
+          await fetch(`/api/aio_max_voltage/${encodeURIComponent(moduleId)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          alert('Max voltage saved!');
+        };
+        controls.appendChild(saveBtn);
+      });
   }
   popup.classList.add('active');
   overlay.style.display = 'block';

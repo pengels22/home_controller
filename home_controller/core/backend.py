@@ -1,3 +1,5 @@
+import datetime
+from home_controller.config import aio_max_voltage
 #!/usr/bin/env python3
 """
 home_controller/core/backend.py
@@ -451,6 +453,7 @@ class HomeControllerBackend:
             except Exception as e:
                 return {"ok": False, "error": f"I2C read error: {e}"}
 
+
         elif m.type == "aio":
             # AIO protocol: write single-byte 0x01 to request status,
             # then device returns an ASCII CSV of voltages (e.g. "1.23,2.34,...").
@@ -493,6 +496,34 @@ class HomeControllerBackend:
                 for i in range(max_ch):
                     channels[str(i + 1)] = values[i]
 
+                # --- Over-voltage alert logic ---
+                max_cfg = aio_max_voltage.load_aio_max_voltage(m.address_hex)
+                alerts = []
+                for ch in range(1, max_ch + 1):
+                    v = values[ch - 1]
+                    maxv = None
+                    if max_cfg and "in" in max_cfg and str(ch) in max_cfg["in"]:
+                        try:
+                            maxv = float(max_cfg["in"][str(ch)])
+                        except Exception:
+                            pass
+                    if maxv is not None and v > maxv:
+                        alert = {
+                            "module": m.id,
+                            "address": m.address_hex,
+                            "channel": ch,
+                            "max_voltage": maxv,
+                            "measured_voltage": v,
+                            "timestamp": datetime.datetime.now().isoformat(),
+                        }
+                        alerts.append(alert)
+                if alerts:
+                    # Log to a file in config for now
+                    log_path = os.path.join(self._repo_root, "home_controller", "config", "aio_alerts.log")
+                    with open(log_path, "a", encoding="utf-8") as f:
+                        for alert in alerts:
+                            f.write(json.dumps(alert) + "\n")
+
                 return {
                     "ok": True,
                     "module_id": m.id,
@@ -500,6 +531,7 @@ class HomeControllerBackend:
                     "address": m.address_hex,
                     "raw_response": s,
                     "channels": channels,
+                    "alerts": alerts,
                 }
             except Exception as e:
                 return {"ok": False, "error": f"AIO I2C read error: {e}"}

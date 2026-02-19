@@ -1,3 +1,33 @@
+from home_controller.config import aio_max_voltage
+# ------------------------------------------------------------
+# AIO max voltage config API
+# ------------------------------------------------------------
+@app.get("/api/aio_max_voltage/<module_id>")
+def api_get_aio_max_voltage(module_id: str):
+    # Find module by id and get its I2C address
+    idx = backend._find_module_index(module_id)
+    if idx < 0:
+        return jsonify({"ok": False, "error": "module not found"}), 404
+    m = backend.cfg.modules[idx]
+    if m.type != "aio":
+        return jsonify({"ok": False, "error": "not an AIO module"}), 400
+    data = aio_max_voltage.load_aio_max_voltage(m.address_hex)
+    return jsonify({"ok": True, "data": data})
+
+@app.post("/api/aio_max_voltage/<module_id>")
+def api_set_aio_max_voltage(module_id: str):
+    idx = backend._find_module_index(module_id)
+    if idx < 0:
+        return jsonify({"ok": False, "error": "module not found"}), 404
+    m = backend.cfg.modules[idx]
+    if m.type != "aio":
+        return jsonify({"ok": False, "error": "not an AIO module"}), 400
+    data = request.get_json(force=True, silent=True) or {}
+    # Expect {"in": {...}, "out": {...}}
+    if not ("in" in data and "out" in data):
+        return jsonify({"ok": False, "error": "missing in/out blocks"}), 400
+    aio_max_voltage.save_aio_max_voltage(m.address_hex, data)
+    return jsonify({"ok": True})
 #!/usr/bin/env python3
 from __future__ import annotations
 
