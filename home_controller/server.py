@@ -145,7 +145,7 @@ def internet_ok_tcp() -> bool:
 # ------------------------------------------------------------
 # Health check (API)
 # ------------------------------------------------------------
-def expansion_config():
+
 @app.route("/expansion_config", methods=["GET", "POST"])
 def expansion_config():
     print("[DEBUG] /expansion_config route accessed, method:", request.method)
