@@ -113,7 +113,20 @@ function showIoChannelPopup(name, status) {
           <button id=\"ch_save_btn\">Save</button>
         </div>
       `;
-      // Optionally: wire up save button to send override/invert to backend
+      // Fetch current invert/override state for this channel
+      if (ctx.module_id && ctx.channel) {
+        fetch(`/api/module_config_get?module_id=${encodeURIComponent(ctx.module_id)}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.ok) {
+              const inv = data.invert && data.invert[String(ctx.channel)];
+              const ov = data.override && data.override[String(ctx.channel)];
+              if (typeof inv === 'boolean') controls.querySelector('#ch_invert').checked = inv;
+              if (typeof ov === 'string') controls.querySelector('#ch_override').value = ov;
+            }
+          });
+      }
+      // Save button
       controls.querySelector('#ch_save_btn').onclick = async function() {
         const override = controls.querySelector('#ch_override').value;
         const invert = controls.querySelector('#ch_invert').checked;
