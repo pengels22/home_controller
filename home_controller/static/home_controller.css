@@ -5,6 +5,13 @@
   filter: none !important;
 }
 
+/* Hard override to stop Safari from re-dimming modules */
+body, main, .card, .modules-row, .module-card, .module-svg, .module-svg *, .modules-row * {
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
 #modules:parent,
 .modules-outer {
   background: #222 !important;
