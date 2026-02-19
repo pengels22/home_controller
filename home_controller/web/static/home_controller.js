@@ -114,11 +114,30 @@ function showIoChannelPopup(name, status) {
         </div>
       `;
       // Optionally: wire up save button to send override/invert to backend
-      controls.querySelector('#ch_save_btn').onclick = function() {
+      controls.querySelector('#ch_save_btn').onclick = async function() {
         const override = controls.querySelector('#ch_override').value;
         const invert = controls.querySelector('#ch_invert').checked;
-        // TODO: send to backend for this channel
-        alert(`Would set override: ${override}, invert: ${invert} for channel ${ctx.channel} (implement backend)`);
+        // Save to backend
+        if (!ctx.module_id) {
+          alert('Module ID missing in context.');
+          return;
+        }
+        const res = await fetch('/api/module_config_set', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            module_id: ctx.module_id,
+            channel: ctx.channel,
+            override: override,
+            invert: invert
+          })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Channel settings saved.');
+        } else {
+          alert('Save failed: ' + (data.error || 'Unknown error'));
+        }
       };
     } else {
       // For other types: just show name and status
