@@ -22,7 +22,18 @@ import traceback
 from home_controller.core.backend import HomeControllerBackend
 from home_controller.config import aio_max_voltage
 
-app = Flask(__name__, template_folder="web/templates", static_folder="web/static")
+# ------------------------------------------------------------
+# Paths (absolute, based on this file)
+# ------------------------------------------------------------
+BASE_DIR = Path(__file__).resolve().parent  # .../home_controller/
+TEMPLATES_DIR = BASE_DIR / "web" / "templates"
+STATIC_DIR = BASE_DIR / "web" / "static"
+
+app = Flask(
+    __name__,
+    template_folder=str(TEMPLATES_DIR),
+    static_folder=str(STATIC_DIR),
+)
 def _parse_i2c_address(addr_str: str) -> int:
     s = (addr_str or "").strip().lower()
     if not s:
