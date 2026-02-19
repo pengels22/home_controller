@@ -110,7 +110,6 @@ function showIoChannelPopup(name, status) {
             </select>
           </div>
           <div><label><input type=\"checkbox\" id=\"ch_invert\" /> Logic Invert</label></div>
-          <button id=\"ch_save_btn\">Save</button>
         </div>
       `;
       // Fetch current invert/override state for this channel (always latest)
@@ -128,15 +127,12 @@ function showIoChannelPopup(name, status) {
         }
       }
       fetchAndSetChannelState();
-      // Save button
-      controls.querySelector('#ch_save_btn').onclick = async function() {
+      // Auto-save on close (Close button or overlay)
+      async function saveChannelOnClose() {
         const override = controls.querySelector('#ch_override').value;
         const invert = controls.querySelector('#ch_invert').checked;
-        if (!ctx.module_id) {
-          alert('Module ID missing in context.');
-          return;
-        }
-        const res = await fetch('/api/module_config_set', {
+        if (!ctx.module_id) return;
+        await fetch('/api/module_config_set', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -146,17 +142,28 @@ function showIoChannelPopup(name, status) {
             invert: invert
           })
         });
-        const data = await res.json();
-        if (data.ok) {
-          // After save, always re-fetch state to ensure sync
-          await fetchAndSetChannelState();
-          window._lastModuleConfigPopupReload = Date.now();
-          // Reload module cards to reflect new state
-          if (typeof loadModules === 'function') loadModules();
-        } else {
-          // Optionally show error, but no alert
-        }
-      };
+        window._lastModuleConfigPopupReload = Date.now();
+        if (typeof loadModules === 'function') loadModules();
+      }
+      // Patch close button
+      const closeBtn = popup.querySelector('.popup-close');
+      if (closeBtn) {
+        const origClose = closeBtn.onclick;
+        closeBtn.onclick = async function() {
+          await saveChannelOnClose();
+          if (typeof origClose === 'function') origClose();
+        };
+      }
+      // Patch overlay
+      if (overlay) {
+        const origOverlay = overlay.onclick;
+        overlay.onclick = async function(e) {
+          if (e.target === overlay) {
+            await saveChannelOnClose();
+            if (typeof origOverlay === 'function') origOverlay(e);
+          }
+        };
+      }
     } else {
       // For other types: just show name and status
       controls.innerHTML = `
