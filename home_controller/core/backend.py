@@ -20,8 +20,6 @@ ASSUMPTIONS:
     On Raspberry Pi this is typically /dev/i2c-1 (bus_num = 1).
 """
 
-from __future__ import annotations
-
 import json
 import os
 import time
