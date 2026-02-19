@@ -1035,13 +1035,7 @@ async function onExtClick(event) {
 
     const settingsBtn = document.getElementById("expander_settings_btn");
     if (settingsBtn) {
-      fetch("/modules")
-        .then(r => r.json())
-        .then(modules => {
-          const expander = modules.find(m => String(m.type).toLowerCase() === "i2c");
-          settingsBtn.onclick = expander ? () => openModal(expander) : () => alert("Expander module not found.");
-        })
-        .catch(() => { settingsBtn.onclick = () => alert("Expander module not found."); });
+      settingsBtn.onclick = () => { window.location.href = "/expansion_config"; };
     }
   }, 0);
 }
