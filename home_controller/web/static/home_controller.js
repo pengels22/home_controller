@@ -194,10 +194,13 @@ function showIoChannelPopup(name, status) {
                   const ov = data.override && data.override[String(i)];
                   const ovSel = controls.querySelector(`[name='ch${i}_override']`);
                   if (ovSel && typeof ov === 'string') ovSel.value = ov;
-                  // Invert
-                  const inv = data.invert && data.invert[String(i)];
+                  // Invert (handle boolean or string 'true'/'false')
+                  let inv = data.invert && data.invert[String(i)];
+                  if (typeof inv === 'string') {
+                    inv = inv === 'true';
+                  }
                   const invChk = controls.querySelector(`[name='ch${i}_invert']`);
-                  if (invChk && typeof inv === 'boolean') invChk.checked = inv;
+                  if (invChk) invChk.checked = !!inv;
                 }
               }
             } catch (e) {
