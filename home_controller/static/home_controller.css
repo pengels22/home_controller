@@ -9,14 +9,7 @@
 .module-svg .hat-off { fill:#cfcfcf; }
 
 /* Force module cards and SVGs to be fully opaque */
-/* Remove forced opacity and filter */
-/* Force full opacity for all module cards, SVGs, and children */
-.module-card, .module-svg, .module-card svg,
-.module-card *,
-.module-svg *,
-.module-card svg * {
-  /* opacity and filter rules removed for clean reset */
-}
+
 
 :root {
   --bg: #0f1115;
@@ -254,12 +247,8 @@ button.danger { border-color: rgba(255,74,74,0.45); }
 /* ------------------ SVG LED STYLES ------------------ */
 .led-on {
   filter: drop-shadow(0 0 6px rgba(80, 200, 255, 0.9));
-  /* opacity removed */
 }
 
-.led-off { /* opacity removed */ }
-.led-off circle { /* opacity removed */ }
-.led-off text { /* opacity removed */ }
 
 .led-off circle {
   fill: #d0d0d0;
@@ -267,8 +256,8 @@ button.danger { border-color: rgba(255,74,74,0.45); }
 }
 
 @keyframes blink {
-  0%, 49% { /* opacity removed */ }
-  50%, 100% { /* opacity removed */ }
+  0%, 49% {}
+  50%, 100% {}
 }
 .blink { animation: none; }
 .blink circle,
@@ -276,5 +265,3 @@ circle.blink {
   animation: blink 0.8s infinite;
 }
 
-/* Optional: hide head subtitle */
-.module-card.head-card .module-sub { /* opacity removed */ }
