@@ -148,13 +148,13 @@ function showIoChannelPopup(name, status) {
         });
         const data = await res.json();
         if (data.ok) {
-          alert('Channel settings saved.');
           // After save, always re-fetch state to ensure sync
           await fetchAndSetChannelState();
-          // If the global popup is open, force it to reload next time
           window._lastModuleConfigPopupReload = Date.now();
+          // Reload module cards to reflect new state
+          if (typeof loadModules === 'function') loadModules();
         } else {
-          alert('Save failed: ' + (data.error || 'Unknown error'));
+          // Optionally show error, but no alert
         }
       };
     } else {
@@ -242,13 +242,13 @@ function showIoChannelPopup(name, status) {
               });
               const data = await res.json();
               if (data.ok) {
-                alert('Module settings saved.');
                 // After save, close the popup so user must reopen and always gets latest state
                 hideIoChannelPopup();
-                // Mark a timestamp so per-channel popup can reload if open
                 window._lastModuleConfigPopupReload = Date.now();
+                // Reload module cards to reflect new state
+                if (typeof loadModules === 'function') loadModules();
               } else {
-                alert('Save failed: ' + (data.error || 'Unknown error'));
+                // Optionally show error, but no alert
               }
             };
           }
