@@ -7,54 +7,6 @@ import time
 from typing import Set, Tuple, Optional
 
 # Expansion card settings route
-@app.route("/expansion_config", methods=["GET", "POST"])
-def expansion_config():
-    # Load expansion card config (stub: you may want to load from a dedicated file)
-    exp_cfg_path = os.path.join(os.path.dirname(__file__), "config", "expansion_config.json")
-    if os.path.exists(exp_cfg_path):
-        with open(exp_cfg_path, "r", encoding="utf-8") as f:
-            exp = json.load(f)
-    else:
-        # Default expansion config
-        exp = {
-            "name": "Expansion Card",
-            "address_hex": "0x40",
-            "channels": [
-                {"name": f"ch{i+1}", "type": "di", "address_hex": f"0x{0x20+i:02x}"} for i in range(8)
-            ]
-        }
-
-    error = None
-    if request.method == "POST":
-        # Collect form data
-        exp["name"] = request.form.get("exp_name", exp["name"])
-        exp["address_hex"] = request.form.get("exp_address", exp["address_hex"])
-        used_addrs = set()
-        used_addrs.add(exp["address_hex"].lower())
-        for i in range(8):
-            ch_name = request.form.get(f"ch{i+1}_name", exp["channels"][i]["name"])
-            ch_type = request.form.get(f"ch{i+1}_type", exp["channels"][i]["type"])
-            ch_addr = request.form.get(f"ch{i+1}_address", exp["channels"][i]["address_hex"])
-            exp["channels"][i]["name"] = ch_name
-            exp["channels"][i]["type"] = ch_type
-            exp["channels"][i]["address_hex"] = ch_addr
-            addr_lower = ch_addr.lower()
-            if addr_lower in used_addrs:
-                error = f"Duplicate I2C address detected: {ch_addr}"
-            used_addrs.add(addr_lower)
-        if not error:
-            with open(exp_cfg_path, "w", encoding="utf-8") as f:
-                json.dump(exp, f, indent=2)
-        else:
-            # Optionally: flash error or show in template
-            pass
-
-    return render_template(
-        "expansion_config.html",
-        exp=exp,
-        exp_cfg_path=exp_cfg_path,
-        error=error
-    )
 
 from flask import (
     Flask,
@@ -193,6 +145,54 @@ def internet_ok_tcp() -> bool:
 # ------------------------------------------------------------
 # Health check (API)
 # ------------------------------------------------------------
+@app.route("/expansion_config", methods=["GET", "POST"])
+def expansion_config():
+    # Load expansion card config (stub: you may want to load from a dedicated file)
+    exp_cfg_path = os.path.join(os.path.dirname(__file__), "config", "expansion_config.json")
+    if os.path.exists(exp_cfg_path):
+        with open(exp_cfg_path, "r", encoding="utf-8") as f:
+            exp = json.load(f)
+    else:
+        # Default expansion config
+        exp = {
+            "name": "Expansion Card",
+            "address_hex": "0x40",
+            "channels": [
+                {"name": f"ch{i+1}", "type": "di", "address_hex": f"0x{0x20+i:02x}"} for i in range(8)
+            ]
+        }
+
+    error = None
+    if request.method == "POST":
+        # Collect form data
+        exp["name"] = request.form.get("exp_name", exp["name"])
+        exp["address_hex"] = request.form.get("exp_address", exp["address_hex"])
+        used_addrs = set()
+        used_addrs.add(exp["address_hex"].lower())
+        for i in range(8):
+            ch_name = request.form.get(f"ch{i+1}_name", exp["channels"][i]["name"])
+            ch_type = request.form.get(f"ch{i+1}_type", exp["channels"][i]["type"])
+            ch_addr = request.form.get(f"ch{i+1}_address", exp["channels"][i]["address_hex"])
+            exp["channels"][i]["name"] = ch_name
+            exp["channels"][i]["type"] = ch_type
+            exp["channels"][i]["address_hex"] = ch_addr
+            addr_lower = ch_addr.lower()
+            if addr_lower in used_addrs:
+                error = f"Duplicate I2C address detected: {ch_addr}"
+            used_addrs.add(addr_lower)
+        if not error:
+            with open(exp_cfg_path, "w", encoding="utf-8") as f:
+                json.dump(exp, f, indent=2)
+        else:
+            # Optionally: flash error or show in template
+            pass
+
+    return render_template(
+        "expansion_config.html",
+        exp=exp,
+        exp_cfg_path=exp_cfg_path,
+        error=error
+    )
 
 @app.get("/api/aio_max_voltage/<module_id>")
 def api_get_aio_max_voltage(module_id: str):
