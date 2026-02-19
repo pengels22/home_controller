@@ -758,7 +758,8 @@ async function loadModules() {
                   name: chName,
                   status,
                   type: m.type.toLowerCase(),
-                  channel: chNum
+                  channel: chNum,
+                  module_id: m.id
                 });
               };
             }
