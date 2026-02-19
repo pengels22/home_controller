@@ -796,4 +796,7 @@ if __name__ == "__main__":
     debug = os.getenv("HC_DEBUG", "0").lower() in ("1", "true", "yes", "on")
 
     print(f"Home Controller running on http://{host}:{port}")
+    print('Registered routes:')
+    for rule in app.url_map.iter_rules():
+        print(rule)
     app.run(host=host, port=port, debug=debug)
