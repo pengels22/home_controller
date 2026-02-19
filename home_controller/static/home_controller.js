@@ -21,6 +21,30 @@ function ensureSvgVisible(svgRoot) {
   svgRoot.style.filter = "none";
 }
 
+// Scope inline <style> rules inside an injected SVG so they don't leak to other SVGs.
+function scopeSvgStyles(svgRoot, scopeClass) {
+  if (!svgRoot || !scopeClass) return;
+  svgRoot.classList.add(scopeClass);
+
+  const styles = svgRoot.querySelectorAll("style");
+  styles.forEach((st) => {
+    const css = st.textContent || "";
+    // Skip keyframes blocks to avoid breaking animations
+    if (!css || css.includes("@keyframes")) return;
+
+    const scoped = css.replace(/(^|})\\s*([^@}][^}]*)/g, (m, sep, rules) => {
+      const parts = rules.split(",");
+      const prefixed = parts
+        .map((p) => p.trim())
+        .filter(Boolean)
+        .map((p) => `.${scopeClass} ${p}`)
+        .join(", ");
+      return `${sep} ${prefixed}`;
+    });
+    st.textContent = scoped;
+  });
+}
+
 // ============================================================
 // “DIM/OVERLAY” DEFENSE (THIS IS THE REAL FIX)
 // ============================================================
@@ -505,6 +529,8 @@ async function loadModules() {
 
       const svgRoot = svgHolder.querySelector("svg");
       if (svgRoot) {
+        const scopeClass = `svgscope-${m.id || fetchType || Math.random().toString(36).slice(2, 8)}`;
+        scopeSvgStyles(svgRoot, scopeClass);
         ensureSvgVisible(svgRoot);
         MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
       }
@@ -820,7 +846,10 @@ async function onExtClick(event) {
     svgContainer.innerHTML = _expanderSVGCache;
 
     const svgRoot = svgContainer.querySelector("svg");
-    if (svgRoot) ensureSvgVisible(svgRoot);
+    if (svgRoot) {
+      scopeSvgStyles(svgRoot, "svgscope-expander");
+      ensureSvgVisible(svgRoot);
+    }
   }
 
   setTimeout(() => {
