@@ -1,7 +1,30 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import os
+import json
+from pathlib import Path
+import socket
+import subprocess
+import time
+from typing import Set, Tuple, Optional
+
+from flask import (
+    Flask,
+    jsonify,
+    request,
+    render_template,
+    send_from_directory,
+    abort,
+)
+import traceback
+
+from home_controller.core.backend import HomeControllerBackend
+# ------------------------------------------------------------
+# AIO max voltage config API (moved to bottom)
+# ------------------------------------------------------------
 from home_controller.config import aio_max_voltage
-# ------------------------------------------------------------
-# AIO max voltage config API
-# ------------------------------------------------------------
+
 @app.get("/api/aio_max_voltage/<module_id>")
 def api_get_aio_max_voltage(module_id: str):
     # Find module by id and get its I2C address
