@@ -1,3 +1,9 @@
+.modules-row.ext-row {
+  border: 2px dashed #ff4a4a !important;
+  background: #181c23 !important;
+  z-index: 10 !important;
+  pointer-events: auto !important;
+}
 /* SVG styles for module cards */
 .module-svg .shadow { fill:#000; }
 .module-svg .shadow { fill:#000; }

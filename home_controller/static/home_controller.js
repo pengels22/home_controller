@@ -575,7 +575,14 @@ async function loadModules() {
       }
     }
     // Always append ext row to avoid stacking issues
-    row.parentNode.appendChild(extRow);
+    // Insert ext row immediately after the main modules row
+    extRow.classList.add('ext-row');
+    if (typeof row.after === 'function') {
+      row.after(extRow);
+    } else {
+      // Fallback for older browsers
+      row.parentNode.insertBefore(extRow, row.nextSibling);
+    }
   }
 
   _clearAnyDimState();
