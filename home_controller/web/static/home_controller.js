@@ -60,20 +60,24 @@ function showIoChannelPopup(name, status) {
       let isAO = ctx.channel >= 9 && ctx.channel <= 16;
       let chNum = ctx.channel;
       let html = '';
+      // Current voltage value, fallback to blank if not provided
+      let currentVoltage = (ctx.current_voltage !== undefined && ctx.current_voltage !== null) ? ctx.current_voltage : '';
       if (isAI) {
         html = `
-          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:220px">
-            <div><b>Name:</b> <span id="aio_ch_name">${ctx.name || `AI${chNum}`}</span></div>
-            <div><b>Max Voltage:</b> <span id="aio_ch_maxv">${ctx.max_voltage !== undefined ? ctx.max_voltage : ''}</span> V</div>
+          <div style=\"display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:220px\">
+            <div><b>Name:</b> <span id=\"aio_ch_name\">${ctx.name || `AI${chNum}`}</span></div>
+            <div><b>Max Voltage:</b> <span id=\"aio_ch_maxv\">${ctx.max_voltage !== undefined ? ctx.max_voltage : ''}</span> V</div>
+            <div><b>Current Voltage:</b> <span id=\"aio_ch_curv\">${currentVoltage}</span> V</div>
           </div>
         `;
       } else if (isAO) {
         html = `
-          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:220px">
-            <div><b>Name:</b> <span id="aio_ch_name">${ctx.name || `AO${chNum-8}`}</span></div>
-            <div><b>Max Voltage:</b> <span id="aio_ch_maxv">${ctx.max_voltage !== undefined ? ctx.max_voltage : ''}</span> V</div>
-            <div><b>Set Voltage:</b> <input id="aio_set_voltage" type="number" min="0" max="24" step="0.5" style="width:80px" /> V</div>
-            <button id="aio_drive_btn">Drive</button>
+          <div style=\"display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:220px\">
+            <div><b>Name:</b> <span id=\"aio_ch_name\">${ctx.name || `AO${chNum-8}`}</span></div>
+            <div><b>Max Voltage:</b> <span id=\"aio_ch_maxv\">${ctx.max_voltage !== undefined ? ctx.max_voltage : ''}</span> V</div>
+            <div><b>Current Voltage:</b> <span id=\"aio_ch_curv\">${currentVoltage}</span> V</div>
+            <div><b>Set Voltage:</b> <input id=\"aio_set_voltage\" type=\"number\" min=\"0\" max=\"24\" step=\"0.5\" style=\"width:80px\" /> V</div>
+            <button id=\"aio_drive_btn\">Drive</button>
           </div>
         `;
       } else {
