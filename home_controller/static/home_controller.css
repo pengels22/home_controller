@@ -14,9 +14,9 @@
 :root {
   --bg: #0f1115;
   --card: #161a22;
-  --border: rgba(255,255,255,0.08);
-  --text: rgba(255,255,255,0.92);
-  --muted: rgba(255,255,255,0.60);
+  --border: #23272f;
+  --text: #ffffff;
+  --muted: #b0b0b0;
 }
 
 /* ------------------ Base layout ------------------ */
@@ -53,6 +53,9 @@ body {
 
 .status-good { outline: 1px solid rgba(46, 204, 113, 0.55); }
 .status-bad  { outline: 1px solid rgba(255, 74, 74, 0.55); }
+/* Remove outlines if you want no opacity at all: */
+.status-good { outline: 1px solid #2ecc71; }
+.status-bad  { outline: 1px solid #ff4a4a; }
 
 .btn-link {
   display: inline-block;
@@ -177,7 +180,7 @@ body.modal-open { overflow: hidden; }
   background: #0b0d12;
   border: 1px solid var(--border);
   border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  box-shadow: 0 20px 60px #000000;
 }
 
 .modal-header {
@@ -233,7 +236,7 @@ button {
   cursor: pointer;
 }
 button:hover { background: #2c313a; }
-button.danger { border-color: rgba(255,74,74,0.45); }
+button.danger { border-color: #ff4a4a; }
 
 .error-box {
   margin-top: 12px;
@@ -246,7 +249,7 @@ button.danger { border-color: rgba(255,74,74,0.45); }
 
 /* ------------------ SVG LED STYLES ------------------ */
 .led-on {
-  filter: drop-shadow(0 0 6px rgba(80, 200, 255, 0.9));
+  /* No filter for full opacity */
 }
 
 
