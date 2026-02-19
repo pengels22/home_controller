@@ -18,6 +18,8 @@ function ensureSvgVisible(svgRoot) {
   svgRoot.style.visibility = "visible";
   // Remove any forced opacity to avoid accidental transparency
   svgRoot.style.opacity = "1";
+  svgRoot.style.filter = "none";
+  svgRoot.style.mixBlendMode = "normal";
 }
 
 // ============================================================
@@ -587,23 +589,40 @@ async function loadModules() {
 
   _clearAnyDimState();
 
-  // DEBUG: Remove any stray opacity/filter that Safari might keep; include ext row.
-  setTimeout(() => {
-    const nodes = [];
-    const modulesArea = document.getElementById('modules');
-    if (modulesArea) nodes.push(modulesArea);
-    const extRows = document.querySelectorAll('.modules-row.ext-row');
-    extRows.forEach(r => nodes.push(r));
-
-    nodes.forEach(n => {
-      n.style.opacity = '1';
-      n.style.filter = 'none';
-      n.querySelectorAll('*').forEach(el => {
-        el.style.opacity = '1';
-        el.style.filter = 'none';
+  // DEBUG: aggressively strip any opacity/filter Safari might reapply (main + ext rows)
+  const forceOpaque = () => {
+    const selectors = [
+      '#modules',
+      '.modules-row',
+      '.modules-row.ext-row',
+      '.module-card',
+      '.module-svg',
+      '.module-svg svg',
+    ];
+    document.querySelectorAll(selectors.join(',')).forEach(el => {
+      el.style.opacity = '1';
+      el.style.filter = 'none';
+      el.style.mixBlendMode = 'normal';
+      el.querySelectorAll('*').forEach(child => {
+        child.style.opacity = '1';
+        child.style.filter = 'none';
+        child.style.mixBlendMode = 'normal';
       });
     });
-  }, 0);
+  };
+  // run now and shortly after render to catch late layout tweaks
+  forceOpaque();
+  setTimeout(forceOpaque, 30);
+  setTimeout(forceOpaque, 120);
+  // keep a short-lived MutationObserver to catch async SVG inserts
+  const modulesContainer = document.getElementById('modules')?.parentNode;
+  if (modulesContainer && !window._modulesOpacityObserver) {
+    const obs = new MutationObserver(() => forceOpaque());
+    obs.observe(modulesContainer, { childList: true, subtree: true });
+    // auto-disconnect after 3s to avoid overhead
+    setTimeout(() => { obs.disconnect(); window._modulesOpacityObserver = null; }, 3000);
+    window._modulesOpacityObserver = obs;
+  }
 }
 
 // ============================================================
