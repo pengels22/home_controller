@@ -55,7 +55,31 @@ function showIoChannelPopup(name, status) {
   const controls = popup.querySelector('.popup-controls');
   controls.innerHTML = '';
   if (ctx.type === 'di' || ctx.type === 'do') {
-    // ...existing code for DI/DO...
+    // Two-column layout for channels 1-16
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.gap = '18px';
+    wrapper.style.marginBottom = '12px';
+    // Left column: 1-8
+    const leftCol = document.createElement('div');
+    for (let i = 1; i <= 8; i++) {
+      const chBox = document.createElement('div');
+      chBox.style.marginBottom = '8px';
+      chBox.innerHTML = `<label style="margin-bottom:2px;display:block;">Channel ${i}</label><input style="padding:2px;" type="text" value="" />`;
+      leftCol.appendChild(chBox);
+    }
+    // Right column: 9-16
+    const rightCol = document.createElement('div');
+    for (let i = 9; i <= 16; i++) {
+      const chBox = document.createElement('div');
+      chBox.style.marginBottom = '8px';
+      chBox.innerHTML = `<label style="margin-bottom:2px;display:block;">Channel ${i}</label><input style="padding:2px;" type="text" value="" />`;
+      rightCol.appendChild(chBox);
+    }
+    wrapper.appendChild(leftCol);
+    wrapper.appendChild(rightCol);
+    controls.appendChild(wrapper);
+    // ...existing toggle/invert controls...
     const toggle = document.createElement('button');
     toggle.textContent = (ctx.status === 'ON') ? 'Turn OFF' : 'Turn ON';
     toggle.onclick = () => {
@@ -1060,16 +1084,16 @@ async function showExpanderSettingsPopup() {
   if (!data.ok) { controls.innerHTML = "Failed to load config"; return; }
   const exp = data.exp;
 
-  // Build form
+  // Build form with 2px padding for all inputs
   let html = `
     <form id="expander_settings_form">
       <div style="margin-bottom:10px;">
-        <label>Name</label><br/>
-        <input name="name" value="${exp.name || ""}" />
+        <label style="padding:2px;">Name</label><br/>
+        <input style="padding:2px;" name="name" value="${exp.name || ""}" />
       </div>
       <div style="margin-bottom:10px;">
-        <label>I2C Address</label><br/>
-        <input name="address_hex" value="${exp.address_hex || ""}" />
+        <label style="padding:2px;">I2C Address</label><br/>
+        <input style="padding:2px;" name="address_hex" value="${exp.address_hex || ""}" />
       </div>
       <hr/>
       <h3>Channels</h3>
@@ -1077,16 +1101,16 @@ async function showExpanderSettingsPopup() {
   exp.channels.forEach((ch, i) => {
     html += `
       <div style="margin-bottom:10px;">
-        <label>Channel ${i+1} Name</label><br/>
-        <input name="ch${i}_name" value="${ch.name || ""}" />
-        <label>Type</label>
-        <select name="ch${i}_type">
+        <label style="padding:2px;">Channel ${i+1} Name</label><br/>
+        <input style="padding:2px;" name="ch${i}_name" value="${ch.name || ""}" />
+        <label style="padding:2px;">Type</label>
+        <select style="padding:2px;" name="ch${i}_type">
           <option value="di" ${ch.type === 'di' ? 'selected' : ''}>DI</option>
           <option value="do" ${ch.type === 'do' ? 'selected' : ''}>DO</option>
           <option value="aio" ${ch.type === 'aio' ? 'selected' : ''}>AIO</option>
         </select>
-        <label>I2C Address</label>
-        <input name="ch${i}_address" value="${ch.address_hex || ""}" />
+        <label style="padding:2px;">I2C Address</label>
+        <input style="padding:2px;" name="ch${i}_address" value="${ch.address_hex || ""}" />
       </div>
     `;
   });

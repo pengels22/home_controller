@@ -1,3 +1,8 @@
+.io-channel-popup input,
+.io-channel-popup select,
+.io-channel-popup label {
+  padding: 2px !important;
+}
 /* ------------------ IO Channel Popup ------------------ */
 .io-channel-popup {
   position: fixed;
