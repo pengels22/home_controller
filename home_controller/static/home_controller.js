@@ -514,8 +514,9 @@ async function loadModules() {
   // If ext module(s) present, render a new row under head for ext and its subsystem
   if (extModules.length > 0 || extSubsystem.length > 0) {
     const extRow = document.createElement("div");
-    extRow.className = "modules-row";
-    extRow.style.marginTop = "-8px";
+    extRow.className = "modules-row ext-row";
+    // Use positive margin for separation, no overlap
+    extRow.style.marginTop = "6px";
     extRow.style.marginBottom = "8px";
 
     for (const m of extModules.concat(extSubsystem)) {
