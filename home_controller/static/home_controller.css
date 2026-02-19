@@ -5,13 +5,6 @@
   filter: none !important;
 }
 
-/* Hard override to stop Safari from re-dimming modules */
-body, main, .card, .modules-row, .module-card, .module-svg, .module-svg *, .modules-row * {
-  opacity: 1 !important;
-  filter: none !important;
-  mix-blend-mode: normal !important;
-}
-
 #modules:parent,
 .modules-outer {
   background: #222 !important;
@@ -21,8 +14,6 @@ body, main, .card, .modules-row, .module-card, .module-svg, .module-svg *, .modu
   background: #0b0d12;
   border: none;
   z-index: 1;
-  opacity: 1 !important;
-  filter: none !important;
 }
 /* SVG styles for module cards */
 .module-svg .shadow { fill:#000; }
@@ -141,12 +132,6 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
     filter: none !important;
 }
 
-/* Last-resort visual lift for non-head module SVGs (Safari dimming fix) */
-.module-card:not(.head-card) .module-svg svg {
-  filter: brightness(1.35) contrast(1.6) saturate(1.25) !important;
-  opacity: 1 !important;
-  mix-blend-mode: normal !important;
-}
 
 .module-header {
   display: flex;
@@ -184,10 +169,6 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
   max-width: none;
   height: auto;
   display: block;
-  /* Force full-strength rendering in Safari; boosts contrast/brightness to defeat phantom opacity */
-  filter: brightness(1.8) contrast(2) saturate(1.4) !important;
-  opacity: 1 !important;
-  mix-blend-mode: normal !important;
 }
 
 /* ------------------ Gear button ------------------ */

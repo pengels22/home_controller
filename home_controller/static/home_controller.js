@@ -19,14 +19,6 @@ function ensureSvgVisible(svgRoot) {
   // Remove any forced opacity to avoid accidental transparency
   svgRoot.style.opacity = "1";
   svgRoot.style.filter = "none";
-  svgRoot.style.mixBlendMode = "normal";
-}
-
-function _forceOpaque(el) {
-  if (!el) return;
-  el.style.setProperty("opacity", "1", "important");
-  el.style.setProperty("filter", "none", "important");
-  el.style.setProperty("mix-blend-mode", "normal", "important");
 }
 
 // ============================================================
@@ -468,14 +460,11 @@ async function loadModules() {
   for (const m of orderedModules) {
     const card = document.createElement("div");
     card.className = "module-card";
-    _forceOpaque(card);
 
     const header = document.createElement("div");
     header.className = "module-header";
-    _forceOpaque(header);
 
     const left = document.createElement("div");
-    _forceOpaque(left);
 
     const displayName =
       (m.name && String(m.name).trim().length > 0)
@@ -499,7 +488,6 @@ async function loadModules() {
     const svgHolder = document.createElement("div");
     svgHolder.className = "module-svg";
     svgHolder.textContent = "Loading…";
-    _forceOpaque(svgHolder);
 
     card.appendChild(header);
     card.appendChild(svgHolder);
@@ -518,7 +506,6 @@ async function loadModules() {
       const svgRoot = svgHolder.querySelector("svg");
       if (svgRoot) {
         ensureSvgVisible(svgRoot);
-        _forceOpaque(svgRoot);
         MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
       }
     } catch (e) {
@@ -531,59 +518,7 @@ async function loadModules() {
 
   _clearAnyDimState();
 
-  // DEBUG: aggressively strip any opacity/filter Safari might reapply (main + ext rows)
-  const forceOpaque = () => {
-    const selectors = [
-      '#modules',
-      '.modules-row',
-      '.modules-row.ext-row',
-      '.module-card',
-      '.module-svg',
-      '.module-svg svg',
-    ];
-    document.querySelectorAll(selectors.join(',')).forEach(el => {
-      el.style.opacity = '1';
-      el.style.filter = 'none';
-      el.style.mixBlendMode = 'normal';
-      el.querySelectorAll('*').forEach(child => {
-        child.style.opacity = '1';
-        child.style.filter = 'none';
-        child.style.mixBlendMode = 'normal';
-      });
-    });
-  };
-  // run now and shortly after render to catch late layout tweaks
-  forceOpaque();
-  setTimeout(forceOpaque, 30);
-  setTimeout(forceOpaque, 120);
-  // Log computed opacity/filter to help diagnose remaining dim cases
-  (() => {
-    try {
-      document.querySelectorAll('.module-card').forEach((el, idx) => {
-        const s = getComputedStyle(el);
-        console.log(`[opacity-debug] card ${idx} opacity=${s.opacity} filter=${s.filter} blend=${s.mixBlendMode}`);
-        let p = el.parentElement;
-        while (p && p !== document.body) {
-          const sp = getComputedStyle(p);
-          if (parseFloat(sp.opacity) < 0.999 || (sp.filter && sp.filter !== 'none' && sp.filter !== 'blur(0px)')) {
-            console.warn('[opacity-debug] ancestor has opacity/filter', p, 'opacity=', sp.opacity, 'filter=', sp.filter, 'blend=', sp.mixBlendMode);
-          }
-          p = p.parentElement;
-        }
-      });
-    } catch (e) {
-      console.warn('[opacity-debug] failed', e);
-    }
-  })();
-  // keep a short-lived MutationObserver to catch async SVG inserts
-  const modulesContainer = document.getElementById('modules')?.parentNode;
-  if (modulesContainer && !window._modulesOpacityObserver) {
-    const obs = new MutationObserver(() => forceOpaque());
-    obs.observe(modulesContainer, { childList: true, subtree: true });
-    // auto-disconnect after 3s to avoid overhead
-    setTimeout(() => { obs.disconnect(); window._modulesOpacityObserver = null; }, 3000);
-    window._modulesOpacityObserver = obs;
-  }
+  // NOTE: opacity/filters are now handled directly in CSS and ensureSvgVisible
 }
 
 // ============================================================
