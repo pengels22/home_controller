@@ -232,7 +232,7 @@ function showIoChannelPopup(name, status) {
           } catch (e) {
             // ignore errors, fallback to defaults
           }
-          // Save handler for the global popup form: auto-save on close
+          // Save handler for the global popup form: only bottom center Close button saves and closes
           const form = controls.querySelector('form');
           if (form) {
             // Remove any submit button
@@ -265,14 +265,6 @@ function showIoChannelPopup(name, status) {
             }
             if (closeBtn) {
               closeBtn.onclick = saveAndClose;
-            }
-          }
-            // Also save if overlay is clicked to close
-            const overlay = document.querySelector('.io-channel-popup-overlay');
-            if (overlay) {
-              overlay.onclick = function(e) {
-                if (e.target === overlay) saveAndClose();
-              };
             }
           }
         }
