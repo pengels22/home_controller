@@ -49,6 +49,11 @@ function showIoChannelPopup(name, status) {
   let ctx = typeof name === 'object' ? name : { name, status };
   // If this is a per-channel popup (has channel property), show minimal info
   if (ctx.channel) {
+    // Default no-op close handler so non-DI/DO channel popups can close safely
+    // without throwing when overlay/close actions invoke saveChannelOnClose.
+    let saveChannelOnClose = async function() {
+      return { ok: true };
+    };
     popup.querySelector('.popup-title').textContent = ctx.name || `Channel ${ctx.channel}`;
     popup.querySelector('.popup-status').textContent = ctx.status ? `Status: ${ctx.status}` : '';
     // Always clear controls for per-channel popup
@@ -136,8 +141,9 @@ function showIoChannelPopup(name, status) {
         }
       }
       fetchAndSetChannelState();
+      // DI/DO channels override the default no-op with real persistence logic.
       // Auto-save on close (Close button or overlay)
-      async function saveChannelOnClose() {
+      saveChannelOnClose = async function() {
         // Always log entry to this function and show alert
         alert('saveChannelOnClose called! ctx=' + JSON.stringify(ctx));
         try { console.error('saveChannelOnClose called', ctx); } catch (e) {}
@@ -200,7 +206,7 @@ function showIoChannelPopup(name, status) {
         window._lastModuleConfigPopupReload = Date.now();
         if (typeof loadModules === 'function') loadModules();
         return { ok: true };
-      }
+      };
       // Patch overlay for per-channel popup
       if (overlay) {
         const origOverlay = overlay.onclick;
