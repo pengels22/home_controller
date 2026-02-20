@@ -33,10 +33,10 @@
   </defs>
 
   <!-- Shadow -->
-  <rect class="shadow" x="10" y="14" width="150" height="402" rx="16"/>
+  <rect class="shadow" x="0" y="0" width="170" height="430" rx="16"/>
 
   <!-- Card -->
-  <rect class="card" x="8" y="12" width="150" height="402" rx="16"/>
+  <rect class="card" x="0" y="0" width="170" height="430" rx="16"/>
 
   <!-- Header -->
   <text class="title" x="83" y="32" text-anchor="middle">I2C EXPANDER</text>
