@@ -601,6 +601,14 @@ function showIoChannelPopup(name, status) {
         } else if (ctx.type === 'aio') {
         const form = controls.querySelector('form');
         if (form) {
+          // Remove any template submit/cancel buttons to avoid duplicates
+          form.querySelectorAll('button[type="submit"], button[type="button"]').forEach(btn => btn.remove());
+
+          const nameInput = form.querySelector('input[name="module_name"]');
+          const addrInput = form.querySelector('input[name="i2c_address"]');
+          if (nameInput && ctx.name) nameInput.value = ctx.name;
+          if (addrInput && ctx.address) addrInput.value = ctx.address;
+
           let closeBtn = popup.querySelector('.popup-close.global');
           let saveBtn = controls.querySelector('.aio-global-save');
           if (!saveBtn) {
@@ -664,9 +672,58 @@ function showIoChannelPopup(name, status) {
 
           async function saveAio() {
             if (!ctx.module_id) return false;
+            let currentModuleId = ctx.module_id;
+
+            const newName = nameInput ? String(nameInput.value || '').trim() : '';
+            const newAddr = addrInput ? String(addrInput.value || '').trim() : '';
+
+            // Rename if changed
+            if (newName && newName !== (ctx.name || '')) {
+              try {
+                const resp = await fetch('/modules/rename', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: currentModuleId, name: newName })
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) {
+                  alert(data && data.error ? data.error : 'Rename failed');
+                  return false;
+                }
+                ctx.name = newName;
+              } catch (e) {
+                alert('Network error renaming module');
+                return false;
+              }
+            }
+
+            // Address change if requested
+            if (newAddr && newAddr !== (ctx.address || '')) {
+              try {
+                const resp = await fetch('/modules/change_address', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: currentModuleId, address: newAddr })
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) {
+                  alert(data && data.error ? data.error : 'Address change failed');
+                  return false;
+                }
+                // update ctx with new module id/address
+                currentModuleId = data.module.id;
+                ctx.module_id = data.module.id;
+                ctx.address = data.module.address;
+                if (addrInput) addrInput.value = data.module.address;
+              } catch (e) {
+                alert('Network error changing address');
+                return false;
+              }
+            }
+
             const payload = collectAioMaxConfig();
             try {
-              const resp = await fetch(`/api/aio_max_voltage/${encodeURIComponent(ctx.module_id)}`, {
+              const resp = await fetch(`/api/aio_max_voltage/${encodeURIComponent(currentModuleId)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
