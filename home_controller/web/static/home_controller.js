@@ -90,7 +90,11 @@ function showIoChannelPopup(name, status) {
             </div>
             <div><b>Active Max:</b> <span id=\"aio_ch_maxv\">24</span> V</div>
             <div><b>Current Voltage:</b> <span id=\"aio_ch_curv\">${currentVoltage}</span> V</div>
-            <div><b>Set Voltage:</b> <input id=\"aio_set_voltage\" type=\"number\" min=\"0\" step=\"0.1\" style=\"width:80px\" /> V</div>
+            <div style=\"display:flex;align-items:center;gap:8px\">
+              <b>Set Voltage:</b>
+              <input id=\"aio_set_voltage\" type=\"number\" min=\"0\" step=\"0.1\" style=\"width:80px\" /> V
+              <button id=\"aio_save_btn\">Save</button>
+            </div>
           </div>
         `;
       } else {
@@ -119,6 +123,7 @@ function showIoChannelPopup(name, status) {
         const DEFAULT_AIO_MAX_VOLTAGE = 24;
         const maxInput = controls.querySelector('#aio_max_voltage');
         const setInput = controls.querySelector('#aio_set_voltage');
+        const saveBtn = controls.querySelector('#aio_save_btn');
         const maxSpan = controls.querySelector('#aio_ch_maxv');
         let aioMaxCache = null;
 
@@ -210,20 +215,14 @@ function showIoChannelPopup(name, status) {
             return { ok: false, error: e && e.message ? e.message : 'Network error' };
           }
         }
-        maxInputRef = maxInput;
-        setInputRef = setInput;
-        getMaxFromInputRef = getMaxFromInput;
-        saveAioMaxVoltageRef = saveAioMaxVoltage;
-        applyMaxToSetInputRef = applyMaxToSetInput;
-
-        handleAioClose = async () => {
-          if (!setInputRef) return { ok: false, error: 'No voltage input' };
-          let v = parseFloat(setInputRef.value);
+        const handleAioSave = async () => {
+          if (!setInput) return { ok: false, error: 'No voltage input' };
+          let v = parseFloat(setInput.value);
           if (Number.isNaN(v)) v = 0;
-          const maxAllowed = getMaxFromInputRef ? getMaxFromInputRef() : DEFAULT_AIO_MAX_VOLTAGE;
+          const maxAllowed = getMaxFromInput();
           v = Math.min(Math.max(0, v), maxAllowed);
 
-          const saveRes = await saveAioMaxVoltageRef(maxInputRef ? maxInputRef.value : '');
+          const saveRes = await saveAioMaxVoltage(maxInput ? maxInput.value : '');
           if (!saveRes.ok) return saveRes;
 
           if (!ctx.module_id) return { ok: false, error: 'Module ID missing' };
@@ -243,7 +242,7 @@ function showIoChannelPopup(name, status) {
               return { ok: false, error: data && data.error ? data.error : 'Drive failed' };
             }
             if (maxSpan) {
-              const latest = getMaxFromInputRef ? getMaxFromInputRef() : DEFAULT_AIO_MAX_VOLTAGE;
+              const latest = getMaxFromInput();
               maxSpan.textContent = latest;
             }
             return { ok: true };
@@ -252,22 +251,23 @@ function showIoChannelPopup(name, status) {
           }
         };
 
-        // Ensure initial max ties the set voltage input range to default (0-24)
-        if (applyMaxToSetInputRef) applyMaxToSetInputRef(DEFAULT_AIO_MAX_VOLTAGE);
-      }
-
-      // Attach overlay close for AIO AO to drive/save as well
-      if (overlay && isAO) {
-        overlay.onclick = async function(e) {
-          if (e.target === overlay) {
-            const res = handleAioClose ? await handleAioClose() : { ok: true };
+        if (saveBtn) {
+          saveBtn.onclick = async () => {
+            saveBtn.disabled = true;
+            const oldText = saveBtn.textContent;
+            saveBtn.textContent = 'Saving...';
+            const res = await handleAioSave();
+            saveBtn.textContent = oldText;
+            saveBtn.disabled = false;
             if (!res.ok) {
               alert(res.error || 'Save failed');
               return;
             }
-            hideIoChannelPopup();
-          }
-        };
+          };
+        }
+
+        // Ensure initial max ties the set voltage input range to default (0-24)
+        if (applyMaxToSetInput) applyMaxToSetInput(DEFAULT_AIO_MAX_VOLTAGE);
       }
     } else if (ctx.type === 'di' || ctx.type === 'do') {
       // For DI/DO: show name, status, override, and logic invert
@@ -406,7 +406,7 @@ function showIoChannelPopup(name, status) {
     }
     // Remove all close buttons first
     popup.querySelectorAll('.popup-close').forEach(btn => btn.remove());
-    // Add per-channel close button (bottom center) after controls
+      // Add per-channel close button (bottom center) after controls
     if (!popup.querySelector('.popup-close.channel')) {
       const channelCloseBtn = document.createElement('button');
       channelCloseBtn.className = 'popup-close channel';
@@ -477,21 +477,7 @@ function showIoChannelPopup(name, status) {
         };
       } else if (ctx.type === 'aio') {
         channelCloseBtn.onclick = async () => {
-          channelCloseBtn.disabled = true;
-          channelCloseBtn.textContent = 'Saving...';
-          // Only AO channels need to drive/save; AI just close.
-          if (ctx.channel >= 9 && typeof handleAioClose === 'function') {
-            const res = await handleAioClose();
-            if (!res || !res.ok) {
-              channelCloseBtn.textContent = res && res.error ? `Error: ${res.error}` : 'Error';
-              setTimeout(() => {
-                channelCloseBtn.disabled = false;
-                channelCloseBtn.textContent = 'Close';
-              }, 1800);
-              return;
-            }
-          }
-          hideIoChannelPopup();
+          hideIoChannelPopup(); // Close without auto-saving; use Save button to persist
         };
       } else {
         channelCloseBtn.onclick = hideIoChannelPopup;
@@ -616,6 +602,13 @@ function showIoChannelPopup(name, status) {
         const form = controls.querySelector('form');
         if (form) {
           let closeBtn = popup.querySelector('.popup-close.global');
+          let saveBtn = controls.querySelector('.aio-global-save');
+          if (!saveBtn) {
+            saveBtn = document.createElement('button');
+            saveBtn.className = 'aio-global-save';
+            saveBtn.textContent = 'Save';
+            controls.appendChild(saveBtn);
+          }
           if (!closeBtn) {
             closeBtn = document.createElement('button');
             closeBtn.className = 'popup-close global';
@@ -669,7 +662,7 @@ function showIoChannelPopup(name, status) {
             return out;
           }
 
-          async function saveAndCloseAio() {
+          async function saveAio() {
             if (!ctx.module_id) return false;
             const payload = collectAioMaxConfig();
             try {
@@ -687,33 +680,32 @@ function showIoChannelPopup(name, status) {
               alert('Network error saving AIO settings');
               return false;
             }
-            hideIoChannelPopup();
-            window._lastModuleConfigPopupReload = Date.now();
-            if (typeof loadModules === 'function') loadModules();
             return true;
           }
 
           let saving = false;
-          closeBtn.onclick = async () => {
+          saveBtn.onclick = async () => {
             if (saving) return;
             saving = true;
-            const oldText = closeBtn.textContent;
-            closeBtn.textContent = 'Saving...';
-            const ok = await saveAndCloseAio();
-            if (!ok) {
-              closeBtn.textContent = oldText;
-              saving = false;
+            const oldText = saveBtn.textContent;
+            saveBtn.textContent = 'Saving...';
+            const ok = await saveAio();
+            saveBtn.textContent = oldText;
+            saving = false;
+            if (ok) {
+              window._lastModuleConfigPopupReload = Date.now();
+              if (typeof loadModules === 'function') loadModules();
             }
           };
 
           if (overlay) {
             overlay.onclick = async (e) => {
               if (e.target !== overlay) return;
-              const ok = await saveAndCloseAio();
-              if (!ok) return;
+              hideIoChannelPopup();
             };
           }
 
+          closeBtn.onclick = hideIoChannelPopup;
           loadAioMaxConfig();
         }
         }
