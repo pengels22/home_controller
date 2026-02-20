@@ -138,8 +138,9 @@ function showIoChannelPopup(name, status) {
       fetchAndSetChannelState();
       // Auto-save on close (Close button or overlay)
       async function saveChannelOnClose() {
-          // Always log entry to this function
-          try { console.error('saveChannelOnClose called', ctx); } catch (e) {}
+        // Always log entry to this function and show alert
+        alert('saveChannelOnClose called! ctx=' + JSON.stringify(ctx));
+        try { console.error('saveChannelOnClose called', ctx); } catch (e) {}
         // Debug: log ctx and all error details
         const debugLog = (...args) => { try { console.log(...args); } catch (e) {} };
         debugLog('saveChannelOnClose ctx:', ctx);
