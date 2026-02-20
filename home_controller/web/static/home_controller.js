@@ -136,21 +136,19 @@ function showIoChannelPopup(name, status) {
       fetchAndSetChannelState();
       // Auto-save on close (Close button or overlay)
       async function saveChannelOnClose() {
-        const override = controls.querySelector('#ch_override').value;
-        const invert = controls.querySelector('#ch_invert').checked;
-        // DEBUG: Log context before saving
-        console.log('DEBUG saveChannelOnClose ctx:', ctx);
-        try {
-          // Log before fetch
-          console.log('About to fetch /api/module_config_set with:', {
-            module_id: ctx.module_id,
-            channel: ctx.channel,
-            override,
-            invert
-          });
-        } catch (e) {
-          alert('DEBUG: Exception logging context: ' + (e && e.message));
+        // Always get controls from DOM to avoid closure bugs
+        const popup = document.querySelector('.io-channel-popup');
+        const controls = popup ? popup.querySelector('.popup-controls') : null;
+        if (!controls) {
+          return { ok: false, error: 'Popup controls not found' };
         }
+        const overrideSel = controls.querySelector('#ch_override');
+        const invertSel = controls.querySelector('#ch_invert');
+        if (!overrideSel || !invertSel) {
+          return { ok: false, error: 'Override or invert control missing' };
+        }
+        const override = overrideSel.value;
+        const invert = invertSel.checked;
         if (!ctx.module_id) return { ok: false, error: 'No module_id' };
         let resp, data;
         try {
