@@ -246,63 +246,20 @@ function showIoChannelPopup(name, status) {
       channelCloseBtn.onclick = async () => {
         channelCloseBtn.disabled = true;
         channelCloseBtn.textContent = 'Saving...';
-        // Use the same logic as the global settings page, but for a single channel
-        const popup = document.querySelector('.io-channel-popup');
-        const controls = popup ? popup.querySelector('.popup-controls') : null;
-        if (!controls) {
-          channelCloseBtn.textContent = 'Error: No controls';
-          setTimeout(() => {
-            channelCloseBtn.disabled = false;
-            channelCloseBtn.textContent = 'Close';
-          }, 1800);
-          return;
-        }
-        const overrideSel = controls.querySelector('#ch_override');
-        const invertSel = controls.querySelector('#ch_invert');
-        if (!overrideSel || !invertSel) {
-          channelCloseBtn.textContent = 'Error: No input';
-          setTimeout(() => {
-            channelCloseBtn.disabled = false;
-            channelCloseBtn.textContent = 'Close';
-          }, 1800);
-          return;
-        }
-        const override = overrideSel.value;
-        const invert = invertSel.checked;
-        // Compose payload for a single channel
-        const payload = {
-          module_id: ctx.module_id,
-          override: {},
-          invert: {}
-        };
-        payload.override[ctx.channel] = override;
-        payload.invert[ctx.channel] = invert;
-        let resp, data;
+        let result;
         try {
-          resp = await fetch('/api/module_config_set', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          data = await resp.json();
+          result = await saveChannelOnClose();
         } catch (e) {
-          channelCloseBtn.textContent = 'Error: Network';
+          result = { ok: false, error: 'Unexpected error' };
+        }
+        if (!result || !result.ok) {
+          channelCloseBtn.textContent = result && result.error ? `Error: ${result.error}` : 'Error';
           setTimeout(() => {
             channelCloseBtn.disabled = false;
             channelCloseBtn.textContent = 'Close';
           }, 1800);
           return;
         }
-        if (!resp.ok || !data.ok) {
-          channelCloseBtn.textContent = data && data.error ? `Error: ${data.error}` : 'Error: Save failed';
-          setTimeout(() => {
-            channelCloseBtn.disabled = false;
-            channelCloseBtn.textContent = 'Close';
-          }, 1800);
-          return;
-        }
-        window._lastModuleConfigPopupReload = Date.now();
-        if (typeof loadModules === 'function') loadModules();
         hideIoChannelPopup();
       };
       popup.appendChild(channelCloseBtn);
