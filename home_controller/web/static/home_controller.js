@@ -184,7 +184,7 @@ function showIoChannelPopup(name, status) {
     channelCloseBtn.textContent = '×';
     channelCloseBtn.title = 'Close';
     channelCloseBtn.onclick = () => hideIoChannelPopup();
-    popup.appendChild(channelCloseBtn);
+    popup.insertBefore(channelCloseBtn, popup.firstChild);
     popup.classList.add('active');
     overlay.style.display = 'block';
     document.body.classList.add('modal-open');
