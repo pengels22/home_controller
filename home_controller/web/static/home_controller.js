@@ -32,10 +32,8 @@ function ensureIoChannelPopup() {
       <div class="popup-title"></div>
       <div class="popup-status"></div>
       <div class="popup-controls"></div>
-      <button class="popup-close">Close</button>
     `;
     document.body.appendChild(popup);
-    popup.querySelector('.popup-close').onclick = () => hideIoChannelPopup();
   }
   return popup;
 }
@@ -145,21 +143,13 @@ function showIoChannelPopup(name, status) {
         window._lastModuleConfigPopupReload = Date.now();
         if (typeof loadModules === 'function') loadModules();
       }
-      // Patch close button
-      const closeBtn = popup.querySelector('.popup-close');
-      if (closeBtn) {
-        const origClose = closeBtn.onclick;
-        closeBtn.onclick = async function() {
-          await saveChannelOnClose();
-          if (typeof origClose === 'function') origClose();
-        };
-      }
-      // Patch overlay
+      // Patch overlay for per-channel popup
       if (overlay) {
         const origOverlay = overlay.onclick;
         overlay.onclick = async function(e) {
           if (e.target === overlay) {
             await saveChannelOnClose();
+            hideIoChannelPopup();
             if (typeof origOverlay === 'function') origOverlay(e);
           }
         };
