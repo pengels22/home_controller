@@ -315,7 +315,6 @@ function hideIoChannelPopup() {
   const overlay = document.querySelector('.io-channel-popup-overlay');
   if (popup) {
     popup.classList.remove('active');
-    popup.style.display = 'none';
     // Remove all close buttons
     popup.querySelectorAll('.popup-close').forEach(btn => btn.remove());
     // Clear controls and content
