@@ -51,7 +51,9 @@ function showIoChannelPopup(name, status) {
   if (ctx.channel) {
     popup.querySelector('.popup-title').textContent = ctx.name || `Channel ${ctx.channel}`;
     popup.querySelector('.popup-status').textContent = ctx.status ? `Status: ${ctx.status}` : '';
+    // Always clear controls for per-channel popup
     const controls = popup.querySelector('.popup-controls');
+    if (controls) controls.innerHTML = '';
     // For AIO, distinguish between AI and AO by channel number (1-8 = AI, 9-16 = AO)
     if (ctx.type === 'aio') {
       let isAI = ctx.channel >= 1 && ctx.channel <= 8;
@@ -144,12 +146,16 @@ function showIoChannelPopup(name, status) {
         const controls = popup ? popup.querySelector('.popup-controls') : null;
         if (!controls) {
           debugLog('Popup controls not found');
+          // Show error in popup
+          if (popup) popup.querySelector('.popup-controls').innerHTML = '<div style="color:red">Error: Popup controls not found. Please close and reopen.</div>';
           return { ok: false, error: 'Popup controls not found' };
         }
         const overrideSel = controls.querySelector('#ch_override');
         const invertSel = controls.querySelector('#ch_invert');
         if (!overrideSel || !invertSel) {
           debugLog('Override or invert control missing', { overrideSel, invertSel });
+          // Show error in popup
+          controls.innerHTML = '<div style="color:red">Error: Override or invert control missing. Please close and reopen.</div>';
           return { ok: false, error: 'Override or invert control missing' };
         }
         const override = overrideSel.value;
