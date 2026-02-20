@@ -236,8 +236,8 @@ function showIoChannelPopup(name, status) {
             // Remove any submit button
             const submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) submitBtn.remove();
-            // Save on close
-            const closeBtn = form.parentElement.querySelector('button[onclick*="closePopup"]');
+            // Save on close (only for the bottom center Close button)
+            const closeBtn = form.parentElement.querySelector('button.global-close-btn');
             async function saveAndClose() {
               if (!ctx.module_id) return;
               const override = {};
