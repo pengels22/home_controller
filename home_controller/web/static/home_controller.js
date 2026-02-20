@@ -112,9 +112,16 @@ function showIoChannelPopup(name, status) {
           </div>
           <div><label><input type=\"checkbox\" id=\"ch_invert\" /> Logic Invert</label></div>
         </div>
-        <button class=\"popup-close\" style=\"position:absolute;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 32px;font-size:16px;border-radius:6px;background:#222;color:#fff;border:none;\">Close</button>
       `;
-      controls.parentElement.querySelector('.popup-close').onclick = () => hideIoChannelPopup();
+      // Per-channel: auto-save on overlay click
+      if (overlay) {
+        overlay.onclick = async function(e) {
+          if (e.target === overlay) {
+            await saveChannelOnClose();
+            hideIoChannelPopup();
+          }
+        };
+      }
       // Fetch current invert/override state for this channel (always latest)
       async function fetchAndSetChannelState() {
         if (ctx.module_id && ctx.channel) {
@@ -231,7 +238,7 @@ function showIoChannelPopup(name, status) {
             // Remove any submit button
             const submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) submitBtn.remove();
-            // Save on close (only for the bottom center Close button)
+            // Save on close (bottom center Close button only)
             const closeBtn = form.parentElement.querySelector('button.global-close-btn');
             async function saveAndClose() {
               if (!ctx.module_id) return;
@@ -259,6 +266,7 @@ function showIoChannelPopup(name, status) {
             if (closeBtn) {
               closeBtn.onclick = saveAndClose;
             }
+          }
             // Also save if overlay is clicked to close
             const overlay = document.querySelector('.io-channel-popup-overlay');
             if (overlay) {
