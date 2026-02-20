@@ -1361,29 +1361,30 @@ async function loadModules() {
         ensureSvgVisible(svgRoot);
         MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
 
-        // Add onclick to IO bubbles (circles) for popup
-        if (["di", "do", "aio"].includes(String(m.type).toLowerCase())) {
-          const channelGroups = svgRoot.querySelectorAll("g[id^='ch']");
+        // Add onclick to IO bubbles (circles/dots) for popup
+        const mt = String(m.type).toLowerCase();
+        if (["di", "do", "aio", "ext"].includes(mt)) {
+          const channelGroups = svgRoot.querySelectorAll("g[id^='ch'], circle[id^='ch']");
           channelGroups.forEach((g, idx) => {
-            const circle = g.querySelector("circle.led");
+            // Support both circle as group child or the circle itself
+            const circle = g.tagName.toLowerCase() === 'circle' ? g : g.querySelector("circle");
             if (circle) {
               circle.style.cursor = "pointer";
               circle.onclick = (e) => {
                 e.stopPropagation();
                 const chNum = idx + 1;
-                // Try to get custom channel name from labels if available
                 let chName = `Channel ${chNum}`;
                 if (m.labels && m.labels.channels && m.labels.channels[String(chNum)]) {
                   chName = m.labels.channels[String(chNum)];
                 }
                 const status = circle.classList.contains("led-on") ? "ON" : "OFF";
-                // Pass type and channel for popup controls
                 showIoChannelPopup({
                   name: chName,
                   status,
                   type: m.type.toLowerCase(),
                   channel: chNum,
-                  module_id: m.id
+                  module_id: m.id,
+                  address: m.address
                 });
               };
             }
