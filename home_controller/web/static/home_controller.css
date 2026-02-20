@@ -37,15 +37,18 @@
   margin-bottom: 12px;
 }
 .io-channel-popup .popup-close {
-  margin-top: 8px;
-  padding: 6px 18px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: #23272f;
-  color: var(--text);
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 10px 32px;
+  font-size: 16px;
+  border-radius: 6px;
+  background: #222;
+  color: #fff;
+  border: none;
   font-weight: 800;
   cursor: pointer;
-  font-size: 13px;
 }
 .io-channel-popup .popup-close:hover {
   background: #2c313a;

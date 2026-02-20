@@ -32,10 +32,7 @@ function ensureIoChannelPopup() {
       <div class="popup-title"></div>
       <div class="popup-status"></div>
       <div class="popup-controls"></div>
-      <button class="popup-close" style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 32px;font-size:16px;border-radius:6px;background:#222;color:#fff;border:none;">Close</button>
     `;
-    document.body.appendChild(popup);
-    popup.querySelector('.popup-close').onclick = () => hideIoChannelPopup();
     document.body.appendChild(popup);
   }
   return popup;
@@ -175,6 +172,9 @@ function showIoChannelPopup(name, status) {
         </div>
       `;
     }
+    // Remove close button if present (should not be for per-channel)
+    const closeBtn = popup.querySelector('.popup-close');
+    if (closeBtn) closeBtn.remove();
     popup.classList.add('active');
     overlay.style.display = 'block';
     document.body.classList.add('modal-open');
@@ -198,6 +198,14 @@ function showIoChannelPopup(name, status) {
   popup.querySelector('.popup-status').textContent = `Status: ${ctx.status || status}`;
   const controls = popup.querySelector('.popup-controls');
   controls.innerHTML = '<div>Loading…</div>';
+  // Add close button for global popup if not present
+  if (!popup.querySelector('.popup-close')) {
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'popup-close';
+    closeBtn.textContent = 'Close';
+    closeBtn.onclick = () => hideIoChannelPopup();
+    popup.appendChild(closeBtn);
+  }
   let url = '';
   if (ctx.type === 'di') url = '/di_config_popup';
   else if (ctx.type === 'do') url = '/do_config_popup';
