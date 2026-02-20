@@ -119,6 +119,7 @@ function showIoChannelPopup(name, status) {
         const DEFAULT_AIO_MAX_VOLTAGE = 24;
         const maxInput = controls.querySelector('#aio_max_voltage');
         const setInput = controls.querySelector('#aio_set_voltage');
+        const maxSpan = controls.querySelector('#aio_ch_maxv');
         let aioMaxCache = null;
 
         const applyMaxToSetInput = (mv) => {
@@ -156,7 +157,6 @@ function showIoChannelPopup(name, status) {
             if (res.ok && data && data.ok) {
               aioMaxCache = data.data || { in: {}, out: {} };
               const outMax = aioMaxCache.out && aioMaxCache.out[String(aoIndex)];
-              const maxSpan = controls.querySelector('#aio_ch_maxv');
               const resolved = (outMax !== undefined && outMax !== null && String(outMax).trim() !== '')
                 ? Math.min(Math.max(0, parseFloat(outMax)), DEFAULT_AIO_MAX_VOLTAGE)
                 : DEFAULT_AIO_MAX_VOLTAGE;
@@ -241,6 +241,10 @@ function showIoChannelPopup(name, status) {
             const data = await resp.json();
             if (!resp.ok || !data.ok) {
               return { ok: false, error: data && data.error ? data.error : 'Drive failed' };
+            }
+            if (maxSpan) {
+              const latest = getMaxFromInputRef ? getMaxFromInputRef() : DEFAULT_AIO_MAX_VOLTAGE;
+              maxSpan.textContent = latest;
             }
             return { ok: true };
           } catch (e) {
