@@ -181,7 +181,11 @@ function showIoChannelPopup(name, status) {
       channelCloseBtn.textContent = 'Close';
       channelCloseBtn.title = 'Close';
       channelCloseBtn.onclick = async () => {
-        await saveChannelOnClose();
+        try {
+          await saveChannelOnClose();
+        } catch (e) {
+          // Optionally show error
+        }
         hideIoChannelPopup();
       };
       popup.appendChild(channelCloseBtn);
