@@ -71,12 +71,17 @@ function showIoChannelPopup(name, status) {
           </div>
         `;
       } else if (isAO) {
+        const aoIndex = chNum - 8;
         html = `
           <div style=\"display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:220px\">
-            <div><b>Name:</b> <span id=\"aio_ch_name\">${ctx.name || `AO${chNum-8}`}</span></div>
-            <div><b>Max Voltage:</b> <span id=\"aio_ch_maxv\">${ctx.max_voltage !== undefined ? ctx.max_voltage : ''}</span> V</div>
+            <div><b>Name:</b> <span id=\"aio_ch_name\">${ctx.name || `AO${aoIndex}`}</span></div>
+            <div style=\"display:flex;align-items:center;gap:6px\">
+              <b>Max Voltage:</b>
+              <input id=\"aio_max_voltage\" type=\"number\" min=\"0\" max=\"48\" step=\"0.5\" placeholder=\"Default 24\" style=\"width:90px\" />
+              <span style=\"font-size:11px;color:#666\">blank = 24V</span>
+            </div>
             <div><b>Current Voltage:</b> <span id=\"aio_ch_curv\">${currentVoltage}</span> V</div>
-            <div><b>Set Voltage:</b> <input id=\"aio_set_voltage\" type=\"number\" min=\"0\" max=\"24\" step=\"0.5\" style=\"width:80px\" /> V</div>
+            <div><b>Set Voltage:</b> <input id=\"aio_set_voltage\" type=\"number\" min=\"0\" step=\"0.1\" style=\"width:80px\" /> V</div>
             <button id=\"aio_drive_btn\">Drive</button>
           </div>
         `;
@@ -84,17 +89,146 @@ function showIoChannelPopup(name, status) {
         html = `<div>Unknown channel</div>`;
       }
       controls.innerHTML = html;
-      // Optionally: wire up drive button for AO
+      // Optionally: wire up drive button for AO and persist per-channel max voltage
       if (isAO) {
-        controls.querySelector('#aio_drive_btn').onclick = function() {
-          const v = parseFloat(controls.querySelector('#aio_set_voltage').value);
-          if (isNaN(v) || v < 0 || v > 24) {
-            alert('Enter a voltage between 0 and 24V');
-            return;
+        const DEFAULT_AIO_MAX_VOLTAGE = 24;
+        const aoIndex = chNum - 8; // AO channels are 1-8, displayed as 9-16
+        const maxInput = controls.querySelector('#aio_max_voltage');
+        const setInput = controls.querySelector('#aio_set_voltage');
+        const driveBtn = controls.querySelector('#aio_drive_btn');
+        let aioMaxCache = null;
+
+        const applyMaxToSetInput = (mv) => {
+          const val = (mv !== undefined && mv !== null && !Number.isNaN(Number(mv))) ? Number(mv) : DEFAULT_AIO_MAX_VOLTAGE;
+          if (setInput) {
+            setInput.max = val;
+            setInput.placeholder = `0 - ${val}V`;
           }
-          // TODO: send to backend to drive AO
-          alert(`Would drive AO${chNum-8} to ${v}V (implement backend)`);
         };
+
+        applyMaxToSetInput(DEFAULT_AIO_MAX_VOLTAGE);
+
+        const getMaxFromInput = () => {
+          if (!maxInput) return DEFAULT_AIO_MAX_VOLTAGE;
+          const raw = String(maxInput.value || '').trim();
+          if (!raw) return DEFAULT_AIO_MAX_VOLTAGE;
+          const n = parseFloat(raw);
+          return (Number.isFinite(n) && n >= 0) ? n : DEFAULT_AIO_MAX_VOLTAGE;
+        };
+
+        if (maxInput) {
+          maxInput.addEventListener('input', () => {
+            const n = parseFloat(maxInput.value);
+            applyMaxToSetInput(Number.isFinite(n) && n >= 0 ? n : DEFAULT_AIO_MAX_VOLTAGE);
+          });
+        }
+
+        async function loadAioMaxVoltage() {
+          if (!ctx.module_id) return;
+          try {
+            const res = await fetch(`/api/aio_max_voltage/${encodeURIComponent(ctx.module_id)}`);
+            const data = await res.json();
+            if (res.ok && data && data.ok) {
+              aioMaxCache = data.data || { in: {}, out: {} };
+              const outMax = aioMaxCache.out && aioMaxCache.out[String(aoIndex)];
+              if (outMax !== undefined && outMax !== null && String(outMax).trim() !== '') {
+                if (maxInput) maxInput.value = outMax;
+                const parsed = parseFloat(outMax);
+                applyMaxToSetInput(Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_AIO_MAX_VOLTAGE);
+              } else {
+                if (maxInput) maxInput.value = '';
+                applyMaxToSetInput(DEFAULT_AIO_MAX_VOLTAGE);
+              }
+            }
+          } catch (e) {
+            // Leave defaults on error
+            applyMaxToSetInput(DEFAULT_AIO_MAX_VOLTAGE);
+          }
+        }
+        loadAioMaxVoltage();
+
+        async function saveAioMaxVoltage(newRaw) {
+          if (!ctx.module_id) return { ok: false, error: 'No module_id' };
+          const base = {
+            in: (aioMaxCache && typeof aioMaxCache.in === 'object') ? { ...aioMaxCache.in } : {},
+            out: (aioMaxCache && typeof aioMaxCache.out === 'object') ? { ...aioMaxCache.out } : {},
+          };
+          const key = String(aoIndex);
+          const trimmed = (newRaw === undefined || newRaw === null) ? '' : String(newRaw).trim();
+          if (!trimmed) {
+            delete base.out[key];
+          } else {
+            const mv = parseFloat(trimmed);
+            if (Number.isFinite(mv) && mv >= 0) base.out[key] = mv;
+            else delete base.out[key];
+          }
+          try {
+            const resp = await fetch(`/api/aio_max_voltage/${encodeURIComponent(ctx.module_id)}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(base)
+            });
+            const data = await resp.json();
+            if (resp.ok && data && data.ok) {
+              aioMaxCache = base;
+              return { ok: true };
+            }
+            return { ok: false, error: data && data.error ? data.error : 'Save failed' };
+          } catch (e) {
+            return { ok: false, error: e && e.message ? e.message : 'Network error' };
+          }
+        }
+
+        if (driveBtn) {
+          driveBtn.onclick = async function() {
+            if (!setInput) return;
+            const v = parseFloat(setInput.value);
+            if (Number.isNaN(v)) {
+              alert('Enter a voltage to set.');
+              return;
+            }
+            const maxAllowed = getMaxFromInput();
+            if (v < 0) {
+              alert('Voltage must be >= 0V');
+              return;
+            }
+            if (v > maxAllowed) {
+              alert(`Voltage exceeds max (${maxAllowed}V).`);
+              return;
+            }
+
+            const saveRes = await saveAioMaxVoltage(maxInput ? maxInput.value : '');
+            if (!saveRes.ok) {
+              alert(saveRes.error ? `Save failed: ${saveRes.error}` : 'Save failed');
+              return;
+            }
+
+            if (!ctx.module_id) {
+              alert('Module ID missing; cannot drive output.');
+              return;
+            }
+
+            try {
+              const resp = await fetch('/api/module_write', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  module_id: ctx.module_id,
+                  channel: aoIndex,
+                  value: v
+                })
+              });
+              const data = await resp.json();
+              if (!resp.ok || !data.ok) {
+                alert(data && data.error ? `Drive failed: ${data.error}` : 'Drive failed');
+                return;
+              }
+              alert(`AO${aoIndex} set to ${v}V (max ${maxAllowed}V)`);
+            } catch (e) {
+              alert('Network error while driving output');
+            }
+          };
+        }
       }
     } else if (ctx.type === 'di' || ctx.type === 'do') {
       // For DI/DO: show name, status, override, and logic invert
