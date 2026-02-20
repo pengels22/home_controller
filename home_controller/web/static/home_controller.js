@@ -233,6 +233,8 @@ function showIoChannelPopup(name, status) {
       .then(r => r.text())
       .then(async html => {
         controls.innerHTML = html;
+        // Remove any extra close button from template
+        controls.querySelectorAll('.popup-close, .global-close-btn').forEach(btn => btn.remove());
         // If DI/DO, fetch per-channel invert/override state from backend and update form
         if (ctx.type === 'di' || ctx.type === 'do') {
           try {
@@ -257,41 +259,45 @@ function showIoChannelPopup(name, status) {
           } catch (e) {
             // ignore errors, fallback to defaults
           }
-          // Save handler for the global popup form: only bottom center Close button saves and closes
-          const form = controls.querySelector('form');
-          if (form) {
-            // Remove any submit button
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) submitBtn.remove();
-            // Save on close (bottom center Close button only)
-            const closeBtn = form.parentElement.querySelector('button.global-close-btn');
-            async function saveAndClose() {
-              if (!ctx.module_id) return;
-              const override = {};
-              const invert = {};
-              for (let i = 1; i <= 16; i++) {
-                const ovSel = form.querySelector(`[name='ch${i}_override']`);
-                const invChk = form.querySelector(`[name='ch${i}_invert']`);
-                if (ovSel) override[i] = ovSel.value;
-                if (invChk) invert[i] = !!invChk.checked;
+            // Save handler for the global popup form: only bottom center Close button saves and closes
+            const form = controls.querySelector('form');
+            if (form) {
+              // Remove any submit button
+              const submitBtn = form.querySelector('button[type="submit"]');
+              if (submitBtn) submitBtn.remove();
+              // Save on close (bottom center Close button only)
+              let closeBtn = popup.querySelector('.popup-close.global');
+              if (!closeBtn) {
+                closeBtn = document.createElement('button');
+                closeBtn.className = 'popup-close global';
+                closeBtn.textContent = 'Close';
+                popup.appendChild(closeBtn);
               }
-              await fetch('/api/module_config_set', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  module_id: ctx.module_id,
-                  override: override,
-                  invert: invert
-                })
-              });
-              hideIoChannelPopup();
-              window._lastModuleConfigPopupReload = Date.now();
-              if (typeof loadModules === 'function') loadModules();
-            }
-            if (closeBtn) {
+              async function saveAndClose() {
+                if (!ctx.module_id) return;
+                const override = {};
+                const invert = {};
+                for (let i = 1; i <= 16; i++) {
+                  const ovSel = form.querySelector(`[name='ch${i}_override']`);
+                  const invChk = form.querySelector(`[name='ch${i}_invert']`);
+                  if (ovSel) override[i] = ovSel.value;
+                  if (invChk) invert[i] = !!invChk.checked;
+                }
+                await fetch('/api/module_config_set', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    module_id: ctx.module_id,
+                    override: override,
+                    invert: invert
+                  })
+                });
+                hideIoChannelPopup();
+                window._lastModuleConfigPopupReload = Date.now();
+                if (typeof loadModules === 'function') loadModules();
+              }
               closeBtn.onclick = saveAndClose;
             }
-          }
         }
       });
   } else {
