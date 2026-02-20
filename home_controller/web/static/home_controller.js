@@ -144,18 +144,6 @@ function showIoChannelPopup(name, status) {
         });
         window._lastModuleConfigPopupReload = Date.now();
         if (typeof loadModules === 'function') loadModules();
-        // If global popup is open, reload its state
-        const globalPopup = document.querySelector('.io-channel-popup .module-settings-popup');
-        if (globalPopup) {
-          // Reopen global popup with correct context
-          showIoChannelPopup({
-            module_id: ctx.module_id,
-            type: ctx.type,
-            name: ctx.name,
-            address: ctx.address,
-            status: ctx.status
-          });
-        }
       }
       // Patch close button
       const closeBtn = popup.querySelector('.popup-close');
@@ -272,17 +260,6 @@ function showIoChannelPopup(name, status) {
               hideIoChannelPopup();
               window._lastModuleConfigPopupReload = Date.now();
               if (typeof loadModules === 'function') loadModules();
-              // If per-channel popup is open, reload its state
-              const perChannelPopup = document.querySelector('.io-channel-popup .popup-controls > div');
-              if (perChannelPopup) {
-                showIoChannelPopup({
-                  module_id: ctx.module_id,
-                  type: ctx.type,
-                  channel: ctx.channel,
-                  name: ctx.name,
-                  status: ctx.status
-                });
-              }
             }
             if (closeBtn) {
               closeBtn.onclick = saveAndClose;
