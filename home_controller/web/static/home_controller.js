@@ -914,25 +914,20 @@ const HEAD_MODULE_SVG = `
   </div>
 
   <div class="module-svg" id="head_module_svg">
-    <svg id="head_svg" width="170" height="430" viewBox="0 0 170 430" xmlns="http://www.w3.org/2000/svg">
+    <svg id="head_svg" width="100" height="250" viewBox="0 0 100 250" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <style>
-          #head_svg .shadow { fill:#000; }
-          #head_svg .card { fill:#eeeeee; stroke:#cfcfcf; stroke-width:2; }
+          #head_svg .card { fill:#eeeeee; stroke:none; }
           #head_svg .inner { fill:none; stroke:#d7d7d7; stroke-width:2; }
           #head_svg .title { font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; fill:#1a1a1a; }
           #head_svg .label { font-family:Arial,Helvetica,sans-serif; font-size:10px; font-weight:700; fill:#2a2a2a; }
-
           #head_svg .ledOuter { fill:#e7e7e7; stroke:#9c9c9c; stroke-width:2; }
-          #head_svg .ledPwr { fill:#cfcfcf; stroke:#222; stroke-width:2; }
-          #head_svg .ledNet { fill:#cfcfcf; stroke:#222; stroke-width:2; }
-
+          #head_svg .ledPwr { fill:#39d353; stroke:#222; stroke-width:2; }
+          #head_svg .ledNet { fill:#2f81f7; stroke:#222; stroke-width:2; }
           #head_svg .pi { fill:#e5e5e5; stroke:#bdbdbd; stroke-width:2; }
           #head_svg .piWindow { fill:#d9d9d9; stroke:#bdbdbd; stroke-width:2; }
-
           #head_svg .ipBox { fill:#ffffff; stroke:#8a8a8a; stroke-width:2; }
           #head_svg .ipText { font-family:"Courier New",Courier,monospace; font-size:13px; font-weight:700; fill:#000; }
-
           #head_svg .hat-off { fill:#cfcfcf; }
           #head_svg .hat-a { fill:#ffd43b; }
           #head_svg .hat-b { fill:#ff4d4f; }
@@ -940,67 +935,69 @@ const HEAD_MODULE_SVG = `
         </style>
       </defs>
 
-      <rect class="shadow" x="10" y="14" width="150" height="402" rx="16"/>
-      <rect class="card" x="8" y="12" width="150" height="402" rx="16"/>
+      <!-- Scale original 170x430 art to 100x250 and center -->
+      <g transform="translate(0.6 0) scale(0.5813953488)">
+        <rect class="card" x="0" y="0" width="170" height="430" rx="16"/>
 
-      <text class="title" x="83" y="32" text-anchor="middle">HEAD MODULE</text>
+        <text class="title" x="83" y="32" text-anchor="middle">HEAD MODULE</text>
 
-      <rect class="inner" x="22" y="103" width="122" height="300" rx="12"/>
+        <rect class="inner" x="22" y="103" width="122" height="300" rx="12"/>
 
-      <g transform="translate(30,110)">
-        <rect class="pi" x="0" y="0" width="106" height="88" rx="10"/>
-        <path class="inner" d="M64,0 V12"/>
-        <rect class="piWindow" x="18" y="16" width="50" height="28" rx="6"/>
-        <rect class="inner" x="22" y="20" width="42" height="20" rx="4"/>
+        <g transform="translate(30,110)">
+          <rect class="pi" x="0" y="0" width="106" height="88" rx="10"/>
+          <path class="inner" d="M64,0 V12"/>
+          <rect class="piWindow" x="18" y="16" width="50" height="28" rx="6"/>
+          <rect class="inner" x="22" y="20" width="42" height="20" rx="4"/>
 
-        <text class="label" x="12" y="61">PWR</text>
-        <circle class="ledOuter" cx="26" cy="73" r="10"/>
-        <circle id="led_pwr" class="ledPwr" cx="26" cy="73" r="6"/>
+          <text class="label" x="12" y="61">PWR</text>
+          <circle class="ledOuter" cx="26" cy="73" r="10"/>
+          <circle id="led_pwr" class="ledPwr" cx="26" cy="73" r="6"/>
 
-        <text class="label" x="94" y="61" text-anchor="end">NET</text>
-        <circle class="ledOuter" cx="80" cy="73" r="10"/>
-        <circle id="led_net" class="ledNet" cx="80" cy="73" r="6"/>
-      </g>
+          <text class="label" x="94" y="61" text-anchor="end">NET</text>
+          <circle class="ledOuter" cx="80" cy="73" r="10"/>
+          <circle id="led_net" class="ledNet" cx="80" cy="73" r="6"/>
+        </g>
 
-      <text class="label" x="34" y="227">IP ADDRESS</text>
-      <rect class="ipBox" x="30" y="237" width="110" height="34" rx="8"/>
+        <text class="label" x="34" y="227">IP ADDRESS</text>
+        <rect class="ipBox" x="30" y="237" width="110" height="34" rx="8"/>
 
-      <text id="ip_text" class="ipText"
-        x="35" y="259"
-        textLength="100" lengthAdjust="spacingAndGlyphs">0.0.0.0</text>
+        <text id="ip_text" class="ipText"
+          x="35" y="259"
+          textLength="100" lengthAdjust="spacingAndGlyphs">0.0.0.0</text>
 
-      <g id="hat_indicators" transform="translate(57,305)">
-        <text class="label" x="0" y="-8">MODULES</text>
+        <g id="hat_indicators" transform="translate(57,305)">
+          <text class="label" x="0" y="-8">MODULES</text>
 
-        <text class="label" x="-6" y="8" text-anchor="end">1</text>
-        <rect id="hat_mod_1" class="hat-off" x="0" y="0" width="16" height="10" rx="2"><title>Module 1</title></rect>
+          <text class="label" x="-6" y="8" text-anchor="end">1</text>
+          <rect id="hat_mod_1" class="hat-off" x="0" y="0" width="16" height="10" rx="2"><title>Module 1</title></rect>
 
-        <text class="label" x="-6" y="26" text-anchor="end">2</text>
-        <rect id="hat_mod_2" class="hat-off" x="0" y="18" width="16" height="10" rx="2"><title>Module 2</title></rect>
+          <text class="label" x="-6" y="26" text-anchor="end">2</text>
+          <rect id="hat_mod_2" class="hat-off" x="0" y="18" width="16" height="10" rx="2"><title>Module 2</title></rect>
 
-        <text class="label" x="-6" y="44" text-anchor="end">3</text>
-        <rect id="hat_mod_3" class="hat-off" x="0" y="36" width="16" height="10" rx="2"><title>Module 3</title></rect>
+          <text class="label" x="-6" y="44" text-anchor="end">3</text>
+          <rect id="hat_mod_3" class="hat-off" x="0" y="36" width="16" height="10" rx="2"><title>Module 3</title></rect>
 
-        <text class="label" x="-6" y="62" text-anchor="end">4</text>
-        <rect id="hat_mod_4" class="hat-off" x="0" y="54" width="16" height="10" rx="2"><title>Module 4</title></rect>
+          <text class="label" x="-6" y="62" text-anchor="end">4</text>
+          <rect id="hat_mod_4" class="hat-off" x="0" y="54" width="16" height="10" rx="2"><title>Module 4</title></rect>
 
-        <rect id="hat_mod_5" class="hat-off" x="36" y="0" width="16" height="10" rx="2"><title>Module 5</title></rect>
-        <text class="label" x="58" y="8" text-anchor="start">5</text>
+          <rect id="hat_mod_5" class="hat-off" x="36" y="0" width="16" height="10" rx="2"><title>Module 5</title></rect>
+          <text class="label" x="58" y="8" text-anchor="start">5</text>
 
-        <rect id="hat_mod_6" class="hat-off" x="36" y="18" width="16" height="10" rx="2"><title>Module 6</title></rect>
-        <text class="label" x="58" y="26" text-anchor="start">6</text>
+          <rect id="hat_mod_6" class="hat-off" x="36" y="18" width="16" height="10" rx="2"><title>Module 6</title></rect>
+          <text class="label" x="58" y="26" text-anchor="start">6</text>
 
-        <rect id="hat_mod_7" class="hat-off" x="36" y="36" width="16" height="10" rx="2"><title>Module 7</title></rect>
-        <text class="label" x="58" y="44" text-anchor="start">7</text>
+          <rect id="hat_mod_7" class="hat-off" x="36" y="36" width="16" height="10" rx="2"><title>Module 7</title></rect>
+          <text class="label" x="58" y="44" text-anchor="start">7</text>
 
-        <rect id="hat_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
-        <text class="label" x="58" y="62" text-anchor="start">8</text>
+          <rect id="hat_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
+          <text class="label" x="58" y="62" text-anchor="start">8</text>
 
-        <text class="label" x="-6" y="80" text-anchor="end">EXT</text>
-        <rect id="hat_ext" class="hat-off" x="0" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
+          <text class="label" x="-6" y="80" text-anchor="end">EXT</text>
+          <rect id="hat_ext" class="hat-off" x="0" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
 
-        <rect id="hat_ext_2" class="hat-off" x="36" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
-        <text class="label" x="58" y="80" text-anchor="start">EXT</text>
+          <rect id="hat_ext_2" class="hat-off" x="36" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
+          <text class="label" x="58" y="80" text-anchor="start">EXT</text>
+        </g>
       </g>
     </svg>
   </div>
