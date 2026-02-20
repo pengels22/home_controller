@@ -138,11 +138,9 @@ function showIoChannelPopup(name, status) {
       fetchAndSetChannelState();
       // Auto-save on close (Close button or overlay)
       async function saveChannelOnClose() {
-        // Always log entry to this function and show alert
-        alert('saveChannelOnClose called! ctx=' + JSON.stringify(ctx));
-        try { console.error('saveChannelOnClose called', ctx); } catch (e) {}
-        // Debug: log ctx and all error details
-        const debugLog = (...args) => { try { console.log(...args); } catch (e) {} };
+        // Debug logging (keep off by default)
+        const DEBUG_POPUP = false;
+        const debugLog = (...args) => { if (!DEBUG_POPUP) return; try { console.log(...args); } catch (e) {} };
         debugLog('saveChannelOnClose ctx:', ctx);
         // Always get controls from DOM to avoid closure bugs
         const popup = document.querySelector('.io-channel-popup');
@@ -168,18 +166,16 @@ function showIoChannelPopup(name, status) {
         try {
           debugLog('Sending fetch to /api/module_config_set', {
             module_id: ctx.module_id,
-            channel: ctx.channel,
-            override,
-            invert
+            override: { [ctx.channel]: override },
+            invert: { [ctx.channel]: invert }
           });
           resp = await fetch('/api/module_config_set', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               module_id: ctx.module_id,
-              channel: ctx.channel,
-              override: override,
-              invert: invert
+              override: { [ctx.channel]: override },
+              invert: { [ctx.channel]: invert }
             })
           });
         } catch (e) {
@@ -446,6 +442,14 @@ function hideIoChannelPopup() {
   if (overlay) {
     overlay.style.display = 'none';
     overlay.classList.remove('active');
+
+    // Restore default overlay click-to-close behavior (some popup flows override this)
+    overlay.onclick = (e) => {
+      if (e.target === overlay) hideIoChannelPopup();
+    };
+
+    // Undo any temporary "flash" styling
+    overlay.style.background = 'rgba(0,0,0,0.01)';
   }
   document.body.classList.remove('modal-open');
 }
@@ -455,6 +459,9 @@ window.hideIoChannelPopup = hideIoChannelPopup;
 // cache: moduleId -> { type, svgRoot }
 const MODULE_SVGS = new Map();
 
+
+// Expose for legacy fallbacks
+window.MODULE_SVGS = MODULE_SVGS;
 let MODAL_CTX = {
   id: null,
   type: null,
