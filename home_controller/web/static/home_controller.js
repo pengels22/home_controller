@@ -613,88 +613,109 @@ function showIoChannelPopup(name, status) {
               closeBtn.onclick = saveAndClose;
             }
         } else if (ctx.type === 'aio') {
-          const form = controls.querySelector('form');
-          if (form) {
-            let closeBtn = popup.querySelector('.popup-close.global');
-            if (!closeBtn) {
-              closeBtn = document.createElement('button');
-              closeBtn.className = 'popup-close global';
-              closeBtn.textContent = 'Close';
-              popup.appendChild(closeBtn);
-            }
-
-            const clampMax = (n) => {
-              if (!Number.isFinite(n) || n < 0) return null;
-              return Math.min(n, 24);
-            };
-
-            function fillMaxInputs(data) {
-              for (let i = 1; i <= 8; i++) {
-                const vIn = data && data.in ? data.in[String(i)] : undefined;
-                const vOut = data && data.out ? data.out[String(i)] : undefined;
-                const inEl = form.querySelector(`[name='in${i}_maxv']`);
-                const outEl = form.querySelector(`[name='out${i}_maxv']`);
-                if (inEl) inEl.value = (vIn !== undefined && vIn !== null) ? vIn : '';
-                if (outEl) outEl.value = (vOut !== undefined && vOut !== null) ? vOut : '';
-              }
-            }
-
-            async function loadAioMaxConfig() {
-              if (!ctx.module_id) return;
-              try {
-                const res = await fetch(`/api/aio_max_voltage/${encodeURIComponent(ctx.module_id)}`);
-                const data = await res.json();
-                if (res.ok && data && data.ok) {
-                  fillMaxInputs(data.data || { in: {}, out: {} });
-                }
-              } catch (e) {
-                // ignore load errors
-              }
-            }
-
-            function collectAioMaxConfig() {
-              const out = { in: {}, out: {} };
-              for (let i = 1; i <= 8; i++) {
-                const inEl = form.querySelector(`[name='in${i}_maxv']`);
-                const outEl = form.querySelector(`[name='out${i}_maxv']`);
-                if (inEl) {
-                  const n = clampMax(parseFloat(inEl.value));
-                  if (n !== null) out.in[i] = n;
-                }
-                if (outEl) {
-                  const n = clampMax(parseFloat(outEl.value));
-                  if (n !== null) out.out[i] = n;
-                }
-              }
-              return out;
-            }
-
-            async function saveAndCloseAio() {
-              if (!ctx.module_id) return;
-              const payload = collectAioMaxConfig();
-              try {
-                const resp = await fetch(`/api/aio_max_voltage/${encodeURIComponent(ctx.module_id)}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(payload)
-                });
-                const data = await resp.json();
-                if (!resp.ok || !data.ok) {
-                  alert(data && data.error ? data.error : 'Save failed');
-                  return;
-                }
-              } catch (e) {
-                alert('Network error saving AIO settings');
-                return;
-              }
-              hideIoChannelPopup();
-              window._lastModuleConfigPopupReload = Date.now();
-              if (typeof loadModules === 'function') loadModules();
-            }
-
-            closeBtn.onclick = saveAndCloseAio;
-            loadAioMaxConfig();
+        const form = controls.querySelector('form');
+        if (form) {
+          let closeBtn = popup.querySelector('.popup-close.global');
+          if (!closeBtn) {
+            closeBtn = document.createElement('button');
+            closeBtn.className = 'popup-close global';
+            closeBtn.textContent = 'Close';
+            popup.appendChild(closeBtn);
           }
+
+          const clampMax = (n) => {
+            if (!Number.isFinite(n) || n < 0) return null;
+            return Math.min(n, 24);
+          };
+
+          function fillMaxInputs(data) {
+            for (let i = 1; i <= 8; i++) {
+              const vIn = data && data.in ? data.in[String(i)] : undefined;
+              const vOut = data && data.out ? data.out[String(i)] : undefined;
+              const inEl = form.querySelector(`[name='in${i}_maxv']`);
+              const outEl = form.querySelector(`[name='out${i}_maxv']`);
+              if (inEl) inEl.value = (vIn !== undefined && vIn !== null) ? vIn : '';
+              if (outEl) outEl.value = (vOut !== undefined && vOut !== null) ? vOut : '';
+            }
+          }
+
+          async function loadAioMaxConfig() {
+            if (!ctx.module_id) return;
+            try {
+              const res = await fetch(`/api/aio_max_voltage/${encodeURIComponent(ctx.module_id)}`);
+              const data = await res.json();
+              if (res.ok && data && data.ok) {
+                fillMaxInputs(data.data || { in: {}, out: {} });
+              }
+            } catch (e) {
+              // ignore load errors
+            }
+          }
+
+          function collectAioMaxConfig() {
+            const out = { in: {}, out: {} };
+            for (let i = 1; i <= 8; i++) {
+              const inEl = form.querySelector(`[name='in${i}_maxv']`);
+              const outEl = form.querySelector(`[name='out${i}_maxv']`);
+              if (inEl) {
+                const n = clampMax(parseFloat(inEl.value));
+                if (n !== null) out.in[i] = n;
+              }
+              if (outEl) {
+                const n = clampMax(parseFloat(outEl.value));
+                if (n !== null) out.out[i] = n;
+              }
+            }
+            return out;
+          }
+
+          async function saveAndCloseAio() {
+            if (!ctx.module_id) return false;
+            const payload = collectAioMaxConfig();
+            try {
+              const resp = await fetch(`/api/aio_max_voltage/${encodeURIComponent(ctx.module_id)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              const data = await resp.json();
+              if (!resp.ok || !data.ok) {
+                alert(data && data.error ? data.error : 'Save failed');
+                return false;
+              }
+            } catch (e) {
+              alert('Network error saving AIO settings');
+              return false;
+            }
+            hideIoChannelPopup();
+            window._lastModuleConfigPopupReload = Date.now();
+            if (typeof loadModules === 'function') loadModules();
+            return true;
+          }
+
+          let saving = false;
+          closeBtn.onclick = async () => {
+            if (saving) return;
+            saving = true;
+            const oldText = closeBtn.textContent;
+            closeBtn.textContent = 'Saving...';
+            const ok = await saveAndCloseAio();
+            if (!ok) {
+              closeBtn.textContent = oldText;
+              saving = false;
+            }
+          };
+
+          if (overlay) {
+            overlay.onclick = async (e) => {
+              if (e.target !== overlay) return;
+              const ok = await saveAndCloseAio();
+              if (!ok) return;
+            };
+          }
+
+          loadAioMaxConfig();
+        }
         }
       });
   } else {
