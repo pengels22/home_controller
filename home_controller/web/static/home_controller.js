@@ -32,7 +32,10 @@ function ensureIoChannelPopup() {
       <div class="popup-title"></div>
       <div class="popup-status"></div>
       <div class="popup-controls"></div>
+      <button class="popup-close" style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 32px;font-size:16px;border-radius:6px;background:#222;color:#fff;border:none;">Close</button>
     `;
+    document.body.appendChild(popup);
+    popup.querySelector('.popup-close').onclick = () => hideIoChannelPopup();
     document.body.appendChild(popup);
   }
   return popup;
@@ -109,7 +112,9 @@ function showIoChannelPopup(name, status) {
           </div>
           <div><label><input type=\"checkbox\" id=\"ch_invert\" /> Logic Invert</label></div>
         </div>
+        <button class=\"popup-close\" style=\"position:absolute;bottom:24px;left:50%;transform:translateX(-50%);padding:10px 32px;font-size:16px;border-radius:6px;background:#222;color:#fff;border:none;\">Close</button>
       `;
+      controls.parentElement.querySelector('.popup-close').onclick = () => hideIoChannelPopup();
       // Fetch current invert/override state for this channel (always latest)
       async function fetchAndSetChannelState() {
         if (ctx.module_id && ctx.channel) {
