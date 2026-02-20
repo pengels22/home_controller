@@ -138,26 +138,56 @@ function showIoChannelPopup(name, status) {
       async function saveChannelOnClose() {
         const override = controls.querySelector('#ch_override').value;
         const invert = controls.querySelector('#ch_invert').checked;
-        if (!ctx.module_id) return;
-        await fetch('/api/module_config_set', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            module_id: ctx.module_id,
-            channel: ctx.channel,
-            override: override,
-            invert: invert
-          })
-        });
+        // DEBUG: Show context before saving
+        alert(`DEBUG: module_id=${ctx.module_id}, channel=${ctx.channel}`);
+        if (!ctx.module_id) return { ok: false, error: 'No module_id' };
+        let resp, data;
+        try {
+          resp = await fetch('/api/module_config_set', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              module_id: ctx.module_id,
+              channel: ctx.channel,
+              override: override,
+              invert: invert
+            })
+          });
+        } catch (e) {
+          return { ok: false, error: 'Network error' };
+        }
+        try {
+          data = await resp.json();
+        } catch (e) {
+          return { ok: false, error: 'Invalid server response' };
+        }
+        if (!resp.ok || !data.ok) {
+          return { ok: false, error: (data && data.error) ? data.error : 'Save failed' };
+        }
         window._lastModuleConfigPopupReload = Date.now();
         if (typeof loadModules === 'function') loadModules();
+        return { ok: true };
       }
       // Patch overlay for per-channel popup
       if (overlay) {
         const origOverlay = overlay.onclick;
         overlay.onclick = async function(e) {
           if (e.target === overlay) {
-            await saveChannelOnClose();
+            let result;
+            try {
+              result = await saveChannelOnClose();
+            } catch (err) {
+              result = { ok: false, error: 'Unexpected error' };
+            }
+            if (!result || !result.ok) {
+              // Show error visually: flash overlay red and show alert
+              overlay.style.background = 'rgba(255,0,0,0.10)';
+              setTimeout(() => {
+                overlay.style.background = 'rgba(0,0,0,0.01)';
+              }, 600);
+              alert(result && result.error ? `Save failed: ${result.error}` : 'Save failed');
+              return;
+            }
             hideIoChannelPopup();
             if (typeof origOverlay === 'function') origOverlay(e);
           }
@@ -183,11 +213,18 @@ function showIoChannelPopup(name, status) {
       channelCloseBtn.onclick = async () => {
         channelCloseBtn.disabled = true;
         channelCloseBtn.textContent = 'Saving...';
+        let result;
         try {
-          await saveChannelOnClose();
+          result = await saveChannelOnClose();
         } catch (e) {
-          channelCloseBtn.textContent = 'Error';
-          setTimeout(() => hideIoChannelPopup(), 1200);
+          result = { ok: false, error: 'Unexpected error' };
+        }
+        if (!result || !result.ok) {
+          channelCloseBtn.textContent = result && result.error ? `Error: ${result.error}` : 'Error';
+          setTimeout(() => {
+            channelCloseBtn.disabled = false;
+            channelCloseBtn.textContent = 'Close';
+          }, 1800);
           return;
         }
         hideIoChannelPopup();
