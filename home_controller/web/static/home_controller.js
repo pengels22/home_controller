@@ -156,6 +156,9 @@ function showIoChannelPopup(name, status) {
 
         async function saveAioMaxVoltage(newRaw) {
           if (!ctx.module_id) return { ok: false, error: 'No module_id' };
+          if (aioMaxCache === null) {
+            await loadAioMaxVoltage(); // try to get latest persisted values before writing
+          }
           const base = {
             in: (aioMaxCache && typeof aioMaxCache.in === 'object') ? { ...aioMaxCache.in } : {},
             out: (aioMaxCache && typeof aioMaxCache.out === 'object') ? { ...aioMaxCache.out } : {},
