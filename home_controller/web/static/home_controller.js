@@ -315,14 +315,18 @@ function hideIoChannelPopup() {
   const overlay = document.querySelector('.io-channel-popup-overlay');
   if (popup) {
     popup.classList.remove('active');
+    popup.style.display = 'none';
     // Remove all close buttons
     popup.querySelectorAll('.popup-close').forEach(btn => btn.remove());
-    // Optionally clear controls
+    // Clear controls and content
     popup.querySelector('.popup-controls').innerHTML = '';
     popup.querySelector('.popup-title').textContent = '';
     popup.querySelector('.popup-status').textContent = '';
   }
-  if (overlay) overlay.style.display = 'none';
+  if (overlay) {
+    overlay.style.display = 'none';
+    overlay.classList.remove('active');
+  }
   document.body.classList.remove('modal-open');
 }
 window.showIoChannelPopup = showIoChannelPopup;
