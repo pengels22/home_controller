@@ -138,8 +138,8 @@ function showIoChannelPopup(name, status) {
       async function saveChannelOnClose() {
         const override = controls.querySelector('#ch_override').value;
         const invert = controls.querySelector('#ch_invert').checked;
-        // DEBUG: Show context before saving
-        alert(`DEBUG: module_id=${ctx.module_id}, channel=${ctx.channel}`);
+        // DEBUG: Log context before saving
+        console.log('DEBUG saveChannelOnClose ctx:', ctx);
         if (!ctx.module_id) return { ok: false, error: 'No module_id' };
         let resp, data;
         try {
