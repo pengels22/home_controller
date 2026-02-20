@@ -172,23 +172,15 @@ function showIoChannelPopup(name, status) {
         </div>
       `;
     }
-    // Remove global close button if present
-    const globalCloseBtn = popup.querySelector('.popup-close.global');
-    if (globalCloseBtn) globalCloseBtn.remove();
-    // Remove any existing per-channel close button first
-    const oldChannelCloseBtn = popup.querySelector('.popup-close.channel');
-    if (oldChannelCloseBtn) oldChannelCloseBtn.remove();
-    // Add per-channel close button (top-right) after controls
-    setTimeout(() => {
-      if (!popup.querySelector('.popup-close.channel')) {
-        const channelCloseBtn = document.createElement('button');
-        channelCloseBtn.className = 'popup-close channel';
-        channelCloseBtn.textContent = '×';
-        channelCloseBtn.title = 'Close';
-        channelCloseBtn.onclick = () => hideIoChannelPopup();
-        popup.insertBefore(channelCloseBtn, popup.firstChild);
-      }
-    }, 0);
+    // Remove all close buttons first
+    popup.querySelectorAll('.popup-close').forEach(btn => btn.remove());
+    // Add per-channel close button (top-right)
+    const channelCloseBtn = document.createElement('button');
+    channelCloseBtn.className = 'popup-close channel';
+    channelCloseBtn.textContent = '×';
+    channelCloseBtn.title = 'Close';
+    channelCloseBtn.onclick = () => hideIoChannelPopup();
+    popup.insertBefore(channelCloseBtn, popup.firstChild);
     popup.classList.add('active');
     overlay.style.display = 'block';
     document.body.classList.add('modal-open');
@@ -212,9 +204,8 @@ function showIoChannelPopup(name, status) {
   popup.querySelector('.popup-status').textContent = `Status: ${ctx.status || status}`;
   const controls = popup.querySelector('.popup-controls');
   controls.innerHTML = '<div>Loading…</div>';
-  // Remove per-channel close button if present
-  const channelCloseBtn = popup.querySelector('.popup-close.channel');
-  if (channelCloseBtn) channelCloseBtn.remove();
+  // Remove all close buttons first
+  popup.querySelectorAll('.popup-close').forEach(btn => btn.remove());
   // Add close button for global popup if not present
   if (!popup.querySelector('.popup-close.global')) {
     const closeBtn = document.createElement('button');
@@ -305,7 +296,15 @@ function showIoChannelPopup(name, status) {
 function hideIoChannelPopup() {
   const popup = document.querySelector('.io-channel-popup');
   const overlay = document.querySelector('.io-channel-popup-overlay');
-  if (popup) popup.classList.remove('active');
+  if (popup) {
+    popup.classList.remove('active');
+    // Remove all close buttons
+    popup.querySelectorAll('.popup-close').forEach(btn => btn.remove());
+    // Optionally clear controls
+    popup.querySelector('.popup-controls').innerHTML = '';
+    popup.querySelector('.popup-title').textContent = '';
+    popup.querySelector('.popup-status').textContent = '';
+  }
   if (overlay) overlay.style.display = 'none';
   document.body.classList.remove('modal-open');
 }
