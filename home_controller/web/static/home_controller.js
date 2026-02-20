@@ -136,15 +136,20 @@ function showIoChannelPopup(name, status) {
       fetchAndSetChannelState();
       // Auto-save on close (Close button or overlay)
       async function saveChannelOnClose() {
+        // Debug: log ctx and all error details
+        const debugLog = (...args) => { try { console.log(...args); } catch (e) {} };
+        debugLog('saveChannelOnClose ctx:', ctx);
         // Always get controls from DOM to avoid closure bugs
         const popup = document.querySelector('.io-channel-popup');
         const controls = popup ? popup.querySelector('.popup-controls') : null;
         if (!controls) {
+          debugLog('Popup controls not found');
           return { ok: false, error: 'Popup controls not found' };
         }
         const overrideSel = controls.querySelector('#ch_override');
         const invertSel = controls.querySelector('#ch_invert');
         if (!overrideSel || !invertSel) {
+          debugLog('Override or invert control missing', { overrideSel, invertSel });
           return { ok: false, error: 'Override or invert control missing' };
         }
         const override = overrideSel.value;
@@ -152,6 +157,12 @@ function showIoChannelPopup(name, status) {
         if (!ctx.module_id) return { ok: false, error: 'No module_id' };
         let resp, data;
         try {
+          debugLog('Sending fetch to /api/module_config_set', {
+            module_id: ctx.module_id,
+            channel: ctx.channel,
+            override,
+            invert
+          });
           resp = await fetch('/api/module_config_set', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -163,15 +174,19 @@ function showIoChannelPopup(name, status) {
             })
           });
         } catch (e) {
-          return { ok: false, error: 'Network error' };
+          debugLog('Network error', e);
+          return { ok: false, error: 'Network error: ' + (e && e.message) };
         }
         try {
           data = await resp.json();
+          debugLog('Response from /api/module_config_set', data);
         } catch (e) {
-          return { ok: false, error: 'Invalid server response' };
+          debugLog('Invalid server response', e);
+          return { ok: false, error: 'Invalid server response: ' + (e && e.message) };
         }
         if (!resp.ok || !data.ok) {
-          return { ok: false, error: (data && data.error) ? data.error : 'Save failed' };
+          debugLog('Save failed', { resp, data });
+          return { ok: false, error: (data && data.error) ? data.error : 'Save failed (unknown error)' };
         }
         window._lastModuleConfigPopupReload = Date.now();
         if (typeof loadModules === 'function') loadModules();
