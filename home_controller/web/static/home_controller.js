@@ -56,12 +56,20 @@ function showIoChannelPopup(name, status) {
     if (controls) controls.innerHTML = '';
     // For AIO, distinguish between AI and AO by channel number (1-8 = AI, 9-16 = AO)
     if (ctx.type === 'aio') {
-      let isAI = ctx.channel >= 1 && ctx.channel <= 8;
-      let isAO = ctx.channel >= 9 && ctx.channel <= 16;
-      let chNum = ctx.channel;
+      const isAI = ctx.channel >= 1 && ctx.channel <= 8;
+      const isAO = ctx.channel >= 9 && ctx.channel <= 16;
+      const chNum = ctx.channel;
       let html = '';
       // Current voltage value, fallback to blank if not provided
-      let currentVoltage = (ctx.current_voltage !== undefined && ctx.current_voltage !== null) ? ctx.current_voltage : '';
+      const currentVoltage = (ctx.current_voltage !== undefined && ctx.current_voltage !== null) ? ctx.current_voltage : '';
+      let handleAioClose = null;
+      let maxInputRef = null;
+      let setInputRef = null;
+      let getMaxFromInputRef = null;
+      let saveAioMaxVoltageRef = null;
+      let applyMaxToSetInputRef = null;
+      let aoIndex = null;
+
       if (isAI) {
         html = `
           <div style=\"display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:220px\">
@@ -71,18 +79,17 @@ function showIoChannelPopup(name, status) {
           </div>
         `;
       } else if (isAO) {
-        const aoIndex = chNum - 8;
+        aoIndex = chNum - 8;
         html = `
           <div style=\"display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:220px\">
             <div><b>Name:</b> <span id=\"aio_ch_name\">${ctx.name || `AO${aoIndex}`}</span></div>
             <div style=\"display:flex;align-items:center;gap:6px\">
               <b>Max Voltage:</b>
-              <input id=\"aio_max_voltage\" type=\"number\" min=\"0\" max=\"48\" step=\"0.5\" placeholder=\"Default 24\" style=\"width:90px\" />
+              <input id=\"aio_max_voltage\" type=\"number\" min=\"0\" max=\"24\" step=\"0.5\" placeholder=\"Default 24\" style=\"width:90px\" />
               <span style=\"font-size:11px;color:#666\">blank = 24V</span>
             </div>
             <div><b>Current Voltage:</b> <span id=\"aio_ch_curv\">${currentVoltage}</span> V</div>
             <div><b>Set Voltage:</b> <input id=\"aio_set_voltage\" type=\"number\" min=\"0\" step=\"0.1\" style=\"width:80px\" /> V</div>
-            <button id=\"aio_drive_btn\">Drive</button>
           </div>
         `;
       } else {
@@ -92,14 +99,13 @@ function showIoChannelPopup(name, status) {
       // Optionally: wire up drive button for AO and persist per-channel max voltage
       if (isAO) {
         const DEFAULT_AIO_MAX_VOLTAGE = 24;
-        const aoIndex = chNum - 8; // AO channels are 1-8, displayed as 9-16
         const maxInput = controls.querySelector('#aio_max_voltage');
         const setInput = controls.querySelector('#aio_set_voltage');
-        const driveBtn = controls.querySelector('#aio_drive_btn');
         let aioMaxCache = null;
 
         const applyMaxToSetInput = (mv) => {
-          const val = (mv !== undefined && mv !== null && !Number.isNaN(Number(mv))) ? Number(mv) : DEFAULT_AIO_MAX_VOLTAGE;
+          const rawVal = (mv !== undefined && mv !== null && !Number.isNaN(Number(mv))) ? Number(mv) : DEFAULT_AIO_MAX_VOLTAGE;
+          const val = Math.min(Math.max(0, rawVal), DEFAULT_AIO_MAX_VOLTAGE);
           if (setInput) {
             setInput.max = val;
             setInput.placeholder = `0 - ${val}V`;
@@ -113,7 +119,8 @@ function showIoChannelPopup(name, status) {
           const raw = String(maxInput.value || '').trim();
           if (!raw) return DEFAULT_AIO_MAX_VOLTAGE;
           const n = parseFloat(raw);
-          return (Number.isFinite(n) && n >= 0) ? n : DEFAULT_AIO_MAX_VOLTAGE;
+          if (!Number.isFinite(n) || n < 0) return DEFAULT_AIO_MAX_VOLTAGE;
+          return Math.min(n, DEFAULT_AIO_MAX_VOLTAGE);
         };
 
         if (maxInput) {
@@ -159,7 +166,7 @@ function showIoChannelPopup(name, status) {
             delete base.out[key];
           } else {
             const mv = parseFloat(trimmed);
-            if (Number.isFinite(mv) && mv >= 0) base.out[key] = mv;
+            if (Number.isFinite(mv) && mv >= 0) base.out[key] = Math.min(mv, DEFAULT_AIO_MAX_VOLTAGE);
             else delete base.out[key];
           }
           try {
@@ -178,57 +185,60 @@ function showIoChannelPopup(name, status) {
             return { ok: false, error: e && e.message ? e.message : 'Network error' };
           }
         }
+        maxInputRef = maxInput;
+        setInputRef = setInput;
+        getMaxFromInputRef = getMaxFromInput;
+        saveAioMaxVoltageRef = saveAioMaxVoltage;
+        applyMaxToSetInputRef = applyMaxToSetInput;
 
-        if (driveBtn) {
-          driveBtn.onclick = async function() {
-            if (!setInput) return;
-            const v = parseFloat(setInput.value);
-            if (Number.isNaN(v)) {
-              alert('Enter a voltage to set.');
-              return;
-            }
-            const maxAllowed = getMaxFromInput();
-            if (v < 0) {
-              alert('Voltage must be >= 0V');
-              return;
-            }
-            if (v > maxAllowed) {
-              alert(`Voltage exceeds max (${maxAllowed}V).`);
-              return;
-            }
+        handleAioClose = async () => {
+          if (!setInputRef) return { ok: false, error: 'No voltage input' };
+          let v = parseFloat(setInputRef.value);
+          if (Number.isNaN(v)) v = 0;
+          const maxAllowed = getMaxFromInputRef ? getMaxFromInputRef() : DEFAULT_AIO_MAX_VOLTAGE;
+          v = Math.min(Math.max(0, v), maxAllowed);
 
-            const saveRes = await saveAioMaxVoltage(maxInput ? maxInput.value : '');
-            if (!saveRes.ok) {
-              alert(saveRes.error ? `Save failed: ${saveRes.error}` : 'Save failed');
+          const saveRes = await saveAioMaxVoltageRef(maxInputRef ? maxInputRef.value : '');
+          if (!saveRes.ok) return saveRes;
+
+          if (!ctx.module_id) return { ok: false, error: 'Module ID missing' };
+
+          try {
+            const resp = await fetch('/api/module_write', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                module_id: ctx.module_id,
+                channel: aoIndex,
+                value: v
+              })
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.ok) {
+              return { ok: false, error: data && data.error ? data.error : 'Drive failed' };
+            }
+            return { ok: true };
+          } catch (e) {
+            return { ok: false, error: 'Network error while driving output' };
+          }
+        };
+
+        // Ensure initial max ties the set voltage input range to default (0-24)
+        if (applyMaxToSetInputRef) applyMaxToSetInputRef(DEFAULT_AIO_MAX_VOLTAGE);
+      }
+
+      // Attach overlay close for AIO AO to drive/save as well
+      if (overlay && isAO) {
+        overlay.onclick = async function(e) {
+          if (e.target === overlay) {
+            const res = handleAioClose ? await handleAioClose() : { ok: true };
+            if (!res.ok) {
+              alert(res.error || 'Save failed');
               return;
             }
-
-            if (!ctx.module_id) {
-              alert('Module ID missing; cannot drive output.');
-              return;
-            }
-
-            try {
-              const resp = await fetch('/api/module_write', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  module_id: ctx.module_id,
-                  channel: aoIndex,
-                  value: v
-                })
-              });
-              const data = await resp.json();
-              if (!resp.ok || !data.ok) {
-                alert(data && data.error ? `Drive failed: ${data.error}` : 'Drive failed');
-                return;
-              }
-              alert(`AO${aoIndex} set to ${v}V (max ${maxAllowed}V)`);
-            } catch (e) {
-              alert('Network error while driving output');
-            }
-          };
-        }
+            hideIoChannelPopup();
+          }
+        };
       }
     } else if (ctx.type === 'di' || ctx.type === 'do') {
       // For DI/DO: show name, status, override, and logic invert
@@ -373,68 +383,90 @@ function showIoChannelPopup(name, status) {
       channelCloseBtn.className = 'popup-close channel';
       channelCloseBtn.textContent = 'Close';
       channelCloseBtn.title = 'Close';
-      channelCloseBtn.onclick = async () => {
-        channelCloseBtn.disabled = true;
-        channelCloseBtn.textContent = 'Saving...';
-        // Use the same logic as the global settings page, but for a single channel
-        const popup = document.querySelector('.io-channel-popup');
-        const controls = popup ? popup.querySelector('.popup-controls') : null;
-        if (!controls) {
-          channelCloseBtn.textContent = 'Error: No controls';
-          setTimeout(() => {
-            channelCloseBtn.disabled = false;
-            channelCloseBtn.textContent = 'Close';
-          }, 1800);
-          return;
-        }
-        const overrideSel = controls.querySelector('#ch_override');
-        const invertSel = controls.querySelector('#ch_invert');
-        if (!overrideSel || !invertSel) {
-          channelCloseBtn.textContent = 'Error: No input';
-          setTimeout(() => {
-            channelCloseBtn.disabled = false;
-            channelCloseBtn.textContent = 'Close';
-          }, 1800);
-          return;
-        }
-        const override = overrideSel.value;
-        const invert = invertSel.checked;
-        // Compose payload for a single channel
-        const payload = {
-          module_id: ctx.module_id,
-          override: {},
-          invert: {}
+      if (ctx.type === 'di' || ctx.type === 'do') {
+        channelCloseBtn.onclick = async () => {
+          channelCloseBtn.disabled = true;
+          channelCloseBtn.textContent = 'Saving...';
+          // Use the same logic as the global settings page, but for a single channel
+          const popup = document.querySelector('.io-channel-popup');
+          const controls = popup ? popup.querySelector('.popup-controls') : null;
+          if (!controls) {
+            channelCloseBtn.textContent = 'Error: No controls';
+            setTimeout(() => {
+              channelCloseBtn.disabled = false;
+              channelCloseBtn.textContent = 'Close';
+            }, 1800);
+            return;
+          }
+          const overrideSel = controls.querySelector('#ch_override');
+          const invertSel = controls.querySelector('#ch_invert');
+          if (!overrideSel || !invertSel) {
+            channelCloseBtn.textContent = 'Error: No input';
+            setTimeout(() => {
+              channelCloseBtn.disabled = false;
+              channelCloseBtn.textContent = 'Close';
+            }, 1800);
+            return;
+          }
+          const override = overrideSel.value;
+          const invert = invertSel.checked;
+          // Compose payload for a single channel
+          const payload = {
+            module_id: ctx.module_id,
+            override: {},
+            invert: {}
+          };
+          payload.override[ctx.channel] = override;
+          payload.invert[ctx.channel] = invert;
+          let resp, data;
+          try {
+            resp = await fetch('/api/module_config_set', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            data = await resp.json();
+          } catch (e) {
+            channelCloseBtn.textContent = 'Error: Network';
+            setTimeout(() => {
+              channelCloseBtn.disabled = false;
+              channelCloseBtn.textContent = 'Close';
+            }, 1800);
+            return;
+          }
+          if (!resp.ok || !data.ok) {
+            channelCloseBtn.textContent = data && data.error ? `Error: ${data.error}` : 'Error: Save failed';
+            setTimeout(() => {
+              channelCloseBtn.disabled = false;
+              channelCloseBtn.textContent = 'Close';
+            }, 1800);
+            return;
+          }
+          window._lastModuleConfigPopupReload = Date.now();
+          if (typeof loadModules === 'function') loadModules();
+          hideIoChannelPopup();
         };
-        payload.override[ctx.channel] = override;
-        payload.invert[ctx.channel] = invert;
-        let resp, data;
-        try {
-          resp = await fetch('/api/module_config_set', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          data = await resp.json();
-        } catch (e) {
-          channelCloseBtn.textContent = 'Error: Network';
-          setTimeout(() => {
-            channelCloseBtn.disabled = false;
-            channelCloseBtn.textContent = 'Close';
-          }, 1800);
-          return;
-        }
-        if (!resp.ok || !data.ok) {
-          channelCloseBtn.textContent = data && data.error ? `Error: ${data.error}` : 'Error: Save failed';
-          setTimeout(() => {
-            channelCloseBtn.disabled = false;
-            channelCloseBtn.textContent = 'Close';
-          }, 1800);
-          return;
-        }
-        window._lastModuleConfigPopupReload = Date.now();
-        if (typeof loadModules === 'function') loadModules();
-        hideIoChannelPopup();
-      };
+      } else if (ctx.type === 'aio') {
+        channelCloseBtn.onclick = async () => {
+          channelCloseBtn.disabled = true;
+          channelCloseBtn.textContent = 'Saving...';
+          // Only AO channels need to drive/save; AI just close.
+          if (ctx.channel >= 9 && typeof handleAioClose === 'function') {
+            const res = await handleAioClose();
+            if (!res || !res.ok) {
+              channelCloseBtn.textContent = res && res.error ? `Error: ${res.error}` : 'Error';
+              setTimeout(() => {
+                channelCloseBtn.disabled = false;
+                channelCloseBtn.textContent = 'Close';
+              }, 1800);
+              return;
+            }
+          }
+          hideIoChannelPopup();
+        };
+      } else {
+        channelCloseBtn.onclick = hideIoChannelPopup;
+      }
       popup.appendChild(channelCloseBtn);
     }
     popup.classList.add('active');
