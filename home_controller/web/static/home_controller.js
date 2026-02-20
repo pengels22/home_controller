@@ -178,13 +178,17 @@ function showIoChannelPopup(name, status) {
     // Remove any existing per-channel close button first
     const oldChannelCloseBtn = popup.querySelector('.popup-close.channel');
     if (oldChannelCloseBtn) oldChannelCloseBtn.remove();
-    // Add per-channel close button (top-right)
-    const channelCloseBtn = document.createElement('button');
-    channelCloseBtn.className = 'popup-close channel';
-    channelCloseBtn.textContent = '×';
-    channelCloseBtn.title = 'Close';
-    channelCloseBtn.onclick = () => hideIoChannelPopup();
-    popup.insertBefore(channelCloseBtn, popup.firstChild);
+    // Add per-channel close button (top-right) after controls
+    setTimeout(() => {
+      if (!popup.querySelector('.popup-close.channel')) {
+        const channelCloseBtn = document.createElement('button');
+        channelCloseBtn.className = 'popup-close channel';
+        channelCloseBtn.textContent = '×';
+        channelCloseBtn.title = 'Close';
+        channelCloseBtn.onclick = () => hideIoChannelPopup();
+        popup.insertBefore(channelCloseBtn, popup.firstChild);
+      }
+    }, 0);
     popup.classList.add('active');
     overlay.style.display = 'block';
     document.body.classList.add('modal-open');
