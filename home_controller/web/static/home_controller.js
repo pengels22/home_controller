@@ -87,7 +87,12 @@ function showIoChannelPopup(name, status) {
       // Optionally: wire up drive button for AO
       if (isAO) {
         controls.querySelector('#aio_drive_btn').onclick = function() {
-          const v = parseFloat(controls.querySelector('#aio_set_voltage').value);
+          const val = controls.querySelector('#aio_set_voltage').value;
+          if (val === '' || val === null) {
+            // No input: do nothing, no error
+            return;
+          }
+          const v = parseFloat(val);
           if (isNaN(v) || v < 0 || v > 24) {
             alert('Enter a voltage between 0 and 24V');
             return;
