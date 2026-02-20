@@ -88,6 +88,7 @@ function showIoChannelPopup(name, status) {
               <input id=\"aio_max_voltage\" type=\"number\" min=\"0\" max=\"24\" step=\"0.5\" placeholder=\"Default 24\" style=\"width:90px\" />
               <span style=\"font-size:11px;color:#666\">blank = 24V</span>
             </div>
+            <div><b>Active Max:</b> <span id=\"aio_ch_maxv\">24</span> V</div>
             <div><b>Current Voltage:</b> <span id=\"aio_ch_curv\">${currentVoltage}</span> V</div>
             <div><b>Set Voltage:</b> <input id=\"aio_set_voltage\" type=\"number\" min=\"0\" step=\"0.1\" style=\"width:80px\" /> V</div>
           </div>
@@ -97,7 +98,24 @@ function showIoChannelPopup(name, status) {
       }
       controls.innerHTML = html;
       // Optionally: wire up drive button for AO and persist per-channel max voltage
-      if (isAO) {
+      if (isAI) {
+        // Show persisted max voltage for AI channels
+        (async () => {
+          if (!ctx.module_id) return;
+          try {
+            const res = await fetch(`/api/aio_max_voltage/${encodeURIComponent(ctx.module_id)}`);
+            const data = await res.json();
+            if (res.ok && data && data.ok) {
+              const maxSpan = controls.querySelector('#aio_ch_maxv');
+              const v = data.data && data.data.in && data.data.in[String(chNum)];
+              const resolved = (v !== undefined && v !== null && String(v).trim() !== '') ? v : 24;
+              if (maxSpan) maxSpan.textContent = resolved;
+            }
+          } catch (e) {
+            // ignore
+          }
+        })();
+      } else if (isAO) {
         const DEFAULT_AIO_MAX_VOLTAGE = 24;
         const maxInput = controls.querySelector('#aio_max_voltage');
         const setInput = controls.querySelector('#aio_set_voltage');
@@ -138,10 +156,14 @@ function showIoChannelPopup(name, status) {
             if (res.ok && data && data.ok) {
               aioMaxCache = data.data || { in: {}, out: {} };
               const outMax = aioMaxCache.out && aioMaxCache.out[String(aoIndex)];
+              const maxSpan = controls.querySelector('#aio_ch_maxv');
+              const resolved = (outMax !== undefined && outMax !== null && String(outMax).trim() !== '')
+                ? Math.min(Math.max(0, parseFloat(outMax)), DEFAULT_AIO_MAX_VOLTAGE)
+                : DEFAULT_AIO_MAX_VOLTAGE;
+              if (maxSpan) maxSpan.textContent = Number.isFinite(resolved) ? resolved : DEFAULT_AIO_MAX_VOLTAGE;
               if (outMax !== undefined && outMax !== null && String(outMax).trim() !== '') {
                 if (maxInput) maxInput.value = outMax;
-                const parsed = parseFloat(outMax);
-                applyMaxToSetInput(Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_AIO_MAX_VOLTAGE);
+                applyMaxToSetInput(Number.isFinite(resolved) ? resolved : DEFAULT_AIO_MAX_VOLTAGE);
               } else {
                 if (maxInput) maxInput.value = '';
                 applyMaxToSetInput(DEFAULT_AIO_MAX_VOLTAGE);
@@ -586,6 +608,89 @@ function showIoChannelPopup(name, status) {
               }
               closeBtn.onclick = saveAndClose;
             }
+        } else if (ctx.type === 'aio') {
+          const form = controls.querySelector('form');
+          if (form) {
+            let closeBtn = popup.querySelector('.popup-close.global');
+            if (!closeBtn) {
+              closeBtn = document.createElement('button');
+              closeBtn.className = 'popup-close global';
+              closeBtn.textContent = 'Close';
+              popup.appendChild(closeBtn);
+            }
+
+            const clampMax = (n) => {
+              if (!Number.isFinite(n) || n < 0) return null;
+              return Math.min(n, 24);
+            };
+
+            function fillMaxInputs(data) {
+              for (let i = 1; i <= 8; i++) {
+                const vIn = data && data.in ? data.in[String(i)] : undefined;
+                const vOut = data && data.out ? data.out[String(i)] : undefined;
+                const inEl = form.querySelector(`[name='in${i}_maxv']`);
+                const outEl = form.querySelector(`[name='out${i}_maxv']`);
+                if (inEl) inEl.value = (vIn !== undefined && vIn !== null) ? vIn : '';
+                if (outEl) outEl.value = (vOut !== undefined && vOut !== null) ? vOut : '';
+              }
+            }
+
+            async function loadAioMaxConfig() {
+              if (!ctx.module_id) return;
+              try {
+                const res = await fetch(`/api/aio_max_voltage/${encodeURIComponent(ctx.module_id)}`);
+                const data = await res.json();
+                if (res.ok && data && data.ok) {
+                  fillMaxInputs(data.data || { in: {}, out: {} });
+                }
+              } catch (e) {
+                // ignore load errors
+              }
+            }
+
+            function collectAioMaxConfig() {
+              const out = { in: {}, out: {} };
+              for (let i = 1; i <= 8; i++) {
+                const inEl = form.querySelector(`[name='in${i}_maxv']`);
+                const outEl = form.querySelector(`[name='out${i}_maxv']`);
+                if (inEl) {
+                  const n = clampMax(parseFloat(inEl.value));
+                  if (n !== null) out.in[i] = n;
+                }
+                if (outEl) {
+                  const n = clampMax(parseFloat(outEl.value));
+                  if (n !== null) out.out[i] = n;
+                }
+              }
+              return out;
+            }
+
+            async function saveAndCloseAio() {
+              if (!ctx.module_id) return;
+              const payload = collectAioMaxConfig();
+              try {
+                const resp = await fetch(`/api/aio_max_voltage/${encodeURIComponent(ctx.module_id)}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) {
+                  alert(data && data.error ? data.error : 'Save failed');
+                  return;
+                }
+              } catch (e) {
+                alert('Network error saving AIO settings');
+                return;
+              }
+              hideIoChannelPopup();
+              window._lastModuleConfigPopupReload = Date.now();
+              if (typeof loadModules === 'function') loadModules();
+            }
+
+            closeBtn.onclick = saveAndCloseAio;
+            loadAioMaxConfig();
+          }
         }
       });
   } else {
