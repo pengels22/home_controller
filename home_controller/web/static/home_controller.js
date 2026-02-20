@@ -179,7 +179,10 @@ function showIoChannelPopup(name, status) {
     channelCloseBtn.className = 'popup-close channel';
     channelCloseBtn.textContent = 'Close';
     channelCloseBtn.title = 'Close';
-    channelCloseBtn.onclick = () => hideIoChannelPopup();
+    channelCloseBtn.onclick = async () => {
+      await saveChannelOnClose();
+      hideIoChannelPopup();
+    };
     popup.appendChild(channelCloseBtn);
     popup.classList.add('active');
     overlay.style.display = 'block';
@@ -211,7 +214,13 @@ function showIoChannelPopup(name, status) {
     const closeBtn = document.createElement('button');
     closeBtn.className = 'popup-close global';
     closeBtn.textContent = 'Close';
-    closeBtn.onclick = () => hideIoChannelPopup();
+    closeBtn.onclick = async () => {
+      if (typeof saveAndClose === 'function') {
+        await saveAndClose();
+      } else {
+        hideIoChannelPopup();
+      }
+    };
     popup.appendChild(closeBtn);
   }
   let url = '';
