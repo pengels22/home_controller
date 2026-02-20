@@ -140,6 +140,17 @@ function showIoChannelPopup(name, status) {
         const invert = controls.querySelector('#ch_invert').checked;
         // DEBUG: Log context before saving
         console.log('DEBUG saveChannelOnClose ctx:', ctx);
+        try {
+          // Log before fetch
+          console.log('About to fetch /api/module_config_set with:', {
+            module_id: ctx.module_id,
+            channel: ctx.channel,
+            override,
+            invert
+          });
+        } catch (e) {
+          alert('DEBUG: Exception logging context: ' + (e && e.message));
+        }
         if (!ctx.module_id) return { ok: false, error: 'No module_id' };
         let resp, data;
         try {
