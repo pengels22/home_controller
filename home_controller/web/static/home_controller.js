@@ -269,6 +269,93 @@ function showIoChannelPopup(name, status) {
         // Ensure initial max ties the set voltage input range to default (0-24)
         if (applyMaxToSetInput) applyMaxToSetInput(DEFAULT_AIO_MAX_VOLTAGE);
       }
+    } else if (ctx.type === 'ext') {
+      controls.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-start;min-width:240px">
+          <div><b>Channel:</b> <span>${ctx.name || `Channel ${ctx.channel}`}</span></div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <label>Type:</label>
+            <select id="ext_ch_type">
+              <option value="di">DI</option>
+              <option value="do">DO</option>
+              <option value="aio">AIO</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <label>Address:</label>
+            <input id="ext_ch_addr" type="text" placeholder="0x20" style="width:90px" />
+          </div>
+          <div><b>Status:</b> <span id="ext_ch_status">Unknown</span></div>
+          <button id="ext_ch_save">Save</button>
+        </div>
+      `;
+
+      async function loadExtChannel() {
+        try {
+          const res = await fetch('/api/expansion_config');
+          const data = await res.json();
+          if (!res.ok || !data.ok) return;
+          const exp = data.exp || {};
+          const chIdx = (ctx.channel || 1) - 1;
+          const ch = exp.channels && exp.channels[chIdx] ? exp.channels[chIdx] : {};
+          const typeSel = controls.querySelector('#ext_ch_type');
+          const addrInp = controls.querySelector('#ext_ch_addr');
+          if (typeSel) typeSel.value = ch.type || 'di';
+          if (addrInp) addrInp.value = ch.address_hex || '';
+          const statusSpan = controls.querySelector('#ext_ch_status');
+          if (statusSpan) statusSpan.textContent = ch.address_hex ? 'Configured' : 'Unassigned';
+        } catch (e) {
+          /* ignore */
+        }
+      }
+
+      async function saveExtChannel() {
+        const typeSel = controls.querySelector('#ext_ch_type');
+        const addrInp = controls.querySelector('#ext_ch_addr');
+        const chIdx = (ctx.channel || 1) - 1;
+        let exp;
+        try {
+          const res = await fetch('/api/expansion_config');
+          const data = await res.json();
+          if (!res.ok || !data.ok) return { ok: false, error: 'Load failed' };
+          exp = data.exp || {};
+        } catch (e) {
+          return { ok: false, error: 'Load failed' };
+        }
+        if (!exp.channels || !Array.isArray(exp.channels)) exp.channels = [];
+        while (exp.channels.length < 8) exp.channels.push({ name: `ch${exp.channels.length+1}`, type: 'di', address_hex: '' });
+        const ch = exp.channels[chIdx] || {};
+        ch.name = ch.name || `ch${ctx.channel}`;
+        ch.type = typeSel ? typeSel.value : ch.type || 'di';
+        ch.address_hex = addrInp ? addrInp.value : ch.address_hex || '';
+        exp.channels[chIdx] = ch;
+        try {
+          const resp = await fetch('/api/expansion_config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(exp)
+          });
+          const out = await resp.json();
+          if (!resp.ok || !out.ok) return { ok: false, error: out && out.error ? out.error : 'Save failed' };
+          const statusSpan = controls.querySelector('#ext_ch_status');
+          if (statusSpan) statusSpan.textContent = ch.address_hex ? 'Configured' : 'Unassigned';
+          return { ok: true };
+        } catch (e) {
+          return { ok: false, error: 'Network error' };
+        }
+      }
+
+      const saveBtn = controls.querySelector('#ext_ch_save');
+      if (saveBtn) saveBtn.onclick = async () => {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        const res = await saveExtChannel();
+        saveBtn.textContent = 'Save';
+        saveBtn.disabled = false;
+        if (!res.ok) alert(res.error || 'Save failed');
+      };
+
+      loadExtChannel();
     } else if (ctx.type === 'di' || ctx.type === 'do') {
       // For DI/DO: show name, status, override, and logic invert
       controls.innerHTML = `
@@ -765,6 +852,107 @@ function showIoChannelPopup(name, status) {
           closeBtn.onclick = hideIoChannelPopup;
           loadAioMaxConfig();
         }
+        } else if (ctx.type === 'ext') {
+          const form = controls.querySelector('form');
+          if (form) {
+            form.querySelectorAll('button[type="submit"], button[type="button"]').forEach(btn => btn.remove());
+            const nameInput = form.querySelector('input[name="module_name"]');
+            const addrInput = form.querySelector('input[name="i2c_address"]');
+
+            let closeBtn = popup.querySelector('.popup-close.global');
+            let saveBtn = controls.querySelector('.ext-global-save');
+            if (!saveBtn) {
+              saveBtn = document.createElement('button');
+              saveBtn.className = 'ext-global-save';
+              saveBtn.textContent = 'Save';
+              controls.appendChild(saveBtn);
+            }
+            if (!closeBtn) {
+              closeBtn = document.createElement('button');
+              closeBtn.className = 'popup-close global';
+              closeBtn.textContent = 'Close';
+              popup.appendChild(closeBtn);
+            }
+
+            function fillForm(exp) {
+              if (nameInput) nameInput.value = exp.name || '';
+              if (addrInput) addrInput.value = exp.address_hex || '';
+              for (let i = 0; i < 8; i++) {
+                const ch = (exp.channels && exp.channels[i]) || {};
+                const n = form.querySelector(`[name='ch${i+1}']`);
+                const t = form.querySelector(`[name='type${i+1}']`);
+                const a = form.querySelector(`[name='addr${i+1}']`);
+                if (n) n.value = ch.name || '';
+                if (t) t.value = ch.type || 'di';
+                if (a) a.value = ch.address_hex || '';
+              }
+            }
+
+            async function loadExtConfig() {
+              try {
+                const res = await fetch('/api/expansion_config');
+                const data = await res.json();
+                if (res.ok && data && data.ok) fillForm(data.exp || {});
+              } catch (e) { /* ignore */ }
+            }
+
+            function collectExtConfig() {
+              const channels = [];
+              for (let i = 0; i < 8; i++) {
+                const n = form.querySelector(`[name='ch${i+1}']`);
+                const t = form.querySelector(`[name='type${i+1}']`);
+                const a = form.querySelector(`[name='addr${i+1}']`);
+                channels.push({
+                  name: n ? n.value : '',
+                  type: t ? t.value : 'di',
+                  address_hex: a ? a.value : ''
+                });
+              }
+              return {
+                name: nameInput ? nameInput.value : '',
+                address_hex: addrInput ? addrInput.value : '',
+                channels
+              };
+            }
+
+            async function saveExt() {
+              const payload = collectExtConfig();
+              try {
+                const resp = await fetch('/api/expansion_config', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) {
+                  alert(data && data.error ? data.error : 'Save failed');
+                  return false;
+                }
+              } catch (e) {
+                alert('Network error saving expansion config');
+                return false;
+              }
+              return true;
+            }
+
+            let saving = false;
+            saveBtn.onclick = async () => {
+              if (saving) return;
+              saving = true;
+              const old = saveBtn.textContent;
+              saveBtn.textContent = 'Saving...';
+              const ok = await saveExt();
+              saveBtn.textContent = old;
+              saving = false;
+              if (ok) {
+                window._lastModuleConfigPopupReload = Date.now();
+                if (typeof loadModules === 'function') loadModules();
+              }
+            };
+
+            closeBtn.onclick = hideIoChannelPopup;
+            loadExtConfig();
+          }
         }
       });
   } else {
