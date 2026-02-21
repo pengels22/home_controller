@@ -9,8 +9,9 @@
       .ledOuter { fill:#e7e7e7; stroke:#9c9c9c; stroke-width:1.5; }
       .ledPwr { fill:#39d353; stroke:#222; stroke-width:1.5; }
       .ledNet { fill:#2f81f7; stroke:#222; stroke-width:1.5; }
-      .ch-label { font-family:Arial,Helvetica,sans-serif; font-size:8px; font-weight:700; fill:#666; text-anchor:middle; }
-      .ch-addr { font-family:Arial,Helvetica,sans-serif; font-size:7px; font-weight:600; fill:#666; text-anchor:middle; }
+      .ch-label { font-family:Arial,Helvetica,sans-serif; font-size:8px; font-weight:700; fill:#555; text-anchor:start; }
+      .ch-type  { font-family:Arial,Helvetica,sans-serif; font-size:8px; font-weight:700; fill:#777; text-anchor:start; }
+      .ch-addr { font-family:Arial,Helvetica,sans-serif; font-size:7px; font-weight:600; fill:#555; text-anchor:start; }
       .chan-dot { fill:#d0d0d0; stroke:#7a7a7a; stroke-width:1; cursor:pointer; }
       .chan-dot:hover { fill:#b0b0b0; }
     </style>
@@ -21,39 +22,64 @@
   <text class="title" x="50" y="16" text-anchor="middle">I2C EXPANDER</text>
   <text class="addr" id="i2c_addr_text" x="50" y="30" text-anchor="middle">0x20</text>
 
-  <g transform="translate(12,58)">
-    <!-- Left column: channels 1-4 -->
-    <g>
-      <circle class="chan-dot" id="ch01" cx="12" cy="10" r="6"/><text class="ch-label" x="24" y="13">1</text>
-      <text class="ch-addr" id="ch01_addr" x="12" y="22">—</text>
+  <g transform="translate(10,48)">
+    <!-- Single column channels 1-8 with dot, number, type, and address on one row -->
+    <g id="ch_group">
+      <g transform="translate(0,0)">
+        <circle class="chan-dot" id="ch01" cx="10" cy="0" r="6"/>
+        <text class="ch-label" x="22" y="2">1</text>
+        <text class="ch-type"  x="30" y="2" id="ch01_type">--</text>
+        <text class="ch-addr"  x="50" y="2" id="ch01_addr">0x00</text>
+      </g>
 
-      <circle class="chan-dot" id="ch02" cx="12" cy="46" r="6"/><text class="ch-label" x="24" y="49">2</text>
-      <text class="ch-addr" id="ch02_addr" x="12" y="58">—</text>
+      <g transform="translate(0,24)">
+        <circle class="chan-dot" id="ch02" cx="10" cy="0" r="6"/>
+        <text class="ch-label" x="22" y="2">2</text>
+        <text class="ch-type"  x="30" y="2" id="ch02_type">--</text>
+        <text class="ch-addr"  x="50" y="2" id="ch02_addr">0x00</text>
+      </g>
 
-      <circle class="chan-dot" id="ch03" cx="12" cy="82" r="6"/><text class="ch-label" x="24" y="85">3</text>
-      <text class="ch-addr" id="ch03_addr" x="12" y="94">—</text>
+      <g transform="translate(0,48)">
+        <circle class="chan-dot" id="ch03" cx="10" cy="0" r="6"/>
+        <text class="ch-label" x="22" y="2">3</text>
+        <text class="ch-type"  x="30" y="2" id="ch03_type">--</text>
+        <text class="ch-addr"  x="50" y="2" id="ch03_addr">0x00</text>
+      </g>
 
-      <circle class="chan-dot" id="ch04" cx="12" cy="118" r="6"/><text class="ch-label" x="24" y="121">4</text>
-      <text class="ch-addr" id="ch04_addr" x="12" y="130">—</text>
-    </g>
+      <g transform="translate(0,72)">
+        <circle class="chan-dot" id="ch04" cx="10" cy="0" r="6"/>
+        <text class="ch-label" x="22" y="2">4</text>
+        <text class="ch-type"  x="30" y="2" id="ch04_type">--</text>
+        <text class="ch-addr"  x="50" y="2" id="ch04_addr">0x00</text>
+      </g>
 
-    <!-- Right column: channels 5-8 -->
-    <g transform="translate(52,0)">
-      <text class="ch-label" x="-3" y="13" text-anchor="end">5</text>
-      <circle class="chan-dot" id="ch05" cx="12" cy="10" r="6"/>
-      <text class="ch-addr" id="ch05_addr" x="12" y="22">—</text>
+      <g transform="translate(0,96)">
+        <circle class="chan-dot" id="ch05" cx="10" cy="0" r="6"/>
+        <text class="ch-label" x="22" y="2">5</text>
+        <text class="ch-type"  x="30" y="2" id="ch05_type">--</text>
+        <text class="ch-addr"  x="50" y="2" id="ch05_addr">0x00</text>
+      </g>
 
-      <text class="ch-label" x="-3" y="49" text-anchor="end">6</text>
-      <circle class="chan-dot" id="ch06" cx="12" cy="46" r="6"/>
-      <text class="ch-addr" id="ch06_addr" x="12" y="58">—</text>
+      <g transform="translate(0,120)">
+        <circle class="chan-dot" id="ch06" cx="10" cy="0" r="6"/>
+        <text class="ch-label" x="22" y="2">6</text>
+        <text class="ch-type"  x="30" y="2" id="ch06_type">--</text>
+        <text class="ch-addr"  x="50" y="2" id="ch06_addr">0x00</text>
+      </g>
 
-      <text class="ch-label" x="-3" y="85" text-anchor="end">7</text>
-      <circle class="chan-dot" id="ch07" cx="12" cy="82" r="6"/>
-      <text class="ch-addr" id="ch07_addr" x="12" y="94">—</text>
+      <g transform="translate(0,144)">
+        <circle class="chan-dot" id="ch07" cx="10" cy="0" r="6"/>
+        <text class="ch-label" x="22" y="2">7</text>
+        <text class="ch-type"  x="30" y="2" id="ch07_type">--</text>
+        <text class="ch-addr"  x="50" y="2" id="ch07_addr">0x00</text>
+      </g>
 
-      <text class="ch-label" x="-3" y="121" text-anchor="end">8</text>
-      <circle class="chan-dot" id="ch08" cx="12" cy="118" r="6"/>
-      <text class="ch-addr" id="ch08_addr" x="12" y="130">—</text>
+      <g transform="translate(0,168)">
+        <circle class="chan-dot" id="ch08" cx="10" cy="0" r="6"/>
+        <text class="ch-label" x="22" y="2">8</text>
+        <text class="ch-type"  x="30" y="2" id="ch08_type">--</text>
+        <text class="ch-addr"  x="50" y="2" id="ch08_addr">0x00</text>
+      </g>
     </g>
   </g>
 </svg>
