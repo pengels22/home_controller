@@ -1368,26 +1368,33 @@ async function loadModules() {
           channelGroups.forEach((g, idx) => {
             // Support both circle as group child or the circle itself
             const circle = g.tagName.toLowerCase() === 'circle' ? g : g.querySelector("circle");
-            if (circle) {
-              circle.style.cursor = "pointer";
-              circle.onclick = (e) => {
-                e.stopPropagation();
-                const chNum = idx + 1;
-                let chName = `Channel ${chNum}`;
-                if (m.labels && m.labels.channels && m.labels.channels[String(chNum)]) {
-                  chName = m.labels.channels[String(chNum)];
-                }
-                const status = circle.classList.contains("led-on") ? "ON" : "OFF";
-                showIoChannelPopup({
-                  name: chName,
-                  status,
-                  type: m.type.toLowerCase(),
-                  channel: chNum,
-                  module_id: m.id,
-                  address: m.address
-                });
-              };
+            if (!circle) return;
+
+            const idStr = (circle.id || g.id || "").toLowerCase();
+            let chNum = idx + 1;
+            const match = idStr.match(/ch(\d+)/);
+            if (match && match[1]) {
+              chNum = parseInt(match[1], 10);
+              if (Number.isNaN(chNum) || chNum < 1) chNum = idx + 1;
             }
+
+            circle.style.cursor = "pointer";
+            circle.onclick = (e) => {
+              e.stopPropagation();
+              let chName = `Channel ${chNum}`;
+              if (m.labels && m.labels.channels && m.labels.channels[String(chNum)]) {
+                chName = m.labels.channels[String(chNum)];
+              }
+              const status = circle.classList.contains("led-on") ? "ON" : "OFF";
+              showIoChannelPopup({
+                name: chName,
+                status,
+                type: m.type.toLowerCase(),
+                channel: chNum,
+                module_id: m.id,
+                address: m.address
+              });
+            };
           });
         }
       }
