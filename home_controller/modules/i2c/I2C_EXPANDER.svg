@@ -30,50 +30,50 @@
 
   <!-- Single column: channels 1–8; spacing and positions mirror DO card left column -->
   <!-- x positions: number 23, dot 35, type 50, addr 72; y start 85, step 16 -->
-  <g id="ch_group">
-    <g id="ch01_row" transform="translate(0,0)">
+  <g id="ch_container">
+    <g id="row01" transform="translate(0,0)">
       <text class="lednum" x="23" y="85">1</text>
       <circle class="led" id="ch01" cx="35" cy="85" r="6"/>
       <text class="type" x="50" y="83" id="ch01_type">--</text>
       <text class="addr" x="50" y="91" id="ch01_addr">0x00</text>
     </g>
-    <g id="ch02_row" transform="translate(0,16)">
+    <g id="row02" transform="translate(0,16)">
       <text class="lednum" x="23" y="85">2</text>
       <circle class="led" id="ch02" cx="35" cy="85" r="6"/>
       <text class="type" x="50" y="83" id="ch02_type">--</text>
       <text class="addr" x="50" y="91" id="ch02_addr">0x00</text>
     </g>
-    <g id="ch03_row" transform="translate(0,32)">
+    <g id="row03" transform="translate(0,32)">
       <text class="lednum" x="23" y="85">3</text>
       <circle class="led" id="ch03" cx="35" cy="85" r="6"/>
       <text class="type" x="50" y="83" id="ch03_type">--</text>
       <text class="addr" x="50" y="91" id="ch03_addr">0x00</text>
     </g>
-    <g id="ch04_row" transform="translate(0,48)">
+    <g id="row04" transform="translate(0,48)">
       <text class="lednum" x="23" y="85">4</text>
       <circle class="led" id="ch04" cx="35" cy="85" r="6"/>
       <text class="type" x="50" y="83" id="ch04_type">--</text>
       <text class="addr" x="50" y="91" id="ch04_addr">0x00</text>
     </g>
-    <g id="ch05_row" transform="translate(0,64)">
+    <g id="row05" transform="translate(0,64)">
       <text class="lednum" x="23" y="85">5</text>
       <circle class="led" id="ch05" cx="35" cy="85" r="6"/>
       <text class="type" x="50" y="83" id="ch05_type">--</text>
       <text class="addr" x="50" y="91" id="ch05_addr">0x00</text>
     </g>
-    <g id="ch06_row" transform="translate(0,80)">
+    <g id="row06" transform="translate(0,80)">
       <text class="lednum" x="23" y="85">6</text>
       <circle class="led" id="ch06" cx="35" cy="85" r="6"/>
       <text class="type" x="50" y="83" id="ch06_type">--</text>
       <text class="addr" x="50" y="91" id="ch06_addr">0x00</text>
     </g>
-    <g id="ch07_row" transform="translate(0,96)">
+    <g id="row07" transform="translate(0,96)">
       <text class="lednum" x="23" y="85">7</text>
       <circle class="led" id="ch07" cx="35" cy="85" r="6"/>
       <text class="type" x="50" y="83" id="ch07_type">--</text>
       <text class="addr" x="50" y="91" id="ch07_addr">0x00</text>
     </g>
-    <g id="ch08_row" transform="translate(0,112)">
+    <g id="row08" transform="translate(0,112)">
       <text class="lednum" x="23" y="85">8</text>
       <circle class="led" id="ch08" cx="35" cy="85" r="6"/>
       <text class="type" x="50" y="83" id="ch08_type">--</text>
