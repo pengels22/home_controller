@@ -1567,8 +1567,8 @@ async function loadModules() {
               const chNum = i + 1;
               const tEl = svgRoot.querySelector(`#ch${String(chNum).padStart(2, "0")}_type`);
               const aEl = svgRoot.querySelector(`#ch${String(chNum).padStart(2, "0")}_addr`);
-              if (tEl) tEl.textContent = chans[i].type || "--";
-              if (aEl) aEl.textContent = chans[i].address_hex || "0x00";
+              if (tEl) tEl.textContent = (chans[i].type || "--").toUpperCase();
+              if (aEl) aEl.textContent = (chans[i].address_hex || "0x00").toUpperCase();
             }
           } catch (e) {
             // ignore
