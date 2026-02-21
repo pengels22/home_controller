@@ -352,7 +352,11 @@ function showIoChannelPopup(name, status) {
         const res = await saveExtChannel();
         saveBtn.textContent = 'Save';
         saveBtn.disabled = false;
-        if (!res.ok) alert(res.error || 'Save failed');
+        if (!res.ok) {
+          alert(res.error || 'Save failed');
+        } else if (typeof loadModules === 'function') {
+          loadModules();
+        }
       };
 
       loadExtChannel();
@@ -1487,6 +1491,7 @@ async function loadModules() {
 
   // Render all modules in one row (avoid Safari dimming when stacking rows)
   const orderedModules = normalModules.concat(extModules).concat(extSubsystem);
+  let expansionCfg = null;
 
   for (const m of orderedModules) {
     const card = document.createElement("div");
@@ -1548,6 +1553,27 @@ async function loadModules() {
         scopeSvgStyles(svgRoot, scopeClass);
         ensureSvgVisible(svgRoot);
         MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
+
+        // Populate expander labels from expansion_config (types/addresses)
+        if (svgType === "ext") {
+          try {
+            if (!expansionCfg) {
+              const cfgRes = await fetch("/api/expansion_config");
+              const cfgData = await cfgRes.json();
+              if (cfgRes.ok && cfgData && cfgData.ok) expansionCfg = cfgData.exp;
+            }
+            const chans = (expansionCfg && expansionCfg.channels) || [];
+            for (let i = 0; i < Math.min(8, chans.length); i++) {
+              const chNum = i + 1;
+              const tEl = svgRoot.querySelector(`#ch${String(chNum).padStart(2, "0")}_type`);
+              const aEl = svgRoot.querySelector(`#ch${String(chNum).padStart(2, "0")}_addr`);
+              if (tEl) tEl.textContent = chans[i].type || "--";
+              if (aEl) aEl.textContent = chans[i].address_hex || "0x00";
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
 
         // Add onclick to IO bubbles (circles/dots) for popup
         const mt = String(m.type).toLowerCase();
