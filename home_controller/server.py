@@ -465,11 +465,11 @@ def ui_add():
 # ------------------------------------------------------------
 @app.get("/api/i2c_scan")
 def api_i2c_scan():
-            "addresses": [f"0x{a:02x}" for a in sorted(addrs)],
-            "error": err,
-            "ts": int(time.time()),
-        }
-    )
+    return jsonify({
+        "addresses": [],
+        "error": None,
+        "ts": int(time.time()),
+    })
 
 
 # ------------------------------------------------------------
@@ -477,12 +477,8 @@ def api_i2c_scan():
 # ------------------------------------------------------------
 @app.get("/modules")
 def modules_list():
-    addrs, _err = _scan_i2c_addresses(I2C_BUS)
-    present_hex = {f"0x{a:02x}" for a in addrs}
-
     out = []
     for m in backend.list_modules():
-        # m.address_hex assumed like "0x20"
         addr_hex = str(m.address_hex).lower().strip()
         out.append(
             {
@@ -490,7 +486,7 @@ def modules_list():
                 "type": m.type,
                 "address": addr_hex,
                 "name": m.name,
-                "present": addr_hex in present_hex,
+                "present": True,
             }
         )
     return jsonify(out)
