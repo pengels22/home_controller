@@ -1647,8 +1647,67 @@ async function addModuleCore(type, addr, name) {
 
 async function addModuleThenGoBack() {
   const type = $("add_type")?.value || "";
-  const addr = $("add_addr")?.value || "";
+  let addr = $("add_addr")?.value || "";
   const name = $("add_name")?.value || "";
+  // If RS485, auto-calculate address from DIP switches
+  if (type === "rs485") {
+    const dip1 = Number(document.getElementById("dip1")?.value || 0);
+    const dip2 = Number(document.getElementById("dip2")?.value || 0);
+    const dip3 = Number(document.getElementById("dip3")?.value || 0);
+    // Example: address = 0x10 + (dip1 << 2) + (dip2 << 1) + dip3
+    // You can adjust base address as needed
+    const base = 0x10;
+    const dipAddr = base + (dip1 << 2) + (dip2 << 1) + dip3;
+    addr = "0x" + dipAddr.toString(16).toUpperCase();
+    $("add_addr").value = addr;
+  }
+// DIP switch UI logic for RS485
+document.addEventListener("DOMContentLoaded", function() {
+  const typeSel = document.getElementById("add_type");
+  const dipUI = document.getElementById("rs485_dip_ui");
+  const addrInput = document.getElementById("add_addr");
+  const dip1 = document.getElementById("dip1");
+  const dip2 = document.getElementById("dip2");
+  const dip3 = document.getElementById("dip3");
+  const dip1Val = document.getElementById("dip1_val");
+  const dip2Val = document.getElementById("dip2_val");
+  const dip3Val = document.getElementById("dip3_val");
+
+  function updateAddrFromDips() {
+    if (!dip1 || !dip2 || !dip3 || !addrInput) return;
+    const d1 = Number(dip1.value);
+    const d2 = Number(dip2.value);
+    const d3 = Number(dip3.value);
+    const base = 0x10;
+    const dipAddr = base + (d1 << 2) + (d2 << 1) + d3;
+    addrInput.value = "0x" + dipAddr.toString(16).toUpperCase();
+    dip1Val.textContent = d1 ? "ON" : "OFF";
+    dip2Val.textContent = d2 ? "ON" : "OFF";
+    dip3Val.textContent = d3 ? "ON" : "OFF";
+  }
+
+  if (dip1) dip1.addEventListener("input", updateAddrFromDips);
+  if (dip2) dip2.addEventListener("input", updateAddrFromDips);
+  if (dip3) dip3.addEventListener("input", updateAddrFromDips);
+
+  if (typeSel) {
+    typeSel.addEventListener("change", function() {
+      if (typeSel.value === "rs485") {
+        dipUI.style.display = "block";
+        updateAddrFromDips();
+      } else {
+        dipUI.style.display = "none";
+      }
+    });
+    // Initial state
+    if (typeSel.value === "rs485") {
+      dipUI.style.display = "block";
+      updateAddrFromDips();
+    } else {
+      dipUI.style.display = "none";
+    }
+  }
+});
 
   const errBox = $("add_error");
   if (errBox) { errBox.style.display = "none"; errBox.textContent = ""; }

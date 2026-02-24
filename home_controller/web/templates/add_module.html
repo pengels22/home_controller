@@ -37,6 +37,27 @@
         <label for="add_addr">Address</label>
         <input id="add_addr" placeholder="0x21" />
         <div class="hint">DI/DO default range: 0x20–0x27</div>
+        <div id="rs485_dip_ui" style="display:none;margin-top:10px;">
+          <div style="font-size:13px;margin-bottom:4px;">RS485 DIP Switches</div>
+          <div style="display:flex;flex-direction:row;gap:18px;justify-content:center;">
+            <div style="display:flex;flex-direction:column;align-items:center;">
+              <label style="font-size:12px;">SW1</label>
+              <input type="range" min="0" max="1" value="0" id="dip1" style="writing-mode:bt-lr;-webkit-appearance:slider-vertical;width:30px;height:60px;">
+              <span id="dip1_val" style="font-size:11px;">OFF</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;">
+              <label style="font-size:12px;">SW2</label>
+              <input type="range" min="0" max="1" value="0" id="dip2" style="writing-mode:bt-lr;-webkit-appearance:slider-vertical;width:30px;height:60px;">
+              <span id="dip2_val" style="font-size:11px;">OFF</span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;">
+              <label style="font-size:12px;">SW3</label>
+              <input type="range" min="0" max="1" value="0" id="dip3" style="writing-mode:bt-lr;-webkit-appearance:slider-vertical;width:30px;height:60px;">
+              <span id="dip3_val" style="font-size:11px;">OFF</span>
+            </div>
+          </div>
+          <div style="margin-top:6px;font-size:12px;color:#666;">Set DIP switches to match your module</div>
+        </div>
       </div>
 
       <div class="form-row">
