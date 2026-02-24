@@ -465,11 +465,6 @@ def ui_add():
 # ------------------------------------------------------------
 @app.get("/api/i2c_scan")
 def api_i2c_scan():
-    addrs, err = _scan_i2c_addresses(I2C_BUS)
-    return jsonify(
-        {
-            "ok": err is None,
-            "bus": I2C_BUS,
             "addresses": [f"0x{a:02x}" for a in sorted(addrs)],
             "error": err,
             "ts": int(time.time()),
