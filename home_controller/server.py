@@ -661,6 +661,7 @@ def module_svg(module_type: str):
         # Support alternate names for the expander SVG
         "i2c_expander": ("i2c", "I2C_EXPANDER.svg"),
         "ext": ("i2c", "I2C_EXPANDER.svg"),
+        "rs485": ("rs485", "RS485_MODULE.svg"),
     }
 
     if module_type not in svg_map:

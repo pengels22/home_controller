@@ -1540,8 +1540,9 @@ async function loadModules() {
     try {
       // Use i2c expander SVG for ext modules (fixes SVG path)
       const svgType = String(m.type || "").toLowerCase();
-      // If module type is 'ext', fetch 'i2c' SVG, else use module type
-      const fetchType = svgType === "ext" ? "i2c" : svgType;
+      let fetchType = svgType;
+      if (svgType === "ext") fetchType = "i2c";
+      if (svgType === "rs485") fetchType = "rs485";
       const svgRes = await fetch(`/modules/svg/${fetchType}`);
       if (!svgRes.ok) throw new Error("SVG not found");
       const svgText = await svgRes.text();
@@ -1575,9 +1576,15 @@ async function loadModules() {
           }
         }
 
+        // RS485: set branch name in SVG
+        if (svgType === "rs485") {
+          const nameEl = svgRoot.querySelector("#rs485_name");
+          if (nameEl && m.name) nameEl.textContent = m.name;
+        }
+
         // Add onclick to IO bubbles (circles/dots) for popup
         const mt = String(m.type).toLowerCase();
-        if (["di", "do", "aio", "ext"].includes(mt)) {
+        if (["di", "do", "aio", "ext", "rs485"].includes(mt)) {
           const channelGroups = svgRoot.querySelectorAll("g[id^='ch'], circle[id^='ch']");
           channelGroups.forEach((g, idx) => {
             // Support both circle as group child or the circle itself
