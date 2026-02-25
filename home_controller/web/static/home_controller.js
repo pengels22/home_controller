@@ -789,6 +789,34 @@ function showIoChannelPopup(name, status) {
             popup.appendChild(closeBtn);
           }
 
+          // Add remove button for AIO
+          if (ctx.module_id && ctx.type === 'aio') {
+            let removeBtn = controls.querySelector('.popup-remove');
+            if (!removeBtn) {
+              removeBtn = document.createElement('button');
+              removeBtn.className = 'popup-remove danger';
+              removeBtn.textContent = 'Remove This Card';
+              removeBtn.style.marginTop = '16px';
+              removeBtn.onclick = async function() {
+                if (!confirm('Are you sure you want to remove this card/module? This cannot be undone.')) return;
+                const res = await fetch('/modules/remove', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: ctx.module_id })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                  alert('Module removed.');
+                  hideIoChannelPopup();
+                  if (typeof loadModules === 'function') loadModules();
+                } else {
+                  alert('Failed to remove module: ' + (data.error || 'Unknown error'));
+                }
+              };
+              controls.appendChild(removeBtn);
+            }
+          }
+
           const clampMax = (n) => {
             if (!Number.isFinite(n) || n < 0) return null;
             return Math.min(n, 24);
@@ -950,6 +978,34 @@ function showIoChannelPopup(name, status) {
               closeBtn.className = 'popup-close global';
               closeBtn.textContent = 'Close';
               popup.appendChild(closeBtn);
+            }
+
+            // Add remove button for EXT/I2C
+            if (ctx.module_id && ctx.type === 'ext') {
+              let removeBtn = controls.querySelector('.popup-remove');
+              if (!removeBtn) {
+                removeBtn = document.createElement('button');
+                removeBtn.className = 'popup-remove danger';
+                removeBtn.textContent = 'Remove This Card';
+                removeBtn.style.marginTop = '16px';
+                removeBtn.onclick = async function() {
+                  if (!confirm('Are you sure you want to remove this card/module? This cannot be undone.')) return;
+                  const res = await fetch('/modules/remove', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: ctx.module_id })
+                  });
+                  const data = await res.json();
+                  if (data.ok) {
+                    alert('Module removed.');
+                    hideIoChannelPopup();
+                    if (typeof loadModules === 'function') loadModules();
+                  } else {
+                    alert('Failed to remove module: ' + (data.error || 'Unknown error'));
+                  }
+                };
+                controls.appendChild(removeBtn);
+              }
             }
 
             function fillForm(exp) {
