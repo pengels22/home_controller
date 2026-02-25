@@ -1,4 +1,35 @@
 // ------------------ Unified IO Channel Popup Modal ------------------
+// DIP switch toggle logic for Add Module page
+function toggleDip(idx) {
+  const slider = document.getElementById(`dip${idx}_slider`);
+  const val = document.getElementById(`dip${idx}`);
+  const state = document.getElementById(`dip${idx}_val`);
+  if (!slider || !val || !state) return;
+  // Toggle value
+  val.value = val.value === "1" ? "0" : "1";
+  // Update slider visual
+  slider.classList.toggle("dipswitch-on", val.value === "1");
+  slider.classList.toggle("dipswitch-off", val.value !== "1");
+  // Update state text
+  state.textContent = val.value === "1" ? "ON" : "OFF";
+  // Update address display
+  updateDipAddressDisplay();
+}
+
+function updateDipAddressDisplay() {
+  const dip1 = Number(document.getElementById("dip1")?.value || 0);
+  const dip2 = Number(document.getElementById("dip2")?.value || 0);
+  const dip3 = Number(document.getElementById("dip3")?.value || 0);
+  const base = 0x10;
+  const dipAddr = base + (dip1 << 2) + (dip2 << 1) + dip3;
+  const addr = "0x" + dipAddr.toString(16).toUpperCase();
+  const display = document.getElementById("address_display");
+  if (display) display.textContent = `Address: ${addr}`;
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  updateDipAddressDisplay();
+});
 // DOM helper for getElementById (used throughout)
 function $(id) { return document.getElementById(id); }
 // Ensures a single overlay for popup dismissal
