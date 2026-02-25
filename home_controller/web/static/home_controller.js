@@ -711,6 +711,33 @@ function showIoChannelPopup(name, status) {
                 closeBtn.textContent = 'Close';
                 popup.appendChild(closeBtn);
               }
+                    }
+                    // Add remove button for all module types (except head)
+                    if (ctx.module_id && ctx.type !== 'head') {
+                      let removeBtn = popup.querySelector('.popup-remove');
+                      if (!removeBtn) {
+                        removeBtn = document.createElement('button');
+                        removeBtn.className = 'popup-remove danger';
+                        removeBtn.textContent = 'Remove This Card';
+                        removeBtn.style.marginTop = '16px';
+                        removeBtn.onclick = async function() {
+                          if (!confirm('Are you sure you want to remove this card/module? This cannot be undone.')) return;
+                          const res = await fetch('/modules/remove', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: ctx.module_id })
+                          });
+                          const data = await res.json();
+                          if (data.ok) {
+                            alert('Module removed.');
+                            hideIoChannelPopup();
+                            if (typeof loadModules === 'function') loadModules();
+                          } else {
+                            alert('Failed to remove module: ' + (data.error || 'Unknown error'));
+                          }
+                        };
+                        controls.appendChild(removeBtn);
+                      }
               async function saveAndClose() {
                 if (!ctx.module_id) return;
                 const override = {};
@@ -2061,6 +2088,7 @@ async function showExpanderSettingsPopup() {
         <label style="padding:2px;">I2C Address</label><br/>
         <input style="padding:2px;" name="address_hex" value="${exp.address_hex || ""}" />
       </div>
+      <button type="button" id="remove_expansion_card_btn" style="background:#f44336;color:#fff;margin-bottom:10px;">Remove This Card</button>
       <hr/>
       <h3>Channels</h3>
   `;
@@ -2082,6 +2110,29 @@ async function showExpanderSettingsPopup() {
   });
   html += `<button type="submit">Save</button></form>`;
   controls.innerHTML = html;
+
+  // Handle remove card button
+  const removeBtn = controls.querySelector("#remove_expansion_card_btn");
+  if (removeBtn) {
+    removeBtn.onclick = async function() {
+      if (!confirm("Are you sure you want to remove this expansion card? This cannot be undone.")) return;
+      // Remove expansion card config by clearing the file
+      const res = await fetch("/api/expansion_config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "", address_hex: "", channels: [] })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert("Expansion card removed.");
+        hideIoChannelPopup();
+        // Optionally reload UI
+        if (typeof loadModules === 'function') loadModules();
+      } else {
+        alert("Failed to remove card: " + (data.error || "Unknown error"));
+      }
+    };
+  }
 
   // Handle form submit
   controls.querySelector("#expander_settings_form").onsubmit = async function(e) {
