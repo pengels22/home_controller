@@ -272,32 +272,15 @@ class HomeControllerBackend:
         if mtype not in VALID_TYPES:
             raise ValueError(f"Invalid module type: {mtype}")
 
-        # For ext, skip address guardrails (user must provide a valid I2C address)
-        if mtype == "ext":
-            address_hex, address_int = self.normalize_address(address)
-            # Optionally, you could restrict ext addresses if needed
-            mid = self._module_id(address_hex)
-            if self._find_module_index(mid) >= 0:
-                raise ValueError(f"Module already exists: {mid}")
-            entry = ModuleEntry(id=mid, type=mtype, address_hex=address_hex, name=name.strip())
-            self.cfg.modules.append(entry)
-            self.save_config()
-            return entry
-
-        address_hex, address_int = self.normalize_address(address)
-
-        # Guardrails per module type
-        if mtype in ("di", "do"):
-            if not (MCP23017_MIN <= address_int <= MCP23017_MAX):
-                raise ValueError("DI/DO addresses must be in 0x20–0x27 (MCP23017 default range)")
-        if mtype == "aio":
-            # AIO base address is 0x30; three DIP switches (A0..A2) add 0..7
-            if not (AIO_BASE <= address_int <= AIO_MAX):
-                raise ValueError("AIO addresses must be in 0x30–0x37 (AIO base + 3 DIP bits)")
-
+        # No address normalization or guardrails for any module type
+        address_hex = address.strip()
         mid = self._module_id(address_hex)
         if self._find_module_index(mid) >= 0:
             raise ValueError(f"Module already exists: {mid}")
+        entry = ModuleEntry(id=mid, type=mtype, address_hex=address_hex, name=name.strip())
+        self.cfg.modules.append(entry)
+        self.save_config()
+        return entry
 
         entry = ModuleEntry(id=mid, type=mtype, address_hex=address_hex, name=name.strip())
         self.cfg.modules.append(entry)
