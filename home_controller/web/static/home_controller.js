@@ -1649,22 +1649,16 @@ async function addModuleThenGoBack() {
   const type = $("add_type")?.value || "";
   let addr = $("add_addr")?.value || "";
   const name = $("add_name")?.value || "";
-  // If RS485, auto-calculate address from DIP switches
-  if (type === "rs485") {
-    const dip1 = Number(document.getElementById("dip1")?.value || 0);
-    const dip2 = Number(document.getElementById("dip2")?.value || 0);
-    const dip3 = Number(document.getElementById("dip3")?.value || 0);
-    // Example: address = 0x10 + (dip1 << 2) + (dip2 << 1) + dip3
-    // You can adjust base address as needed
-    const base = 0x10;
-    const dipAddr = base + (dip1 << 2) + (dip2 << 1) + dip3;
-    addr = "0x" + dipAddr.toString(16).toUpperCase();
-    $("add_addr").value = addr;
-  }
-// DIP switch UI logic for RS485
+  // Always calculate address from DIP switches
+  const dip1 = Number(document.getElementById("dip1")?.value || 0);
+  const dip2 = Number(document.getElementById("dip2")?.value || 0);
+  const dip3 = Number(document.getElementById("dip3")?.value || 0);
+  const base = 0x10;
+  const dipAddr = base + (dip1 << 2) + (dip2 << 1) + dip3;
+  addr = "0x" + dipAddr.toString(16).toUpperCase();
+  $("add_addr").value = addr;
+// DIP switch UI logic (always visible)
 document.addEventListener("DOMContentLoaded", function() {
-  const typeSel = document.getElementById("add_type");
-  const dipUI = document.getElementById("rs485_dip_ui");
   const addrInput = document.getElementById("add_addr");
   const dip1 = document.getElementById("dip1");
   const dip2 = document.getElementById("dip2");
@@ -1689,24 +1683,7 @@ document.addEventListener("DOMContentLoaded", function() {
   if (dip1) dip1.addEventListener("input", updateAddrFromDips);
   if (dip2) dip2.addEventListener("input", updateAddrFromDips);
   if (dip3) dip3.addEventListener("input", updateAddrFromDips);
-
-  if (typeSel) {
-    typeSel.addEventListener("change", function() {
-      if (typeSel.value === "rs485") {
-        dipUI.style.display = "block";
-        updateAddrFromDips();
-      } else {
-        dipUI.style.display = "none";
-      }
-    });
-    // Initial state
-    if (typeSel.value === "rs485") {
-      dipUI.style.display = "block";
-      updateAddrFromDips();
-    } else {
-      dipUI.style.display = "none";
-    }
-  }
+  updateAddrFromDips();
 });
 
   const errBox = $("add_error");

@@ -22,8 +22,9 @@
     <section class="card">
       <h2>Add Module</h2>
 
+
       <div class="form-row">
-        <label for="add_type">Type</label>
+        <label for="add_type">Module Type</label>
         <select id="add_type">
           <option value="di">DI</option>
           <option value="do">DO</option>
@@ -34,11 +35,10 @@
       </div>
 
       <div class="form-row">
-        <label for="add_addr">Address</label>
-        <input id="add_addr" placeholder="0x21" />
-        <div class="hint">DI/DO default range: 0x20–0x27</div>
-        <div id="rs485_dip_ui" style="display:none;margin-top:10px;">
-          <div style="font-size:13px;margin-bottom:4px;">RS485 DIP Switches</div>
+        <label for="add_addr">Address (set via DIP switches)</label>
+        <input id="add_addr" placeholder="0x21" readonly />
+        <div id="dip_switch_ui" style="margin-top:10px;">
+          <div style="font-size:13px;margin-bottom:4px;">DIP Switches</div>
           <div style="display:flex;flex-direction:row;gap:18px;justify-content:center;">
             <div style="display:flex;flex-direction:column;align-items:center;">
               <label style="font-size:12px;">SW1</label>
