@@ -1314,11 +1314,11 @@ const HEAD_MODULE_SVG = `
           <rect id="hat_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
           <text class="label" x="58" y="62" text-anchor="start">8</text>
 
-          <text class="label" x="-6" y="80" text-anchor="end">EXT</text>
-          <rect id="hat_ext" class="hat-off" x="0" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
+          <text class="label" x="-6" y="80" text-anchor="end">9</text>
+          <rect id="hat_mod_9" class="hat-off" x="0" y="72" width="16" height="10" rx="2"><title>Module 9</title></rect>
 
-          <rect id="hat_ext_2" class="hat-off" x="36" y="72" width="16" height="10" rx="2" style="cursor:pointer"><title>EXT</title></rect>
-          <text class="label" x="58" y="80" text-anchor="start">EXT</text>
+          <rect id="hat_mod_10" class="hat-off" x="36" y="72" width="16" height="10" rx="2"><title>Module 10</title></rect>
+          <text class="label" x="58" y="80" text-anchor="start">10</text>
         </g>
       </g>
     </svg>
