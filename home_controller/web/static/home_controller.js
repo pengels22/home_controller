@@ -1694,16 +1694,18 @@ async function addModuleCore(type, addr, name) {
 
 async function addModuleThenGoBack() {
   const type = $("add_type")?.value || "";
-  let addr = $("add_addr")?.value || "";
   const name = $("add_name")?.value || "";
-  // Always calculate address from DIP switches
+  // Calculate address from module type and DIP switches
   const dip1 = Number(document.getElementById("dip1")?.value || 0);
   const dip2 = Number(document.getElementById("dip2")?.value || 0);
   const dip3 = Number(document.getElementById("dip3")?.value || 0);
-  const base = 0x10;
-  const dipAddr = base + (dip1 << 2) + (dip2 << 1) + dip3;
-  addr = "0x" + dipAddr.toString(16).toUpperCase();
-  $("add_addr").value = addr;
+  let base = 0x20;
+  if (type === "do") base = 0x30;
+  else if (type === "aio") base = 0x40;
+  else if (type === "rs485") base = 0x50;
+  else if (type === "ext") base = 0x60;
+  const addrNum = base + dip1*1 + dip2*2 + dip3*4;
+  const addr = "0x" + addrNum.toString(16).toUpperCase();
 // DIP switch UI logic (always visible)
 document.addEventListener("DOMContentLoaded", function() {
   const addrInput = document.getElementById("add_addr");
