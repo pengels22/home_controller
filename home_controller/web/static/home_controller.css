@@ -359,3 +359,48 @@ button.danger { border-color: #ff4a4a; }
 circle.blink {
   animation: blink 0.8s infinite;
 }
+
+/* ------------------ DIP SWITCH UI ------------------ */
+.dipswitch-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.dipswitch-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.dipswitch {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.dipswitch-slider {
+  width: 32px;
+  height: 18px;
+  border-radius: 6px;
+  background: #23272f;
+  border: 2px solid #444;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s, border-color 0.2s;
+}
+.dipswitch-slider.dipswitch-on {
+  background: #2ecc71;
+  border-color: #2ecc71;
+}
+.dipswitch-slider.dipswitch-off {
+  background: #ff4a4a;
+  border-color: #ff4a4a;
+}
+.dipswitch-state {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  min-width: 32px;
+  text-align: left;
+}
