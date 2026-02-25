@@ -496,31 +496,14 @@ def modules_list():
 def modules_add():
     data = request.get_json(force=True, silent=True) or {}
     try:
-        # Address validation: confirm it exists on the bus
         addr_str = str(data.get("address", "")).strip()
         addr_val = _parse_i2c_address(addr_str)
         addr_hex = f"0x{addr_val:02x}"
-
-        # Allow bypass for bench/testing if user really wants it
-        skip_check = bool(data.get("skip_i2c_check", False))
-
-        if not skip_check:
-            addrs, err = _scan_i2c_addresses(I2C_BUS)
-            if err is not None:
-                return jsonify({"ok": False, "error": f"I2C scan failed: {err}"}), 400
-            if addr_val not in addrs:
-                return jsonify(
-                    {
-                        "ok": False,
-                        "error": f"Address {addr_hex} not found on I2C bus {I2C_BUS}",
-                        "bus": I2C_BUS,
-                        "seen": [f"0x{a:02x}" for a in sorted(addrs)],
-                    }
-                ), 400
-
+        mtype = str(data.get("type", "")).strip().lower()
+        # Disable I2C address validation for all modules
         m = backend.add_module(
-            mtype=str(data.get("type", "")),
-            address=addr_hex,  # normalize to 0xNN
+            mtype=mtype,
+            address=addr_hex,
             name=str(data.get("name", "")),
         )
         return jsonify(
