@@ -41,7 +41,7 @@ except Exception:
 
 DEFAULT_I2C_BUS_NUM = 1  # fixed bus (Pi SDA/SCL)
 
-VALID_TYPES = ("di", "do", "aio", "ext")
+VALID_TYPES = ("di", "do", "aio", "ext", "rs485")
 
 # Typical MCP23017 A0..A2 range.
 # We can expand later if you add other chips.
