@@ -20,12 +20,28 @@ function updateDipAddressDisplay() {
   const dip1 = Number(document.getElementById("dip1")?.value || 0);
   const dip2 = Number(document.getElementById("dip2")?.value || 0);
   const dip3 = Number(document.getElementById("dip3")?.value || 0);
-  const base = 0x10;
+  // Get module type
+  const typeSel = document.getElementById("add_type");
+  const type = typeSel ? typeSel.value : "di";
+  // Set base address per module type
+  let base = 0x20; // Default DI
+  if (type === "do") base = 0x30;
+  else if (type === "aio") base = 0x40;
+  else if (type === "rs485") base = 0x50;
+  else if (type === "ext") base = 0x60;
+  // DIP switches are binary: dip1 = MSB, dip3 = LSB
   const dipAddr = base + (dip1 << 2) + (dip2 << 1) + dip3;
   const addr = "0x" + dipAddr.toString(16).toUpperCase();
   const display = document.getElementById("address_display");
   if (display) display.textContent = `Address: ${addr}`;
 }
+
+// Update address when module type changes
+document.addEventListener("DOMContentLoaded", function() {
+  updateDipAddressDisplay();
+  const typeSel = document.getElementById("add_type");
+  if (typeSel) typeSel.addEventListener("change", updateDipAddressDisplay);
+});
 
 document.addEventListener("DOMContentLoaded", function() {
   updateDipAddressDisplay();
