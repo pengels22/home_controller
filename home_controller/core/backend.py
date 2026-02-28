@@ -41,7 +41,7 @@ except Exception:
 
 DEFAULT_I2C_BUS_NUM = 1  # fixed bus (Pi SDA/SCL)
 
-VALID_TYPES = ("di", "do", "aio", "ext", "rs485")
+VALID_TYPES = ("di", "do", "aio", "i2c", "rs485")  # 'i2c' is I2C Module
 
 # Typical MCP23017 A0..A2 range.
 # We can expand later if you add other chips.
@@ -65,7 +65,7 @@ class ModuleEntry:
     id format: "i2c1-0x21"
     """
     id: str
-    type: str          # "di" | "do" | "aio" | "ext"
+    type: str          # "di" | "do" | "aio" | "i2c" (I2C Module)
     address_hex: str   # "0x21"
     name: str = ""     # optional friendly label
 
@@ -562,16 +562,16 @@ class HomeControllerBackend:
                         "24v_a": bool((a >> i) & 1),
                         "24v_b": bool((b >> i) & 1),
                     }
-                # extension presence: check for a dev entry at the ext address if provided
+                # i2c module presence: check for a dev entry at the i2c address if provided
                 try:
-                    ext_addr_env = os.getenv("HC_HAT_EXT_ADDR", "0x21")
-                    ext_addr = int(ext_addr_env, 16) if isinstance(ext_addr_env, str) and ext_addr_env.startswith("0x") else int(ext_addr_env, 0)
+                    i2c_addr_env = os.getenv("HC_HAT_I2C_ADDR", "0x21")
+                    i2c_addr = int(i2c_addr_env, 16) if isinstance(i2c_addr_env, str) and i2c_addr_env.startswith("0x") else int(i2c_addr_env, 0)
                 except Exception:
-                    ext_addr = 0x21
-                ext_key = f"0x{ext_addr:02x}".lower()
-                ext_present = False
-                if self._dev_data.get(ext_key) is not None:
-                    ext_present = True
+                    i2c_addr = 0x21
+                i2c_key = f"0x{i2c_addr:02x}".lower()
+                i2c_present = False
+                if self._dev_data.get(i2c_key) is not None:
+                    i2c_present = True
 
                 return {
                     "ok": True,
@@ -579,7 +579,7 @@ class HomeControllerBackend:
                     "address": addr_key,
                     "ports": {"gpio_a": a, "gpio_b": b},
                     "modules": modules,
-                    "ext_present": ext_present,
+                    "i2c_present": i2c_present,
                 }
 
         if not _HAS_SMBUS:
@@ -601,22 +601,22 @@ class HomeControllerBackend:
                     "24v_b": bool((b >> i) & 1),
                 }
 
-            # detect optional extension board at configurable address (env HC_HAT_EXT_ADDR)
+            # detect optional i2c board at configurable address (env HC_HAT_I2C_ADDR)
             try:
-                ext_addr_env = os.getenv("HC_HAT_EXT_ADDR", "0x21")
-                ext_addr = int(ext_addr_env, 16) if isinstance(ext_addr_env, str) and ext_addr_env.startswith("0x") else int(ext_addr_env, 0)
+                i2c_addr_env = os.getenv("HC_HAT_I2C_ADDR", "0x21")
+                i2c_addr = int(i2c_addr_env, 16) if isinstance(i2c_addr_env, str) and i2c_addr_env.startswith("0x") else int(i2c_addr_env, 0)
             except Exception:
-                ext_addr = 0x21
+                i2c_addr = 0x21
 
-            ext_present = False
+            i2c_present = False
             if _HAS_SMBUS:
                 try:
                     with smbus2.SMBus(bus_num) as bus:
-                        # try a quick read from the ext address; if it doesn't raise, consider present
-                        _ = bus.read_byte(ext_addr)
-                        ext_present = True
+                        # try a quick read from the i2c address; if it doesn't raise, consider present
+                        _ = bus.read_byte(i2c_addr)
+                        i2c_present = True
                 except Exception:
-                    ext_present = False
+                    i2c_present = False
 
             return {
                 "ok": True,
@@ -624,7 +624,7 @@ class HomeControllerBackend:
                 "address": f"0x{address:02x}",
                 "ports": {"gpio_a": a, "gpio_b": b},
                 "modules": modules,
-                "ext_present": ext_present,
+                "i2c_present": i2c_present,
             }
         except Exception as e:
             return {"ok": False, "error": f"hat I2C read error: {e}", "bus": bus_num, "address": f"0x{address:02x}"}

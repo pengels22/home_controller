@@ -247,7 +247,7 @@ def api_expansion_config():
     return jsonify({"ok": True, "exp": exp})
 
 # ------------------------------------------------------------
-# Module config popup routes (DI, DO, AIO, EXT)
+# Module config popup routes (DI, DO, AIO, I2C)
 # ------------------------------------------------------------
 @app.route("/di_config_popup")
 def di_config_popup():
@@ -261,9 +261,15 @@ def do_config_popup():
 def aio_config_popup():
     return render_template("aio_config.html")
 
-@app.route("/ext_config_popup")
-def ext_config_popup():
-    return render_template("ext_config.html")
+@app.route("/i2c_config_popup")
+def i2c_config_popup():
+    return render_template("i2c_config.html")
+
+# I2C module settings page
+@app.route("/i2c_config")
+def i2c_config():
+    # You may want to load actual config data here
+    return render_template("i2c_config.html")
 # TEST ROUTE FOR DEBUGGING
 
 import os
@@ -634,7 +640,7 @@ def module_svg(module_type: str):
         "i2c": ("i2c", "I2C_EXPANDER.svg"),
         # Support alternate names for the expander SVG
         "i2c_expander": ("i2c", "I2C_EXPANDER.svg"),
-        "ext": ("i2c", "I2C_EXPANDER.svg"),
+        "i2c": ("i2c", "I2C_EXPANDER.svg"),
         "rs485": ("rs485", "RS485_MODULE.svg"),
     }
 

@@ -28,7 +28,7 @@ function updateDipAddressDisplay() {
   if (type === "do") base = 0x30;
   else if (type === "aio") base = 0x40;
   else if (type === "rs485") base = 0x50;
-  else if (type === "ext") base = 0x60;
+  else if (type === "ext") base = 0x60; // I2C Module
   // Address mapping: DIP1*1 + DIP2*2 + DIP3*4
   const addrNum = base + dip1*1 + dip2*2 + dip3*4;
   const addr = "0x" + addrNum.toString(16).toUpperCase();
@@ -316,7 +316,7 @@ function showIoChannelPopup(name, status) {
         // Ensure initial max ties the set voltage input range to default (0-24)
         if (applyMaxToSetInput) applyMaxToSetInput(DEFAULT_AIO_MAX_VOLTAGE);
       }
-    } else if (ctx.type === 'ext') {
+    } else if (ctx.type === 'ext') { // I2C Module
       controls.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-start;min-width:240px">
           <div><b>Channel:</b> <span>${ctx.name || `Channel ${ctx.channel}`}</span></div>
@@ -406,7 +406,7 @@ function showIoChannelPopup(name, status) {
         }
       };
 
-      loadExtChannel();
+      loadI2cChannel();
     } else if (ctx.type === 'di' || ctx.type === 'do') {
       // For DI/DO: show name, status, override, and logic invert
       controls.innerHTML = `
@@ -665,7 +665,7 @@ function showIoChannelPopup(name, status) {
   if (ctx.type === 'di') url = '/di_config_popup';
   else if (ctx.type === 'do') url = '/do_config_popup';
   else if (ctx.type === 'aio') url = '/aio_config_popup';
-  else if (ctx.type === 'ext') url = '/ext_config_popup';
+  else if (ctx.type === 'i2c') url = '/i2c_config_popup';
   if (url && ctx.module_id) {
     fetch(url)
       .then(r => r.text())
@@ -980,13 +980,13 @@ function showIoChannelPopup(name, status) {
               popup.appendChild(closeBtn);
             }
 
-            // Add remove button for EXT/I2C
-            if (ctx.module_id && ctx.type === 'ext') {
+            // Add remove button for I2C Module
+            if (ctx.module_id && ctx.type === 'ext') { // I2C Module
               let removeBtn = controls.querySelector('.popup-remove');
               if (!removeBtn) {
                 removeBtn = document.createElement('button');
                 removeBtn.className = 'popup-remove danger';
-                removeBtn.textContent = 'Remove This Card';
+                removeBtn.textContent = 'Remove This I2C Module';
                 removeBtn.style.marginTop = '16px';
                 removeBtn.onclick = async function() {
                   if (!confirm('Are you sure you want to remove this card/module? This cannot be undone.')) return;
