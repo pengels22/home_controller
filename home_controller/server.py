@@ -335,7 +335,7 @@ def api_get_aio_max_voltage(module_id: str):
     m = backend.cfg.modules[idx]
     if m.type != "aio":
         return jsonify({"ok": False, "error": "not an AIO module"}), 400
-    data = aio_max_voltage.load_aio_max_voltage(m.address_hex)
+    data = aio_max_voltage.load_aio_max_voltage(m.id)
     return jsonify({"ok": True, "data": data})
 
 @app.post("/api/aio_max_voltage/<module_id>")
@@ -350,7 +350,7 @@ def api_set_aio_max_voltage(module_id: str):
     # Expect {"in": {...}, "out": {...}}
     if not ("in" in data and "out" in data):
         return jsonify({"ok": False, "error": "missing in/out blocks"}), 400
-    aio_max_voltage.save_aio_max_voltage(m.address_hex, data)
+    aio_max_voltage.save_aio_max_voltage(m.id, data)
     return jsonify({"ok": True})
 
 # ------------------------------------------------------------

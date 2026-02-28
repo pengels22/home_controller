@@ -7,8 +7,38 @@
       <input type="text" name="module_name" style="flex:1;min-width:180px" />
     </div>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
-      <label style="min-width:110px">I2C Address:</label>
-      <input type="text" name="i2c_address" style="flex:1;min-width:180px" />
+      <label style="min-width:110px">RS485 Address:</label>
+      <span id="address_value">1</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <label style="min-width:110px">Set DIP Switches:</label>
+      <div style="display:flex;gap:12px">
+        <div class="dipswitch-group">
+          <div class="dipswitch-label">SW1</div>
+          <div class="dipswitch">
+            <div class="dipswitch-slider dipswitch-off" id="dip1_slider" onclick="toggleDip(1)"></div>
+            <div class="dipswitch-state" id="dip1_val">OFF</div>
+            <input type="number" id="dip1" value="0" min="0" max="1" style="display:none;" />
+          </div>
+        </div>
+        <div class="dipswitch-group">
+          <div class="dipswitch-label">SW2</div>
+          <div class="dipswitch">
+            <div class="dipswitch-slider dipswitch-off" id="dip2_slider" onclick="toggleDip(2)"></div>
+            <div class="dipswitch-state" id="dip2_val">OFF</div>
+            <input type="number" id="dip2" value="0" min="0" max="1" style="display:none;" />
+          </div>
+        </div>
+        <div class="dipswitch-group">
+          <div class="dipswitch-label">SW3</div>
+          <div class="dipswitch">
+            <div class="dipswitch-slider dipswitch-off" id="dip3_slider" onclick="toggleDip(3)"></div>
+            <div class="dipswitch-state" id="dip3_val">OFF</div>
+            <input type="number" id="dip3" value="0" min="0" max="1" style="display:none;" />
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:6px;font-size:12px;color:#666;">Set DIP switches to set the RS485 address for your module</div>
     </div>
     <div class="channels">
       <h3>Channel Names</h3>

@@ -499,7 +499,7 @@ class HomeControllerBackend:
                     channels[str(i + 1)] = values[i]
 
                 # --- Over-voltage alert logic ---
-                max_cfg = aio_max_voltage.load_aio_max_voltage(m.address_hex)
+                max_cfg = aio_max_voltage.load_aio_max_voltage(m.id)
                 alerts = []
                 for ch in range(1, max_ch + 1):
                     v = values[ch - 1]
