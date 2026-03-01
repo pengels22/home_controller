@@ -547,7 +547,6 @@ function showIoChannelPopup(name, status) {
 
           closeBtn.onclick = hideIoChannelPopup;
           loadAioMaxConfig();
-        }
         } else if (ctx.type === 'ext') {
           const form = controls.querySelector('form');
           if (form) {
