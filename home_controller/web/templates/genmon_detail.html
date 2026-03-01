@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>GenMon Details</h1>
+
+<div class="card">
+  <div><b>ID:</b> {{ module.id }}</div>
+  <div><b>Type:</b> {{ module.type|upper }}</div>
+  <div><b>Address:</b> {{ module.address_hex }}</div>
+  <div><b>Name:</b> {{ module.name or "—" }}</div>
+</div>
+
+<div class="card">
+  <h3>Status & Notes</h3>
+  <p>This page is a placeholder for future GenMon telemetry (RPM, Hz, temperature, battery). Hook your backend endpoints here.</p>
+  <p>If you want this page to poll live data, expose a JSON endpoint like <code>/api/genmon/&lt;module_id&gt;</code> and render values client-side.</p>
+</div>
+{% endblock %}

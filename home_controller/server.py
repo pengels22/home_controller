@@ -287,6 +287,11 @@ def rs485_config_popup():
                 i2c_sensors.append(row)
     return render_template("rs485_to_i2c_config.html", i2c_sensors=i2c_sensors)
 
+# GenMon config popup (simple name/address)
+@app.route("/genmon_config_popup")
+def genmon_config_popup():
+    return render_template("genmon_config.html")
+
 # I2C module settings page
 @app.route("/i2c_config")
 def i2c_config():
@@ -520,6 +525,15 @@ def modules_list():
     return jsonify(out)
 
 
+@app.get("/modules/genmon/<module_id>/detail")
+def genmon_detail(module_id: str):
+    # Find module by id
+    mod = next((m for m in backend.list_modules() if m.id == module_id), None)
+    if not mod:
+        abort(404)
+    return render_template("genmon_detail.html", module=mod)
+
+
 @app.post("/modules/add")
 def modules_add():
     data = request.get_json(force=True, silent=True) or {}
@@ -664,6 +678,7 @@ def module_svg(module_type: str):
         "i2c_expander": ("i2c", "I2C_EXPANDER.svg"),
         "i2c": ("i2c", "I2C_EXPANDER.svg"),
         "rs485": ("rs485", "RS485_MODULE.svg"),
+        "genmon": ("GenMon", "GenMon.svg"),
     }
 
     if module_type not in svg_map:

@@ -278,6 +278,7 @@ async function showIoChannelPopup(name, status) {
     ext: '/i2c_config_popup',
     i2c: '/i2c_config_popup',
     rs485: '/rs485_config_popup',
+    genmon: '/genmon_config_popup',
   };
   const url = urlMap[type];
   if (!url) {
@@ -793,6 +794,81 @@ async function showIoChannelPopup(name, status) {
     return;
   }
 
+  // ---------------- GenMon detail popup helper ----------------
+  async function showGenmonDetailPopup(moduleId) {
+    const popup = ensureIoChannelPopup();
+    const overlay = ensureIoChannelPopupOverlay();
+    const controls = popup.querySelector('.popup-controls');
+    popup.querySelector('.popup-title').textContent = 'GenMon Details';
+    popup.querySelector('.popup-status').textContent = '';
+    controls.innerHTML = `
+      <iframe src="/modules/genmon/${encodeURIComponent(moduleId)}/detail"
+              style="width:520px;height:420px;border:0;background:#fff;"></iframe>
+    `;
+    popup.querySelectorAll('.popup-close').forEach((btn) => btn.remove());
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'popup-close global';
+    closeBtn.textContent = 'Close';
+    closeBtn.onclick = hideIoChannelPopup;
+    popup.appendChild(closeBtn);
+    popup.classList.add('active');
+    overlay.style.display = 'block';
+    overlay.onclick = (e) => { if (e.target === overlay) hideIoChannelPopup(); };
+    document.body.classList.add('modal-open');
+  }
+
+  // ---------------- GenMon global config ----------------
+  if (type === 'genmon') {
+    form.querySelectorAll('button[type="submit"], button[type="button"]').forEach((btn) => btn.remove());
+    const nameInput = form.querySelector('input[name="module_name"]');
+    const addrInput = form.querySelector('input[name="i2c_address"]');
+    if (nameInput && ctx.name) nameInput.value = ctx.name;
+    if (addrInput && ctx.address) addrInput.value = ctx.address;
+
+    let saveBtn = controls.querySelector('.genmon-global-save');
+    if (!saveBtn) {
+      saveBtn = document.createElement('button');
+      saveBtn.className = 'genmon-global-save';
+      saveBtn.textContent = 'Save';
+      controls.appendChild(saveBtn);
+    }
+
+    saveBtn.onclick = async () => {
+      if (!ctx.module_id) return;
+      const newName = nameInput ? (nameInput.value || '').trim() : '';
+      const newAddr = addrInput ? (addrInput.value || '').trim() : '';
+
+      if (newName && newName !== (ctx.name || '')) {
+        try {
+          await fetch('/modules/rename', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: ctx.module_id, name: newName }),
+          });
+          ctx.name = newName;
+        } catch (e) { /* ignore rename errors */ }
+      }
+
+      if (newAddr && newAddr !== (ctx.address || '')) {
+        try {
+          await fetch('/modules/change_address', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: ctx.module_id, address: newAddr }),
+          });
+          ctx.address = newAddr;
+        } catch (e) { /* ignore address errors */ }
+      }
+
+      window._lastModuleConfigPopupReload = Date.now();
+      if (typeof loadModules === 'function') loadModules();
+      hideIoChannelPopup();
+    };
+
+    activatePopup();
+    return;
+  }
+
   // Fallback for unknown types
   controls.innerHTML = '<div>No config popup for this module type.</div>';
   activatePopup();
@@ -1272,21 +1348,30 @@ async function loadModules() {
     `;
 
 
-    const gear = document.createElement("button");
-    gear.className = "icon-btn";
-    gear.title = "Settings";
-    gear.textContent = "⚙️";
-    // Always pass correct context for global popup
-    gear.onclick = () => showIoChannelPopup({
-      module_id: m.id,
-      type: m.type && m.type.toLowerCase(),
-      name: m.name || `${String(m.type || '').toUpperCase()} MODULE`,
-      address: m.address,
-      status: m.status || undefined
-    });
+        const gear = document.createElement("button");
+        gear.className = "icon-btn";
+        gear.title = "Settings";
+        gear.textContent = "⚙️";
+        gear.onclick = () => showIoChannelPopup({
+          module_id: m.id,
+          type: m.type && m.type.toLowerCase(),
+          name: m.name || `${String(m.type || '').toUpperCase()} MODULE`,
+          address: m.address,
+          status: m.status || undefined
+        });
 
-    header.appendChild(left);
-    header.appendChild(gear);
+        header.appendChild(left);
+        header.appendChild(gear);
+
+        // Details button for GenMon
+        if (String(m.type).toLowerCase() === "genmon") {
+          const det = document.createElement("button");
+          det.className = "icon-btn";
+          det.title = "Details";
+          det.textContent = "ℹ️";
+          det.onclick = () => { showGenmonDetailPopup(m.id); };
+          header.appendChild(det);
+        }
 
     const svgHolder = document.createElement("div");
     svgHolder.className = "module-svg";
@@ -1346,6 +1431,18 @@ async function loadModules() {
             const tEl = svgRoot.querySelector(`#ch${String(i).padStart(2, "0")}_type`);
             const label = displayLabel(chLabels[String(i)], i);
             if (tEl) tEl.textContent = label;
+          }
+        }
+
+        // GenMon: add load-more link click to detail popup
+        if (svgType === "genmon") {
+          const more = svgRoot.querySelector("#genmon_load_more");
+          if (more) {
+            more.style.cursor = "pointer";
+            more.onclick = (e) => {
+              e.stopPropagation();
+              showGenmonDetailPopup(m.id);
+            };
           }
         }
 

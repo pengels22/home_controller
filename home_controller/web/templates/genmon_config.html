@@ -1,0 +1,22 @@
+<!-- GenMon Module Settings Popup -->
+<div class="module-settings-popup">
+  <h2>GenMon Module Settings</h2>
+  <form>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <label style="min-width:110px">Module Name:</label>
+      <input type="text" name="module_name" style="flex:1;min-width:180px" />
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <label style="min-width:110px">I2C Address:</label>
+      <input type="text" name="i2c_address" style="width:120px" placeholder="0x60" />
+    </div>
+    <div style="font-size:12px;color:#666;margin-bottom:12px;">
+      GenMon is a simple RS485 hub/monitor; set name and address then save.
+    </div>
+    <div class="form-actions">
+      <!-- Save button is added by JS -->
+      <button type="button" onclick="closePopup()">Cancel</button>
+      <div style="font-size:12px;color:#888;margin-top:8px;">Use the Save button below to persist changes.</div>
+    </div>
+  </form>
+</div>

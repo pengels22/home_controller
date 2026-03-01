@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1in"
+  height="2.5in"
+  viewBox="0 0 100 250"
+  role="img"
+  aria-label="GenMon Module">
+
+  <defs>
+    <style>
+      .outer { fill: #e6e6e6; stroke: #b5b5b5; stroke-width: 2; }
+
+      /* Match other module cards: bold, compact labels */
+      .title { font: 700 9px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #333; }
+      .small { font: 700 7px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #555; }
+      .tiny  { font: 700 7px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #555; }
+
+      .panel { fill: #f3f3f3; stroke: #c3c3c3; stroke-width: 1.5; }
+      .panel2 { fill: #f7f7f7; stroke: #d0d0d0; stroke-width: 1; }
+
+      /* LED base */
+      .led { fill: #d0d0d0; stroke: #7a7a7a; stroke-width: 1; }
+      .shine { fill: rgba(255,255,255,0.35); }
+
+      /* Suggested states (apply to the LED circle) */
+      .led-ok   { fill: #38d26a; stroke: #1d8f43; }
+      .led-warn { fill: #ffd34a; stroke: #b38b12; }
+      .led-err  { fill: #ff5a5a; stroke: #b21f1f; }
+      .led-run  { fill: #4aa3ff; stroke: #1c66b5; }
+      .led-off  { fill: #cfcfcf; stroke: #7a7a7a; }
+
+      /* Readout */
+      .readout { font: 800 14px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #222; }
+      .readout-sub { font: 700 7px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #444; }
+
+      /* Battery icon */
+      .bat-outline { fill: none; stroke: #444; stroke-width: 1.5; }
+      .bat-cap { fill: #444; }
+      .bat-fill { fill: #38d26a; } /* change fill color if you want */
+    </style>
+  </defs>
+
+  <!-- Body -->
+  <rect class="outer" x="0" y="0" width="100" height="250" rx="10" ry="10"/>
+
+  <!-- Title -->
+  <text class="title" x="50" y="22" text-anchor="middle">GENMON MODULE</text>
+
+  <!-- Top status strip -->
+  <rect class="panel" x="10" y="32" width="80" height="44" rx="7" ry="7"/>
+
+  <!-- SYSTEM status (left) -->
+  <text class="small" x="28" y="47" text-anchor="middle">SYSTEM</text>
+  <g id="system_status">
+    <!-- Default state is neutral; swap class to led-ok / led-warn / led-err -->
+    <circle id="sys_led" class="led" cx="25" cy="60" r="7"/>
+    <circle class="shine" cx="23" cy="58" r="2.5"/>
+    <text id="sys_text" class="tiny" x="25" y="74" text-anchor="middle">OK</text>
+  </g>
+
+  <!-- RUNNING status (right) -->
+  <text class="small" x="75" y="47" text-anchor="middle">RUN</text>
+  <g id="running_status">
+    <!-- Default state neutral; swap class to led-run / led-off / led-err -->
+    <circle id="run_led" class="led" cx="75" cy="60" r="7"/>
+    <circle class="shine" cx="73" cy="58" r="2.5"/>
+    <text id="run_text" class="tiny" x="75" y="74" text-anchor="middle">STOP</text>
+  </g>
+
+  <!-- Battery readout panel -->
+  <rect class="panel" x="10" y="84" width="80" height="70" rx="7" ry="7"/>
+  <text class="small" x="50" y="100" text-anchor="Middle">BATTERY</text>
+
+  <!-- Big voltage readout -->
+  <text id="bat_voltage" class="readout" x="35" y="126" text-anchor="middle">12.6V</text>
+  <text id="bat_percent" class="readout-sub" x="50" y="141" text-anchor="middle">100%</text>
+
+  <!-- Battery icon (right side of the panel) -->
+  <g id="battery_icon" transform="translate(64,108)">
+    <!-- outline -->
+    <rect class="bat-outline" x="0" y="0" width="18" height="30" rx="2" ry="2"/>
+    <!-- cap -->
+    <rect class="bat-cap" x="6" y="-4" width="6" height="4" rx="1" ry="1"/>
+    <!-- fill (adjust height/position for percent) -->
+    <!-- Full fill: y=2 height=26. Empty: y=28 height=0 -->
+    <rect id="bat_fill" class="bat-fill" x="2" y="2" width="14" height="26" rx="1" ry="1"/>
+  </g>
+
+  <!-- Optional "details" area (leave for extra GenMon fields later) -->
+  <rect class="panel2" x="10" y="162" width="80" height="76" rx="7" ry="7"/>
+  <text class="small" x="50" y="178" text-anchor="middle">DETAILS</text>
+
+  <text class="tiny" x="16" y="196">RPM:</text>
+  <text id="rpm_value" class="tiny" x="84" y="196" text-anchor="end">—</text>
+
+  <text class="tiny" x="16" y="210">Hz:</text>
+  <text id="hz_value" class="tiny" x="84" y="210" text-anchor="end">—</text>
+
+  <text class="tiny" x="16" y="224">Temp:</text>
+  <text id="temp_value" class="tiny" x="84" y="224" text-anchor="end">—</text>
+
+  <!-- Load more link -->
+  <text id="genmon_load_more" class="tiny" x="50" y="234" text-anchor="middle" fill="#2a6de8" style="text-decoration: underline;">Load more »</text>
+
+</svg>
