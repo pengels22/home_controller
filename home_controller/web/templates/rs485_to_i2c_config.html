@@ -1,0 +1,65 @@
+<!-- RS485-to-I2C Module Settings Popup -->
+<div class="module-settings-popup">
+  <h2>RS485-to-I2C Module Settings</h2>
+  <form>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <label style="min-width:110px">Module Name:</label>
+      <input type="text" name="module_name" style="flex:1;min-width:180px" />
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <label style="min-width:110px">RS485 Address:</label>
+      <span id="address_value">1</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <label style="min-width:110px">Set DIP Switches:</label>
+      <div style="display:flex;gap:12px">
+        <div class="dipswitch-group">
+          <div class="dipswitch-label">SW1</div>
+          <div class="dipswitch">
+            <div class="dipswitch-slider dipswitch-off" id="dip1_slider" onclick="toggleDip(1)"></div>
+            <div class="dipswitch-state" id="dip1_val">OFF</div>
+            <input type="number" id="dip1" value="0" min="0" max="1" style="display:none;" />
+          </div>
+        </div>
+        <div class="dipswitch-group">
+          <div class="dipswitch-label">SW2</div>
+          <div class="dipswitch">
+            <div class="dipswitch-slider dipswitch-off" id="dip2_slider" onclick="toggleDip(2)"></div>
+            <div class="dipswitch-state" id="dip2_val">OFF</div>
+            <input type="number" id="dip2" value="0" min="0" max="1" style="display:none;" />
+          </div>
+        </div>
+        <div class="dipswitch-group">
+          <div class="dipswitch-label">SW3</div>
+          <div class="dipswitch">
+            <div class="dipswitch-slider dipswitch-off" id="dip3_slider" onclick="toggleDip(3)"></div>
+            <div class="dipswitch-state" id="dip3_val">OFF</div>
+            <input type="number" id="dip3" value="0" min="0" max="1" style="display:none;" />
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:6px;font-size:12px;color:#666;">Set DIP switches to set the RS485 address for your module</div>
+    </div>
+    <div class="channels">
+      <h3>Channels</h3>
+      <div style="display:flex;gap:32px">
+        <div>
+          <h4>Channels 1-8</h4>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <!-- Channel 1-8 -->
+            {% for i in range(1,9) %}
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" name="ch{{i}}" placeholder="Channel {{i}}" style="width:90px" />
+              <label>I2C Addr <input type="text" name="ch{{i}}_i2c_addr" style="width:50px" /></label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit">Save</button>
+      <button type="button" onclick="closePopup()">Cancel</button>
+    </div>
+  </form>
+</div>
