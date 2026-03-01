@@ -1335,10 +1335,11 @@ async function loadModules() {
 
     const left = document.createElement("div");
 
+    const fallbackTitle = (String(m.type || "").toLowerCase() === "genmon") ? "GENERATOR" : `${String(m.type || "").toUpperCase()} MODULE`;
     const displayName =
       (m.name && String(m.name).trim().length > 0)
         ? String(m.name).trim()
-        : `${String(m.type || "").toUpperCase()} MODULE`;
+        : fallbackTitle;
 
     // Attach labels for downstream rendering convenience
     m.labels = labelsMap[m.id] || {};
