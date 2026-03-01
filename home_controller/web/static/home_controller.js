@@ -44,10 +44,6 @@ document.addEventListener("DOMContentLoaded", function() {
   const typeSel = document.getElementById("add_type");
   if (typeSel) typeSel.addEventListener("change", updateDipAddressDisplay);
 });
-
-document.addEventListener("DOMContentLoaded", function() {
-  updateDipAddressDisplay();
-});
 // DOM helper for getElementById (used throughout)
 function $(id) { return document.getElementById(id); }
 // Ensures a single overlay for popup dismissal
@@ -66,7 +62,7 @@ function ensureIoChannelPopupOverlay() {
       // Only close if click is directly on overlay, not popup
       if (e.target === overlay) hideIoChannelPopup();
     };
-// End of showIoChannelPopup
+  }
   return overlay;
 }
 
@@ -87,604 +83,644 @@ function ensureIoChannelPopup() {
   return popup;
 }
 
+// Global state holders
+const MODULE_SVGS = new Map();
+let MODAL_CTX = { id: null, type: null, address: null, name: null };
+
+// Utility: clear any dimming/selection states safely
+function _clearAnyDimState() {
+  document.querySelectorAll('.dim, .dimmed').forEach((el) => {
+    el.classList.remove('dim');
+    el.classList.remove('dimmed');
+  });
+}
+
+// Utility: scope <style> rules inside fetched SVGs to avoid leaking to the page
+function scopeSvgStyles(svgRoot, scopeClass) {
+  if (!svgRoot) return;
+  svgRoot.classList.add(scopeClass);
+  svgRoot.querySelectorAll('style').forEach((styleEl) => {
+    const scoped = (styleEl.textContent || '')
+      .split('}')
+      .map((rule) => rule.trim())
+      .filter(Boolean)
+      .map((rule) => {
+        const parts = rule.split('{');
+        if (parts.length !== 2) return rule;
+        const sel = parts[0].trim();
+        const body = parts[1].trim();
+        const scopedSel = sel
+          .split(',')
+          .map((s) => `.${scopeClass} ${s.trim()}`)
+          .join(', ');
+        return `${scopedSel} { ${body} }`;
+      })
+      .join(' ');
+    styleEl.textContent = scoped;
+  });
+}
+
+// Utility: ensure SVG is visible (Safari sometimes collapses 0x0)
+function ensureSvgVisible(svgRoot) {
+  if (!svgRoot) return;
+  if (!svgRoot.getAttribute('width')) svgRoot.setAttribute('width', '100%');
+  if (!svgRoot.getAttribute('height')) svgRoot.setAttribute('height', '100%');
+  svgRoot.style.display = 'block';
+}
+
 /**
- * Show IO Channel Popup with controls for DI/DO/AIO
+ * Show IO Channel Popup with controls for DI/DO/AIO/I2C
  * @param {object|string} name - Channel name or context object
  * @param {string} [status] - Channel status (if name is string)
  */
-function showIoChannelPopup(name, status) {
+async function showIoChannelPopup(name, status) {
   const popup = ensureIoChannelPopup();
   const overlay = ensureIoChannelPopupOverlay();
+  const controls = popup.querySelector('.popup-controls');
+  if (!controls) return;
+
   let ctx = typeof name === 'object' ? name : { name, status };
-  // If this is a per-channel popup (has channel property), show minimal info
+
+  // Reset base UI
+  popup.querySelectorAll('.popup-close').forEach((btn) => btn.remove());
+  controls.innerHTML = '';
+  popup.querySelector('.popup-title').textContent = '';
+  popup.querySelector('.popup-status').textContent = '';
+  overlay.onclick = (e) => { if (e.target === overlay) hideIoChannelPopup(); };
+
+  const activatePopup = () => {
+    popup.classList.add('active');
+    overlay.style.display = 'block';
+    document.body.classList.add('modal-open');
+  };
+
+  // ------------------------------------------------------------
+  // Per-channel quick popup
+  // ------------------------------------------------------------
   if (ctx.channel) {
     popup.querySelector('.popup-title').textContent = ctx.name || `Channel ${ctx.channel}`;
     popup.querySelector('.popup-status').textContent = ctx.status ? `Status: ${ctx.status}` : '';
-    // Always clear controls for per-channel popup
-    const controls = popup.querySelector('.popup-controls');
-    if (controls) controls.innerHTML = '';
-    // For AIO, distinguish between AI and AO by channel number (1-8 = AI, 9-16 = AO)
-    if (ctx.type === 'aio') {
-      const isAI = ctx.channel >= 1 && ctx.channel <= 8;
-      const isAO = ctx.channel >= 9 && ctx.channel <= 16;
-      // --- BEGIN FIXED BLOCK: Unified settings popup logic ---
-      let url = '';
-      if (ctx.type === 'aio') {
-        const form = controls.querySelector('form');
-        if (form) {
-          // ...existing AIO logic...
-          // (Paste the previous AIO logic here)
-        }
-      } else if (ctx.type === 'ext') {
-        const form = controls.querySelector('form');
-        if (form) {
-          // ...existing EXT logic...
-          // (Paste the previous EXT logic here)
-        }
+
+    controls.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:240px">
+        <div><b>Name:</b> ${ctx.name || `Channel ${ctx.channel}`}</div>
+        <label style="display:flex;align-items:center;gap:8px">
+          <span style="min-width:70px;">Override</span>
+          <select id="ch_override">
+            <option value="none">None</option>
+            <option value="on">Force ON</option>
+            <option value="off">Force OFF</option>
+          </select>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="ch_invert" />
+          <span>Invert</span>
+        </label>
+      </div>
+    `;
+
+    const overrideSel = controls.querySelector('#ch_override');
+    const invertSel = controls.querySelector('#ch_invert');
+
+    // Load existing override/invert for DI/DO
+    async function fetchAndSetChannelState() {
+      if (!ctx.module_id || !ctx.channel) return;
+      try {
+        const r = await fetch(`/api/module_config_get?module_id=${encodeURIComponent(ctx.module_id)}`);
+        const data = await r.json();
+        if (!r.ok || !data.ok) return;
+        const inv = data.invert && data.invert[String(ctx.channel)];
+        const ov = data.override && data.override[String(ctx.channel)];
+        if (invertSel) invertSel.checked = !!inv;
+        if (overrideSel && typeof ov === 'string') overrideSel.value = ov;
+      } catch (e) {
+        /* ignore */
       }
-      // --- END FIXED BLOCK ---
+    }
+    if (ctx.type === 'di' || ctx.type === 'do') fetchAndSetChannelState();
+
+    async function saveChannelState() {
+      if (!ctx.module_id || !(ctx.type === 'di' || ctx.type === 'do')) {
+        return { ok: true }; // nothing to save for other types
       }
-      // Fetch current invert/override state for this channel (always latest)
-      async function fetchAndSetChannelState() {
-        if (ctx.module_id && ctx.channel) {
-          const r = await fetch(`/api/module_config_get?module_id=${encodeURIComponent(ctx.module_id)}`);
-          const data = await r.json();
-          if (data.ok) {
-            let inv = data.invert && data.invert[String(ctx.channel)];
-            if (typeof inv === 'string') inv = inv === 'true';
-            const ov = data.override && data.override[String(ctx.channel)];
-            controls.querySelector('#ch_invert').checked = !!inv;
-            if (typeof ov === 'string') controls.querySelector('#ch_override').value = ov;
-          }
-        }
-      }
-      fetchAndSetChannelState();
-      // Auto-save on close (Close button or overlay)
-      async function saveChannelOnClose() {
-        // Debug logging (keep off by default)
-        const DEBUG_POPUP = false;
-        const debugLog = (...args) => { if (!DEBUG_POPUP) return; try { console.log(...args); } catch (e) {} };
-        debugLog('saveChannelOnClose ctx:', ctx);
-        // Always get controls from DOM to avoid closure bugs
-        const popup = document.querySelector('.io-channel-popup');
-        const controls = popup ? popup.querySelector('.popup-controls') : null;
-        if (!controls) {
-          debugLog('Popup controls not found');
-          // Show error in popup
-          if (popup) popup.querySelector('.popup-controls').innerHTML = '<div style="color:red">Error: Popup controls not found. Please close and reopen.</div>';
-          return { ok: false, error: 'Popup controls not found' };
-        }
-        const overrideSel = controls.querySelector('#ch_override');
-        const invertSel = controls.querySelector('#ch_invert');
-        if (!overrideSel || !invertSel) {
-          debugLog('Override or invert control missing', { overrideSel, invertSel });
-          // Show error in popup
-          controls.innerHTML = '<div style="color:red">Error: Override or invert control missing. Please close and reopen.</div>';
-          return { ok: false, error: 'Override or invert control missing' };
-        }
-        const override = overrideSel.value;
-        const invert = invertSel.checked;
-        if (!ctx.module_id) return { ok: false, error: 'No module_id' };
-        let resp, data;
-        try {
-          debugLog('Sending fetch to /api/module_config_set', {
-            module_id: ctx.module_id,
-            override: { [ctx.channel]: override },
-            invert: { [ctx.channel]: invert }
-          });
-          resp = await fetch('/api/module_config_set', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              module_id: ctx.module_id,
-              override: { [ctx.channel]: override },
-              invert: { [ctx.channel]: invert }
-            })
-          });
-        } catch (e) {
-          debugLog('Network error', e);
-          return { ok: false, error: 'Network error: ' + (e && e.message) };
-        }
-        try {
-          data = await resp.json();
-          debugLog('Response from /api/module_config_set', data);
-        } catch (e) {
-          debugLog('Invalid server response', e);
-          return { ok: false, error: 'Invalid server response: ' + (e && e.message) };
-        }
-        if (!resp.ok || !data.ok) {
-          debugLog('Save failed', { resp, data });
-          return { ok: false, error: (data && data.error) ? data.error : 'Save failed (unknown error)' };
+      const payload = {
+        module_id: ctx.module_id,
+        override: { [ctx.channel]: overrideSel.value },
+        invert: { [ctx.channel]: !!invertSel.checked },
+      };
+      const resp = await fetch('/api/module_config_set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await resp.json();
+      return { ok: resp.ok && data.ok, error: data.error };
+    }
+
+    // Close button
+    const channelCloseBtn = document.createElement('button');
+    channelCloseBtn.className = 'popup-close channel';
+    channelCloseBtn.textContent = ctx.type === 'di' || ctx.type === 'do' ? 'Save & Close' : 'Close';
+    channelCloseBtn.onclick = async () => {
+      channelCloseBtn.disabled = true;
+      if (ctx.type === 'di' || ctx.type === 'do') {
+        const res = await saveChannelState();
+        if (!res.ok) {
+          alert(res.error || 'Save failed');
+          channelCloseBtn.disabled = false;
+          return;
         }
         window._lastModuleConfigPopupReload = Date.now();
         if (typeof loadModules === 'function') loadModules();
-        return { ok: true };
       }
-      // Patch overlay for per-channel popup
-      if (overlay) {
-        const origOverlay = overlay.onclick;
-        overlay.onclick = async function(e) {
-          if (e.target === overlay) {
-            let result;
-            try {
-              result = await saveChannelOnClose();
-            } catch (err) {
-              result = { ok: false, error: 'Unexpected error' };
-            }
-            if (!result || !result.ok) {
-              // Show error visually: flash overlay red and show alert
-              overlay.style.background = 'rgba(255,0,0,0.10)';
-              setTimeout(() => {
-                overlay.style.background = 'rgba(0,0,0,0.01)';
-              }, 600);
-              alert(result && result.error ? `Save failed: ${result.error}` : 'Save failed');
-              return;
-            }
-            hideIoChannelPopup();
-            if (typeof origOverlay === 'function') origOverlay(e);
-          }
-        };
+      hideIoChannelPopup();
+    };
+    popup.appendChild(channelCloseBtn);
+
+    // Save when overlay clicked
+    overlay.onclick = async (e) => {
+      if (e.target !== overlay) return;
+      const res = await saveChannelState();
+      if (!res.ok) {
+        alert(res.error || 'Save failed');
+        return;
       }
-    } else {
-      // For other types: just show name and status
-      controls.innerHTML = `
-        <div style=\"display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:220px\">
-          <div><b>Name:</b> <span>${ctx.name || `Channel ${ctx.channel}`}</span></div>
-          <div><b>Status:</b> <span>${ctx.status || ''}</span></div>
-        </div>
-      `;
-    }
-    // Remove all close buttons first
-    popup.querySelectorAll('.popup-close').forEach(btn => btn.remove());
-      // Add per-channel close button (bottom center) after controls
-    if (!popup.querySelector('.popup-close.channel')) {
-      const channelCloseBtn = document.createElement('button');
-      channelCloseBtn.className = 'popup-close channel';
-      channelCloseBtn.textContent = 'Close';
-      channelCloseBtn.title = 'Close';
-      if (ctx.type === 'di' || ctx.type === 'do') {
-        channelCloseBtn.onclick = async () => {
-          channelCloseBtn.disabled = true;
-          channelCloseBtn.textContent = 'Saving...';
-          // Use the same logic as the global settings page, but for a single channel
-          const popup = document.querySelector('.io-channel-popup');
-          const controls = popup ? popup.querySelector('.popup-controls') : null;
-          if (!controls) {
-            channelCloseBtn.textContent = 'Error: No controls';
-            setTimeout(() => {
-              channelCloseBtn.disabled = false;
-              channelCloseBtn.textContent = 'Close';
-            }, 1800);
-            return;
-          }
-          const overrideSel = controls.querySelector('#ch_override');
-          const invertSel = controls.querySelector('#ch_invert');
-          if (!overrideSel || !invertSel) {
-            channelCloseBtn.textContent = 'Error: No input';
-            setTimeout(() => {
-              channelCloseBtn.disabled = false;
-              channelCloseBtn.textContent = 'Close';
-            }, 1800);
-            return;
-          }
-          const override = overrideSel.value;
-          const invert = invertSel.checked;
-          // Compose payload for a single channel
-          const payload = {
-            module_id: ctx.module_id,
-            override: {},
-            invert: {}
-          };
-          payload.override[ctx.channel] = override;
-          payload.invert[ctx.channel] = invert;
-          let resp, data;
-          try {
-            resp = await fetch('/api/module_config_set', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-            data = await resp.json();
-          } catch (e) {
-            channelCloseBtn.textContent = 'Error: Network';
-            setTimeout(() => {
-              channelCloseBtn.disabled = false;
-              channelCloseBtn.textContent = 'Close';
-            }, 1800);
-            return;
-          }
-          if (!resp.ok || !data.ok) {
-            channelCloseBtn.textContent = data && data.error ? `Error: ${data.error}` : 'Error: Save failed';
-            setTimeout(() => {
-              channelCloseBtn.disabled = false;
-              channelCloseBtn.textContent = 'Close';
-            }, 1800);
-            return;
-          }
-          window._lastModuleConfigPopupReload = Date.now();
-          if (typeof loadModules === 'function') loadModules();
-          hideIoChannelPopup();
-        };
-      } else if (ctx.type === 'aio') {
-        channelCloseBtn.onclick = async () => {
-          hideIoChannelPopup(); // Close without auto-saving; use Save button to persist
-        };
-      } else {
-        channelCloseBtn.onclick = hideIoChannelPopup;
-      }
-      popup.appendChild(channelCloseBtn);
-    }
-    popup.classList.add('active');
-    overlay.style.display = 'block';
-    document.body.classList.add('modal-open');
+      hideIoChannelPopup();
+    };
+
+    activatePopup();
     return;
   }
-  // Otherwise, show full settings popup (gear/settings button)
-  // Always ensure ctx has module_id, type, etc. If missing, try to find from modules list
+
+  // ------------------------------------------------------------
+  // Global popup (gear icon)
+  // ------------------------------------------------------------
   if (!ctx.module_id || !ctx.type) {
-    // Try to find module by name or fallback to first DI/DO module
-    if (window.MODULE_SVGS && window.MODULE_SVGS.size > 0) {
-      for (const [modId, modInfo] of window.MODULE_SVGS.entries()) {
-        if (!ctx.type || modInfo.type === ctx.type) {
-          ctx.module_id = modId;
-          ctx.type = modInfo.type;
-          break;
+    // Try to fill from existing modules
+    for (const [modId, modInfo] of MODULE_SVGS.entries()) {
+      if (!ctx.type || modInfo.type === ctx.type) {
+        ctx.module_id = modId;
+        ctx.type = modInfo.type;
+        break;
+      }
+    }
+  }
+
+  const type = (ctx.type || '').toLowerCase();
+  popup.querySelector('.popup-title').textContent = ctx.name || name || `${type.toUpperCase()} MODULE`;
+  popup.querySelector('.popup-status').textContent = ctx.status ? `Status: ${ctx.status}` : '';
+  controls.innerHTML = '<div>Loading…</div>';
+
+  const urlMap = {
+    di: '/di_config_popup',
+    do: '/do_config_popup',
+    aio: '/aio_config_popup',
+    ext: '/i2c_config_popup',
+    i2c: '/i2c_config_popup',
+  };
+  const url = urlMap[type];
+  if (!url) {
+    controls.innerHTML = '<div>No config popup for this module type.</div>';
+    activatePopup();
+    return;
+  }
+
+  let html = '';
+  try {
+    const resp = await fetch(url);
+    html = await resp.text();
+  } catch (e) {
+    controls.innerHTML = '<div>Failed to load config popup.</div>';
+    activatePopup();
+    return;
+  }
+
+  controls.innerHTML = html;
+  const form = controls.querySelector('form');
+  if (!form) {
+    controls.innerHTML = '<div>No config popup for this module type or module_id missing.</div>';
+    activatePopup();
+    return;
+  }
+
+  // Always add a close button (outside form so it is not a submit)
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'popup-close global';
+  closeBtn.textContent = 'Close';
+  closeBtn.onclick = hideIoChannelPopup;
+  popup.appendChild(closeBtn);
+
+  // ---------------- DI/DO global config ----------------
+  if (type === 'di' || type === 'do') {
+    const nameInput = form.querySelector('input[name="module_name"]');
+    const addressSpan = form.querySelector('#address_value');
+    if (nameInput && ctx.name) nameInput.value = ctx.name;
+    if (addressSpan && ctx.address) addressSpan.textContent = ctx.address;
+
+    // Pre-fill invert/override + names
+    async function loadConfig() {
+      if (!ctx.module_id) return;
+      try {
+        const r = await fetch(`/api/module_config_get?module_id=${encodeURIComponent(ctx.module_id)}`);
+        const data = await r.json();
+        if (r.ok && data.ok) {
+          for (let i = 1; i <= 16; i++) {
+            const ovSel = form.querySelector(`[name='ch${i}_override']`);
+            const invChk = form.querySelector(`[name='ch${i}_invert']`);
+            if (ovSel && data.override && data.override[String(i)]) {
+              ovSel.value = data.override[String(i)];
+            }
+            if (invChk && data.invert) {
+              invChk.checked = !!data.invert[String(i)];
+            }
+          }
+        }
+      } catch (e) { /* ignore */ }
+
+      // Load labels for channel names
+      try {
+        const lr = await fetch(`/labels/${encodeURIComponent(ctx.module_id)}`);
+        const ld = await lr.json();
+        if (lr.ok && ld.ok && ld.labels) {
+          if (nameInput && typeof ld.labels.module_name === 'string') {
+            nameInput.value = ld.labels.module_name;
+          }
+          const ch = ld.labels.channels || {};
+          for (let i = 1; i <= 16; i++) {
+            const nEl = form.querySelector(`[name='ch${i}']`);
+            if (nEl && typeof ch[String(i)] === 'string') nEl.value = ch[String(i)];
+          }
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    const saveBtn = controls.querySelector('.di-global-save') || controls.querySelector('.do-global-save') || controls.querySelector('button[type="submit"]');
+    if (saveBtn) {
+      saveBtn.type = 'button';
+      saveBtn.onclick = async () => {
+        if (!ctx.module_id) return;
+        // Rename if needed
+        const newName = nameInput ? (nameInput.value || '').trim() : '';
+        if (newName && newName !== (ctx.name || '')) {
+          try {
+            await fetch('/modules/rename', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: ctx.module_id, name: newName }),
+            });
+            ctx.name = newName;
+          } catch (e) { /* ignore rename errors */ }
+        }
+
+        // Collect invert/override
+        const invert = {};
+        const override = {};
+        const channelNames = {};
+        for (let i = 1; i <= 16; i++) {
+          const invChk = form.querySelector(`[name='ch${i}_invert']`);
+          const ovSel = form.querySelector(`[name='ch${i}_override']`);
+          const nm = form.querySelector(`[name='ch${i}']`);
+          invert[i] = !!(invChk && invChk.checked);
+          override[i] = ovSel ? ovSel.value : 'none';
+          channelNames[i] = nm ? nm.value || '' : '';
+        }
+
+        await fetch('/api/module_config_set', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ module_id: ctx.module_id, invert, override }),
+        });
+
+        await fetch('/labels/set', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            module_id: ctx.module_id,
+            module_name: newName,
+            channels: channelNames,
+          }),
+        });
+
+        window._lastModuleConfigPopupReload = Date.now();
+        if (typeof loadModules === 'function') loadModules();
+        hideIoChannelPopup();
+      };
+    }
+
+    loadConfig();
+    activatePopup();
+    return;
+  }
+
+  // ---------------- AIO global config ----------------
+  if (type === 'aio') {
+    // Remove template submit/cancel buttons to avoid duplicates
+    form.querySelectorAll('button[type="submit"], button[type="button"]').forEach((btn) => btn.remove());
+
+    const nameInput = form.querySelector('input[name="module_name"]');
+    const addrInput = form.querySelector('input[name="i2c_address"]');
+    if (nameInput && ctx.name) nameInput.value = ctx.name;
+    if (addrInput && ctx.address) addrInput.value = ctx.address;
+
+    let saveBtn = controls.querySelector('.aio-global-save');
+    if (!saveBtn) {
+      saveBtn = document.createElement('button');
+      saveBtn.className = 'aio-global-save';
+      saveBtn.textContent = 'Save';
+      controls.appendChild(saveBtn);
+    }
+
+    // Add remove button for AIO
+    if (ctx.module_id) {
+      let removeBtn = controls.querySelector('.popup-remove');
+      if (!removeBtn) {
+        removeBtn = document.createElement('button');
+        removeBtn.className = 'popup-remove danger';
+        removeBtn.textContent = 'Remove This Card';
+        removeBtn.style.marginTop = '16px';
+        removeBtn.onclick = async function() {
+          if (!confirm('Are you sure you want to remove this card/module? This cannot be undone.')) return;
+          const res = await fetch('/modules/remove', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: ctx.module_id }),
+          });
+          const data = await res.json();
+          if (data.ok) {
+            alert('Module removed.');
+            hideIoChannelPopup();
+            if (typeof loadModules === 'function') loadModules();
+          } else {
+            alert('Failed to remove module: ' + (data.error || 'Unknown error'));
+          }
+        };
+        controls.appendChild(removeBtn);
+      }
+    }
+
+    const clampMax = (n) => {
+      if (!Number.isFinite(n) || n < 0) return null;
+      return Math.min(n, 24);
+    };
+
+    function fillMaxInputs(data) {
+      for (let i = 1; i <= 8; i++) {
+        const vIn = data && data.in ? data.in[String(i)] : undefined;
+        const vOut = data && data.out ? data.out[String(i)] : undefined;
+        const inEl = form.querySelector(`[name='in${i}_maxv']`);
+        const outEl = form.querySelector(`[name='out${i}_maxv']`);
+        if (inEl) inEl.value = (vIn !== undefined && vIn !== null) ? vIn : '';
+        if (outEl) outEl.value = (vOut !== undefined && vOut !== null) ? vOut : '';
+      }
+    }
+
+    async function loadAioMaxConfig() {
+      if (!ctx.module_id) return;
+      try {
+        const res = await fetch(`/api/aio_max_voltage/${encodeURIComponent(ctx.module_id)}`);
+        const data = await res.json();
+        if (res.ok && data && data.ok) {
+          fillMaxInputs(data.data || { in: {}, out: {} });
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    function collectAioMaxConfig() {
+      const out = { in: {}, out: {} };
+      for (let i = 1; i <= 8; i++) {
+        const inEl = form.querySelector(`[name='in${i}_maxv']`);
+        const outEl = form.querySelector(`[name='out${i}_maxv']`);
+        if (inEl) {
+          const n = clampMax(parseFloat(inEl.value));
+          if (n !== null) out.in[i] = n;
+        }
+        if (outEl) {
+          const n = clampMax(parseFloat(outEl.value));
+          if (n !== null) out.out[i] = n;
         }
       }
-  popup.querySelector('.popup-title').textContent = ctx.name || name;
-  popup.querySelector('.popup-status').textContent = `Status: ${ctx.status || status}`;
-  const controls = popup.querySelector('.popup-controls');
-  controls.innerHTML = '<div>Loading…</div>';
-  // Remove all close buttons first
-  popup.querySelectorAll('.popup-close').forEach(btn => btn.remove());
-  // Add close button for global popup if not present
-  if (!popup.querySelector('.popup-close.global')) {
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'popup-close global';
-    closeBtn.textContent = 'Close';
-    closeBtn.onclick = async () => {
-      if (typeof saveAndClose === 'function') {
-        await saveAndClose();
-      } else {
-        hideIoChannelPopup();
+      return out;
+    }
+
+    async function saveAio() {
+      if (!ctx.module_id) return false;
+      let currentModuleId = ctx.module_id;
+
+      const newName = nameInput ? String(nameInput.value || '').trim() : '';
+      const newAddr = addrInput ? String(addrInput.value || '').trim() : '';
+
+      // Rename if changed
+      if (newName && newName !== (ctx.name || '')) {
+        try {
+          const resp = await fetch('/modules/rename', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: currentModuleId, name: newName }),
+          });
+          const data = await resp.json();
+          if (!resp.ok || !data.ok) {
+            alert(data && data.error ? data.error : 'Rename failed');
+            return false;
+          }
+          ctx.name = newName;
+        } catch (e) {
+          alert('Network error renaming module');
+          return false;
+        }
+      }
+
+      // Address change if requested
+      if (newAddr && newAddr !== (ctx.address || '')) {
+        try {
+          const resp = await fetch('/modules/change_address', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: currentModuleId, address: newAddr }),
+          });
+          const data = await resp.json();
+          if (!resp.ok || !data.ok) {
+            alert(data && data.error ? data.error : 'Address change failed');
+            return false;
+          }
+          // update ctx with new module id/address
+          currentModuleId = data.module.id;
+          ctx.module_id = data.module.id;
+          ctx.address = data.module.address;
+          if (addrInput) addrInput.value = data.module.address;
+        } catch (e) {
+          alert('Network error changing address');
+          return false;
+        }
+      }
+
+      const payload = collectAioMaxConfig();
+      try {
+        const resp = await fetch(`/api/aio_max_voltage/${encodeURIComponent(currentModuleId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) {
+          alert(data && data.error ? data.error : 'Save failed');
+          return false;
+        }
+      } catch (e) {
+        alert('Network error saving AIO settings');
+        return false;
+      }
+      return true;
+    }
+
+    let saving = false;
+    saveBtn.onclick = async () => {
+      if (saving) return;
+      saving = true;
+      const oldText = saveBtn.textContent;
+      saveBtn.textContent = 'Saving...';
+      const ok = await saveAio();
+      saveBtn.textContent = oldText;
+      saving = false;
+      if (ok) {
+        window._lastModuleConfigPopupReload = Date.now();
+        if (typeof loadModules === 'function') loadModules();
       }
     };
-    popup.appendChild(closeBtn);
+
+    loadAioMaxConfig();
+    activatePopup();
+    return;
   }
-  let url = '';
-        const form = controls.querySelector('form');
-        if (form) {
-          // Remove any template submit/cancel buttons to avoid duplicates
-          form.querySelectorAll('button[type="submit"], button[type="button"]').forEach(btn => btn.remove());
 
-          const nameInput = form.querySelector('input[name="module_name"]');
-          const addrInput = form.querySelector('input[name="i2c_address"]');
-          if (nameInput && ctx.name) nameInput.value = ctx.name;
-          if (addrInput && ctx.address) addrInput.value = ctx.address;
+  // ---------------- I2C / Expansion global config ----------------
+  if (type === 'ext' || type === 'i2c') {
+    form.querySelectorAll('button[type="submit"], button[type="button"]').forEach((btn) => btn.remove());
+    const nameInput = form.querySelector('input[name="module_name"]');
+    const addrInput = form.querySelector('input[name="i2c_address"]');
 
-          let closeBtn = popup.querySelector('.popup-close.global');
-          let saveBtn = controls.querySelector('.aio-global-save');
-          if (!saveBtn) {
-            saveBtn = document.createElement('button');
-            saveBtn.className = 'aio-global-save';
-            saveBtn.textContent = 'Save';
-            controls.appendChild(saveBtn);
+    let saveBtn = controls.querySelector('.ext-global-save');
+    if (!saveBtn) {
+      saveBtn = document.createElement('button');
+      saveBtn.className = 'ext-global-save';
+      saveBtn.textContent = 'Save';
+      controls.appendChild(saveBtn);
+    }
+
+    // Add remove button for I2C Module
+    if (ctx.module_id) {
+      let removeBtn = controls.querySelector('.popup-remove');
+      if (!removeBtn) {
+        removeBtn = document.createElement('button');
+        removeBtn.className = 'popup-remove danger';
+        removeBtn.textContent = 'Remove This I2C Module';
+        removeBtn.style.marginTop = '16px';
+        removeBtn.onclick = async function() {
+          if (!confirm('Are you sure you want to remove this card/module? This cannot be undone.')) return;
+          const res = await fetch('/modules/remove', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: ctx.module_id }),
+          });
+          const data = await res.json();
+          if (data.ok) {
+            alert('Module removed.');
+            hideIoChannelPopup();
+            if (typeof loadModules === 'function') loadModules();
+          } else {
+            alert('Failed to remove module: ' + (data.error || 'Unknown error'));
           }
-          if (!closeBtn) {
-            closeBtn = document.createElement('button');
-            closeBtn.className = 'popup-close global';
-            closeBtn.textContent = 'Close';
-            popup.appendChild(closeBtn);
-          }
-
-          // Add remove button for AIO
-          if (ctx.module_id && ctx.type === 'aio') {
-            let removeBtn = controls.querySelector('.popup-remove');
-            if (!removeBtn) {
-              removeBtn = document.createElement('button');
-              removeBtn.className = 'popup-remove danger';
-              removeBtn.textContent = 'Remove This Card';
-              removeBtn.style.marginTop = '16px';
-              removeBtn.onclick = async function() {
-                if (!confirm('Are you sure you want to remove this card/module? This cannot be undone.')) return;
-                const res = await fetch('/modules/remove', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: ctx.module_id })
-                });
-                const data = await res.json();
-                if (data.ok) {
-                  alert('Module removed.');
-                  hideIoChannelPopup();
-                  if (typeof loadModules === 'function') loadModules();
-                } else {
-                  alert('Failed to remove module: ' + (data.error || 'Unknown error'));
-                }
-              };
-              controls.appendChild(removeBtn);
-            }
-          }
-
-          const clampMax = (n) => {
-            if (!Number.isFinite(n) || n < 0) return null;
-            return Math.min(n, 24);
-          };
-
-          function fillMaxInputs(data) {
-            for (let i = 1; i <= 8; i++) {
-              const vIn = data && data.in ? data.in[String(i)] : undefined;
-              const vOut = data && data.out ? data.out[String(i)] : undefined;
-              const inEl = form.querySelector(`[name='in${i}_maxv']`);
-              const outEl = form.querySelector(`[name='out${i}_maxv']`);
-              if (inEl) inEl.value = (vIn !== undefined && vIn !== null) ? vIn : '';
-              if (outEl) outEl.value = (vOut !== undefined && vOut !== null) ? vOut : '';
-            }
-          }
-
-          async function loadAioMaxConfig() {
-            if (!ctx.module_id) return;
-            try {
-              const res = await fetch(`/api/aio_max_voltage/${encodeURIComponent(ctx.module_id)}`);
-              const data = await res.json();
-              if (res.ok && data && data.ok) {
-                fillMaxInputs(data.data || { in: {}, out: {} });
-              }
-            } catch (e) {
-              // ignore load errors
-            }
-          }
-
-          function collectAioMaxConfig() {
-            const out = { in: {}, out: {} };
-            for (let i = 1; i <= 8; i++) {
-              const inEl = form.querySelector(`[name='in${i}_maxv']`);
-              const outEl = form.querySelector(`[name='out${i}_maxv']`);
-              if (inEl) {
-                const n = clampMax(parseFloat(inEl.value));
-                if (n !== null) out.in[i] = n;
-              }
-              if (outEl) {
-                const n = clampMax(parseFloat(outEl.value));
-                if (n !== null) out.out[i] = n;
-              }
-            }
-            return out;
-          }
-
-          async function saveAio() {
-            if (!ctx.module_id) return false;
-            let currentModuleId = ctx.module_id;
-
-            const newName = nameInput ? String(nameInput.value || '').trim() : '';
-            const newAddr = addrInput ? String(addrInput.value || '').trim() : '';
-
-            // Rename if changed
-            if (newName && newName !== (ctx.name || '')) {
-              try {
-                const resp = await fetch('/modules/rename', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: currentModuleId, name: newName })
-                });
-                const data = await resp.json();
-                if (!resp.ok || !data.ok) {
-                  alert(data && data.error ? data.error : 'Rename failed');
-                  return false;
-                }
-                ctx.name = newName;
-              } catch (e) {
-                alert('Network error renaming module');
-                return false;
-              }
-            }
-
-            // Address change if requested
-            if (newAddr && newAddr !== (ctx.address || '')) {
-              try {
-                const resp = await fetch('/modules/change_address', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: currentModuleId, address: newAddr })
-                });
-                const data = await resp.json();
-                if (!resp.ok || !data.ok) {
-                  alert(data && data.error ? data.error : 'Address change failed');
-                  return false;
-                }
-                // update ctx with new module id/address
-                currentModuleId = data.module.id;
-                ctx.module_id = data.module.id;
-                ctx.address = data.module.address;
-                if (addrInput) addrInput.value = data.module.address;
-              } catch (e) {
-                alert('Network error changing address');
-                return false;
-              }
-            }
-
-            const payload = collectAioMaxConfig();
-            try {
-              const resp = await fetch(`/api/aio_max_voltage/${encodeURIComponent(currentModuleId)}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-              });
-              const data = await resp.json();
-              if (!resp.ok || !data.ok) {
-                alert(data && data.error ? data.error : 'Save failed');
-                return false;
-              }
-            } catch (e) {
-              alert('Network error saving AIO settings');
-              return false;
-            }
-            return true;
-          }
-
-          let saving = false;
-          saveBtn.onclick = async () => {
-            if (saving) return;
-            saving = true;
-            const oldText = saveBtn.textContent;
-            saveBtn.textContent = 'Saving...';
-            const ok = await saveAio();
-            saveBtn.textContent = oldText;
-            saving = false;
-            if (ok) {
-              window._lastModuleConfigPopupReload = Date.now();
-              if (typeof loadModules === 'function') loadModules();
-            }
-          };
-
-          if (overlay) {
-            overlay.onclick = async (e) => {
-              if (e.target !== overlay) return;
-              hideIoChannelPopup();
-            };
-          }
-
-          closeBtn.onclick = hideIoChannelPopup;
-          loadAioMaxConfig();
-        } else if (ctx.type === 'ext') {
-          const form = controls.querySelector('form');
-          if (form) {
-            form.querySelectorAll('button[type="submit"], button[type="button"]').forEach(btn => btn.remove());
-            const nameInput = form.querySelector('input[name="module_name"]');
-            const addrInput = form.querySelector('input[name="i2c_address"]');
-
-            let closeBtn = popup.querySelector('.popup-close.global');
-            let saveBtn = controls.querySelector('.ext-global-save');
-            if (!saveBtn) {
-              saveBtn = document.createElement('button');
-              saveBtn.className = 'ext-global-save';
-              saveBtn.textContent = 'Save';
-              controls.appendChild(saveBtn);
-            }
-            if (!closeBtn) {
-              closeBtn = document.createElement('button');
-              closeBtn.className = 'popup-close global';
-              closeBtn.textContent = 'Close';
-              popup.appendChild(closeBtn);
-            }
-
-            // Add remove button for I2C Module
-            if (ctx.module_id && ctx.type === 'ext') { // I2C Module
-              let removeBtn = controls.querySelector('.popup-remove');
-              if (!removeBtn) {
-                removeBtn = document.createElement('button');
-                removeBtn.className = 'popup-remove danger';
-                removeBtn.textContent = 'Remove This I2C Module';
-                removeBtn.style.marginTop = '16px';
-                removeBtn.onclick = async function() {
-                  if (!confirm('Are you sure you want to remove this card/module? This cannot be undone.')) return;
-                  const res = await fetch('/modules/remove', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: ctx.module_id })
-                  });
-                  const data = await res.json();
-                  if (data.ok) {
-                    alert('Module removed.');
-                    hideIoChannelPopup();
-                    if (typeof loadModules === 'function') loadModules();
-                  } else {
-                    alert('Failed to remove module: ' + (data.error || 'Unknown error'));
-                  }
-                };
-                controls.appendChild(removeBtn);
-              }
-            }
-
-            function fillForm(exp) {
-              if (nameInput) nameInput.value = exp.name || '';
-              if (addrInput) addrInput.value = exp.address_hex || '';
-              for (let i = 0; i < 8; i++) {
-                const ch = (exp.channels && exp.channels[i]) || {};
-                const n = form.querySelector(`[name='ch${i+1}']`);
-                const t = form.querySelector(`[name='type${i+1}']`);
-                const a = form.querySelector(`[name='addr${i+1}']`);
-                if (n) n.value = ch.name || '';
-                if (t) t.value = ch.type || 'di';
-                if (a) a.value = ch.address_hex || '';
-              }
-            }
-
-            async function loadExtConfig() {
-              try {
-                const res = await fetch('/api/expansion_config');
-                const data = await res.json();
-                if (res.ok && data && data.ok) fillForm(data.exp || {});
-              } catch (e) { /* ignore */ }
-            }
-
-            function collectExtConfig() {
-              const channels = [];
-              for (let i = 0; i < 8; i++) {
-                const n = form.querySelector(`[name='ch${i+1}']`);
-                const t = form.querySelector(`[name='type${i+1}']`);
-                const a = form.querySelector(`[name='addr${i+1}']`);
-                channels.push({
-                  name: n ? n.value : '',
-                  type: t ? t.value : 'di',
-                  address_hex: a ? a.value : ''
-                });
-              }
-              return {
-                name: nameInput ? nameInput.value : '',
-                address_hex: addrInput ? addrInput.value : '',
-                channels
-              };
-            }
-
-            async function saveExt() {
-              const payload = collectExtConfig();
-              try {
-                const resp = await fetch('/api/expansion_config', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(payload)
-                });
-                const data = await resp.json();
-                if (!resp.ok || !data.ok) {
-                  alert(data && data.error ? data.error : 'Save failed');
-                  return false;
-                }
-              } catch (e) {
-                alert('Network error saving expansion config');
-                return false;
-              }
-              return true;
-            }
-
-            let saving = false;
-            saveBtn.onclick = async () => {
-              if (saving) return;
-              saving = true;
-              const old = saveBtn.textContent;
-              saveBtn.textContent = 'Saving...';
-              const ok = await saveExt();
-              saveBtn.textContent = old;
-              saving = false;
-              if (ok) {
-                window._lastModuleConfigPopupReload = Date.now();
-                if (typeof loadModules === 'function') loadModules();
-              }
-            };
-
-            closeBtn.onclick = hideIoChannelPopup;
-            loadExtConfig();
-          }
-        }
+        };
+        controls.appendChild(removeBtn);
       }
     }
-    // If no form, show missing config message
-    if (!form) {
-      controls.innerHTML = '<div>No config popup for this module type or module_id missing.</div>';
+
+    function fillForm(exp) {
+      if (nameInput) nameInput.value = exp.name || '';
+      if (addrInput) addrInput.value = exp.address_hex || '';
+      for (let i = 0; i < 8; i++) {
+        const ch = (exp.channels && exp.channels[i]) || {};
+        const n = form.querySelector(`[name='ch${i+1}']`);
+        const t = form.querySelector(`[name='type${i+1}']`);
+        const a = form.querySelector(`[name='addr${i+1}']`);
+        if (n) n.value = ch.name || '';
+        if (t) t.value = ch.type || 'di';
+        if (a) a.value = ch.address_hex || '';
+      }
     }
-    popup.classList.add('active');
-    overlay.style.display = 'block';
-    document.body.classList.add('modal-open');
+
+    async function loadExtConfig() {
+      try {
+        const res = await fetch('/api/expansion_config');
+        const data = await res.json();
+        if (res.ok && data && data.ok) fillForm(data.exp || {});
+      } catch (e) { /* ignore */ }
+    }
+
+    function collectExtConfig() {
+      const channels = [];
+      for (let i = 0; i < 8; i++) {
+        const n = form.querySelector(`[name='ch${i+1}']`);
+        const t = form.querySelector(`[name='type${i+1}']`);
+        const a = form.querySelector(`[name='addr${i+1}']`);
+        channels.push({
+          name: n ? n.value : '',
+          type: t ? t.value : 'di',
+          address_hex: a ? a.value : '',
+        });
+      }
+      return {
+        name: nameInput ? nameInput.value : '',
+        address_hex: addrInput ? addrInput.value : '',
+        channels,
+      };
+    }
+
+    async function saveExt() {
+      const payload = collectExtConfig();
+      try {
+        const resp = await fetch('/api/expansion_config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) {
+          alert(data && data.error ? data.error : 'Save failed');
+          return false;
+        }
+      } catch (e) {
+        alert('Network error saving expansion config');
+        return false;
+      }
+      return true;
+    }
+
+    let saving = false;
+    saveBtn.onclick = async () => {
+      if (saving) return;
+      saving = true;
+      const old = saveBtn.textContent;
+      saveBtn.textContent = 'Saving...';
+      const ok = await saveExt();
+      saveBtn.textContent = old;
+      saving = false;
+      if (ok) {
+        window._lastModuleConfigPopupReload = Date.now();
+        if (typeof loadModules === 'function') loadModules();
+      }
+    };
+
+    loadExtConfig();
+    activatePopup();
+    return;
   }
+
+  // Fallback for unknown types
+  controls.innerHTML = '<div>No config popup for this module type.</div>';
+  activatePopup();
+}
 
 function hideIoChannelPopup() {
   const popup = document.querySelector('.io-channel-popup');
@@ -713,6 +749,7 @@ function hideIoChannelPopup() {
   document.body.classList.remove('modal-open');
 }
 window.showIoChannelPopup = showIoChannelPopup;
+window.closePopup = hideIoChannelPopup;
 
 // Ensures SVG isn’t inheriting odd filter/opacity from Safari quirks
 
@@ -959,7 +996,9 @@ function _allLedOff() {
     circles.forEach((el) => {
       el.classList.remove("led-on");
       el.classList.add("led-off");
-        });
+    });
+  }
+}
 
 function _findLedElement(moduleType, svgRoot, channelIndex) {
   if (!svgRoot) return null;
@@ -982,6 +1021,7 @@ function _findLedElement(moduleType, svgRoot, channelIndex) {
       el = svgRoot.querySelector(`#out${channelIndex - 8}`);
       if (el) return el;
     }
+  }
 
   return null;
 }
@@ -1281,6 +1321,23 @@ async function addModuleThenGoBack() {
   else if (type === "ext") base = 0x60; // I2C Module
   const addrNum = base + dip1*1 + dip2*2 + dip3*4;
   const addr = "0x" + addrNum.toString(16).toUpperCase();
+  const errBox = $("add_error");
+  if (errBox) { errBox.style.display = "none"; errBox.textContent = ""; }
+
+  const data = await addModuleCore(type, addr, name);
+  if (!data.ok) {
+    if (errBox) {
+      errBox.textContent = "Error: " + data.error;
+      errBox.style.display = "block";
+    } else {
+      alert("Error: " + data.error);
+    }
+    return;
+  }
+  window.location.href = "/ui";
+}
+window.addModuleThenGoBack = addModuleThenGoBack;
+
 // DIP switch UI logic (always visible)
 document.addEventListener("DOMContentLoaded", function() {
   const addrInput = document.getElementById("add_addr");
@@ -1299,9 +1356,9 @@ document.addEventListener("DOMContentLoaded", function() {
     const base = 0x10;
     const dipAddr = base + (d1 << 2) + (d2 << 1) + d3;
     addrInput.value = "0x" + dipAddr.toString(16).toUpperCase();
-    dip1Val.textContent = d1 ? "ON" : "OFF";
-    dip2Val.textContent = d2 ? "ON" : "OFF";
-    dip3Val.textContent = d3 ? "ON" : "OFF";
+    if (dip1Val) dip1Val.textContent = d1 ? "ON" : "OFF";
+    if (dip2Val) dip2Val.textContent = d2 ? "ON" : "OFF";
+    if (dip3Val) dip3Val.textContent = d3 ? "ON" : "OFF";
   }
 
   if (dip1) dip1.addEventListener("input", updateAddrFromDips);
@@ -1309,23 +1366,6 @@ document.addEventListener("DOMContentLoaded", function() {
   if (dip3) dip3.addEventListener("input", updateAddrFromDips);
   updateAddrFromDips();
 });
-
-  const errBox = $("add_error");
-  if (errBox) { errBox.style.display = "none"; errBox.textContent = ""; }
-
-  const data = await addModuleCore(type, addr, name);
-  if (!data.ok) {
-    if (errBox) {
-      errBox.textContent = "Error: " + data.error;
-      errBox.style.display = "block";
-    } else {
-      alert("Error: " + data.error);
-    }
-    return;
-  }
-  window.location.href = "/ui";
-}
-window.addModuleThenGoBack = addModuleThenGoBack;
 
 // ============================================================
 // MODAL (SETTINGS)
@@ -1742,6 +1782,3 @@ _clearAnyDimState();
 loadStatus();
 loadModules();
 setInterval(loadStatus, 4000);
-}
-}
-}
