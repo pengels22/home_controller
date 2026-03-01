@@ -683,9 +683,12 @@ function showIoChannelPopup(name, status) {
               if (!ctx.module_id) return;
               const override = {};
               const invert = {};
+              const names = {};
               for (let i = 1; i <= 16; i++) {
+                const nameSel = form.querySelector(`[name='ch${i}']`);
                 const ovSel = form.querySelector(`[name='ch${i}_override']`);
                 const invChk = form.querySelector(`[name='ch${i}_invert']`);
+                if (nameSel) names[i] = nameSel.value;
                 if (ovSel) override[i] = ovSel.value;
                 if (invChk) invert[i] = !!invChk.checked;
               }
@@ -695,7 +698,8 @@ function showIoChannelPopup(name, status) {
                 body: JSON.stringify({
                   module_id: ctx.module_id,
                   override: override,
-                  invert: invert
+                  invert: invert,
+                  names: names
                 })
               });
               window._lastModuleConfigPopupReload = Date.now();
