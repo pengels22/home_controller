@@ -677,8 +677,7 @@ function showIoChannelPopup(name, status) {
             loadExtConfig();
           }
         }
-      });
-  } else {
+        });
     controls.innerHTML = '<div>No config popup for this module type or module_id missing.</div>';
   }
   popup.classList.add('active');
