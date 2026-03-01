@@ -1116,6 +1116,16 @@ async function loadModules() {
   const res = await fetch("/modules");
   const data = await res.json();
 
+  // Preload label sets for all modules so we can show channel names on card faces.
+  const labelsMap = {};
+  await Promise.all((data || []).map(async (m) => {
+    try {
+      const lr = await fetch(`/labels/${encodeURIComponent(m.id)}`);
+      const lj = await lr.json();
+      if (lr.ok && lj.ok && lj.labels) labelsMap[m.id] = lj.labels;
+    } catch (e) { /* ignore label load errors */ }
+  }));
+
   row.innerHTML = "";
   MODULE_SVGS.clear();
 
@@ -1168,6 +1178,9 @@ async function loadModules() {
       (m.name && String(m.name).trim().length > 0)
         ? String(m.name).trim()
         : `${String(m.type || "").toUpperCase()} MODULE`;
+
+    // Attach labels for downstream rendering convenience
+    m.labels = labelsMap[m.id] || {};
 
     left.innerHTML = `
       <div class="module-title">${displayName}</div>
@@ -1230,7 +1243,7 @@ async function loadModules() {
               const chNum = i + 1;
               const tEl = svgRoot.querySelector(`#ch${String(chNum).padStart(2, "0")}_type`);
               const aEl = svgRoot.querySelector(`#ch${String(chNum).padStart(2, "0")}_addr`);
-              const chName = (chans[i].name || "").trim();
+              const chName = (chans[i].name || m.labels.channels?.[String(chNum)] || "").trim();
               if (tEl) tEl.textContent = chName || (chans[i].type || "--").toUpperCase();
               if (aEl) aEl.textContent = (chans[i].address_hex || "0x00").toUpperCase();
             }
@@ -1243,7 +1256,7 @@ async function loadModules() {
         if (svgType === "rs485") {
           const nameEl = svgRoot.querySelector("#rs485_name");
           if (nameEl && m.name) nameEl.textContent = m.name;
-          const chLabels = (m.labels && m.labels.channels) || {};
+          const chLabels = (m.labels && m.labels.channels) || labelsMap[m.id]?.channels || {};
           for (let i = 1; i <= 4; i++) {
             const tEl = svgRoot.querySelector(`#ch${String(i).padStart(2, "0")}_type`);
             const label = (chLabels[String(i)] || "").trim();
