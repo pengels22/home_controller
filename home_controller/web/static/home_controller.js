@@ -1052,9 +1052,7 @@ function _allLedOff() {
     circles.forEach((el) => {
       el.classList.remove("led-on");
       el.classList.add("led-off");
-    });
-  }
-}
+        });
 
 function _findLedElement(moduleType, svgRoot, channelIndex) {
   if (!svgRoot) return null;
