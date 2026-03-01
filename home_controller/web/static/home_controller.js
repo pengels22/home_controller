@@ -664,97 +664,107 @@ function showIoChannelPopup(name, status) {
     popup.appendChild(closeBtn);
   }
   let url = '';
-  if (ctx.type === 'di') url = '/di_config_popup';
-  else if (ctx.type === 'do') url = '/do_config_popup';
-  else if (ctx.type === 'aio') url = '/aio_config_popup';
-  else if (ctx.type === 'i2c') url = '/i2c_config_popup';
-  if (url && ctx.module_id) {
-    fetch(url)
-      .then(r => r.text())
-      .then(async html => {
-        controls.innerHTML = html;
-        // Remove any extra close button from template
-        controls.querySelectorAll('.popup-close, .global-close-btn').forEach(btn => btn.remove());
-        // If DI/DO, fetch per-channel invert/override state from backend and update form
-        if (ctx.type === 'di' || ctx.type === 'do') {
-          // Add Save button handler for DI/DO
-          const saveBtn = controls.querySelector('.di-global-save') || controls.querySelector('.do-global-save');
-          const form = controls.querySelector('form');
-          if (saveBtn && form) {
-            saveBtn.onclick = async () => {
-              if (!ctx.module_id) return;
-              const override = {};
-              const invert = {};
-              const names = {};
-              for (let i = 1; i <= 16; i++) {
-                const nameSel = form.querySelector(`[name='ch${i}']`);
-                const ovSel = form.querySelector(`[name='ch${i}_override']`);
-                const invChk = form.querySelector(`[name='ch${i}_invert']`);
-                if (nameSel) names[i] = nameSel.value;
-                if (ovSel) override[i] = ovSel.value;
-                if (invChk) invert[i] = !!invChk.checked;
-              }
-              await fetch('/api/module_config_set', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  module_id: ctx.module_id,
-                  override: override,
-                  invert: invert,
-                  names: names
-                })
-              });
-              window._lastModuleConfigPopupReload = Date.now();
-              if (typeof loadModules === 'function') loadModules();
-            };
-          }
-          try {
-            const res = await fetch(`/api/module_config_get?module_id=${encodeURIComponent(ctx.module_id)}`);
-            const data = await res.json();
-            if (data.ok) {
-              // For each channel 1-16, update override/invert controls
-              for (let i = 1; i <= 16; i++) {
-                // Override
-                const ov = data.override && data.override[String(i)];
-                const ovSel = controls.querySelector(`[name='ch${i}_override']`);
-                if (ovSel && typeof ov === 'string') ovSel.value = ov;
-                // Invert (handle boolean or string 'true'/'false')
-                let inv = data.invert && data.invert[String(i)];
-                if (typeof inv === 'string') {
-                  inv = inv === 'true';
-                }
-                const invChk = controls.querySelector(`[name='ch${i}_invert']`);
-                if (invChk) invChk.checked = !!inv;
-              }
-            }
-          } catch (e) {
-            // ignore errors, fallback to defaults
-          }
-            // Save handler for the global popup form: only bottom center Close button saves and closes
-            form = controls.querySelector('form');
-            if (form) {
-              // Remove any submit button
-              const submitBtn = form.querySelector('button[type="submit"]');
-              if (submitBtn) submitBtn.remove();
-              // Close button only closes
-              let closeBtn = popup.querySelector('.popup-close.global');
-              if (!closeBtn) {
-                closeBtn = document.createElement('button');
-                closeBtn.className = 'popup-close global';
-                closeBtn.textContent = 'Close';
-                closeBtn.onclick = hideIoChannelPopup;
-                popup.appendChild(closeBtn);
-              }
-                    }
-                    // Add remove button for all module types (except head)
-                    if (ctx.module_id && ctx.type !== 'head') {
-                      let removeBtn = popup.querySelector('.popup-remove');
-                      if (!removeBtn) {
-                        removeBtn = document.createElement('button');
-                        removeBtn.className = 'popup-remove danger';
-                        removeBtn.textContent = 'Remove This Card';
-                        removeBtn.style.marginTop = '16px';
-                        removeBtn.onclick = async function() {
+    } else if (ctx.type === 'ext') { // I2C Module
+      controls.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-start;min-width:240px">
+          <div><b>Channel:</b> <span>${ctx.name || `Channel ${ctx.channel}`}</span></div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <label>Type:</label>
+            <select id="ext_ch_type">
+              <option value="di">DI</option>
+              <option value="do">DO</option>
+              <option value="aio">AIO</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <label>Address:</label>
+            <input id="ext_ch_addr" type="text" placeholder="0x20" style="width:90px" />
+          </div>
+          <div><b>Status:</b> <span id="ext_ch_status">Unknown</span></div>
+          <button id="ext_ch_save">Save</button>
+        </div>
+      `;
+
+      async function loadExtChannel() {
+        try {
+          const res = await fetch('/api/expansion_config');
+          const data = await res.json();
+          if (!res.ok || !data.ok) return;
+          const exp = data.exp || {};
+          const chIdx = (ctx.channel || 1) - 1;
+          const ch = exp.channels && exp.channels[chIdx] ? exp.channels[chIdx] : {};
+          const typeSel = controls.querySelector('#ext_ch_type');
+          const addrInp = controls.querySelector('#ext_ch_addr');
+          if (typeSel) typeSel.value = ch.type || 'di';
+          if (addrInp) addrInp.value = ch.address_hex || '';
+          const statusSpan = controls.querySelector('#ext_ch_status');
+          if (statusSpan) statusSpan.textContent = ch.address_hex ? 'Configured' : 'Unassigned';
+        } catch (e) {
+          /* ignore */
+        }
+      }
+
+      async function saveExtChannel() {
+        const typeSel = controls.querySelector('#ext_ch_type');
+        const addrInp = controls.querySelector('#ext_ch_addr');
+        const chIdx = (ctx.channel || 1) - 1;
+        let exp;
+        try {
+          const res = await fetch('/api/expansion_config');
+          const data = await res.json();
+          if (!res.ok || !data.ok) return { ok: false, error: 'Load failed' };
+          exp = data.exp || {};
+        } catch (e) {
+          return { ok: false, error: 'Load failed' };
+        }
+        if (!exp.channels || !Array.isArray(exp.channels)) exp.channels = [];
+        while (exp.channels.length < 8) exp.channels.push({ name: `ch${exp.channels.length+1}`, type: 'di', address_hex: '' });
+        const ch = exp.channels[chIdx] || {};
+        ch.name = ctx.name || `ch${ctx.channel}`;
+        ch.type = typeSel ? typeSel.value : ch.type || 'di';
+        ch.address_hex = addrInp ? addrInp.value : ch.address_hex || '';
+        exp.channels[chIdx] = ch;
+        try {
+          const resp = await fetch('/api/expansion_config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(exp)
+          });
+          const out = await resp.json();
+          if (!resp.ok || !out.ok) return { ok: false, error: out && out.error ? out.error : 'Save failed' };
+          const statusSpan = controls.querySelector('#ext_ch_status');
+          if (statusSpan) statusSpan.textContent = ch.address_hex ? 'Configured' : 'Unassigned';
+          return { ok: true };
+        } catch (e) {
+          return { ok: false, error: 'Network error' };
+        }
+      }
+
+      const saveBtn = controls.querySelector('#ext_ch_save');
+      if (saveBtn) saveBtn.onclick = async () => {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        const res = await saveExtChannel();
+        saveBtn.textContent = 'Save';
+        saveBtn.disabled = false;
+        if (!res.ok) {
+          alert(res.error || 'Save failed');
+        } else if (typeof loadModules === 'function') {
+          loadModules();
+        }
+      };
+
+      // Add close button for per-channel EXT popup
+      if (!popup.querySelector('.popup-close.channel')) {
+        const channelCloseBtn = document.createElement('button');
+        channelCloseBtn.className = 'popup-close channel';
+        channelCloseBtn.textContent = 'Close';
+        channelCloseBtn.title = 'Close';
+        channelCloseBtn.onclick = hideIoChannelPopup;
+        popup.appendChild(channelCloseBtn);
+      }
+
+      loadExtChannel();
                           if (!confirm('Are you sure you want to remove this card/module? This cannot be undone.')) return;
                           const res = await fetch('/modules/remove', {
                             method: 'POST',
