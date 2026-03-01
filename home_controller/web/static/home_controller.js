@@ -698,7 +698,6 @@ function showIoChannelPopup(name, status) {
                   invert: invert
                 })
               });
-              hideIoChannelPopup();
               window._lastModuleConfigPopupReload = Date.now();
               if (typeof loadModules === 'function') loadModules();
             };
@@ -731,12 +730,13 @@ function showIoChannelPopup(name, status) {
               // Remove any submit button
               const submitBtn = form.querySelector('button[type="submit"]');
               if (submitBtn) submitBtn.remove();
-              // Save on close (bottom center Close button only)
+              // Close button only closes
               let closeBtn = popup.querySelector('.popup-close.global');
               if (!closeBtn) {
                 closeBtn = document.createElement('button');
                 closeBtn.className = 'popup-close global';
                 closeBtn.textContent = 'Close';
+                closeBtn.onclick = hideIoChannelPopup;
                 popup.appendChild(closeBtn);
               }
                     }
