@@ -1,0 +1,14 @@
+{
+  "name": "Expansion Card",
+  "address_hex": "0x40",
+  "channels": [
+    {"name": "ch1", "type": "di", "address_hex": "0x20"},
+    {"name": "ch2", "type": "di", "address_hex": "0x21"},
+    {"name": "ch3", "type": "di", "address_hex": "0x22"},
+    {"name": "ch4", "type": "di", "address_hex": "0x23"},
+    {"name": "ch5", "type": "di", "address_hex": "0x24"},
+    {"name": "ch6", "type": "di", "address_hex": "0x25"},
+    {"name": "ch7", "type": "di", "address_hex": "0x26"},
+    {"name": "ch8", "type": "di", "address_hex": "0x27"}
+  ]
+}
