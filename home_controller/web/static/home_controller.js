@@ -31,10 +31,12 @@ function updateDipAddressDisplay() {
   else if (type === "aio") base = 0x40;
   else if (type === "rs485") base = 0x50;
   else if (type === "ext") base = 0x60; // I2C Module
-  else if (type === "genmon") base = 0x70;
+  else if (type === "genmon") base = 0x01; // Generac default RS485 addr starts at 1
   // Address mapping: DIP1*1 + DIP2*2 + DIP3*4
   const addrNum = base + dip1*1 + dip2*2 + dip3*4;
-  const addr = "0x" + addrNum.toString(16).toUpperCase();
+  const addr = type === "genmon"
+    ? `${addrNum}`
+    : "0x" + addrNum.toString(16).toUpperCase();
   const display = document.getElementById("address_display");
   if (display) display.textContent = `Address: ${addr}`;
 }
@@ -1513,9 +1515,11 @@ async function addModuleThenGoBack() {
   else if (type === "aio") base = 0x40;
   else if (type === "rs485") base = 0x50;
   else if (type === "ext") base = 0x60; // I2C Module
-  else if (type === "genmon") base = 0x70; // GenMon preferred base
+  else if (type === "genmon") base = 0x01; // Generac default RS485 address base
   const addrNum = base + dip1*1 + dip2*2 + dip3*4;
-  const addr = "0x" + addrNum.toString(16).toUpperCase();
+  const addr = type === "genmon"
+    ? `${addrNum}`
+    : "0x" + addrNum.toString(16).toUpperCase();
   const errBox = $("add_error");
   if (errBox) { errBox.style.display = "none"; errBox.textContent = ""; }
 
