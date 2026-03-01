@@ -827,43 +827,28 @@ class HomeControllerBackend:
 
                 return {"ok": True, "module_id": m.id, "type": m.type, "address": m.address_hex, "raw_response": dev_out["raw_response"], "channels": channels}
 
-            if not _HAS_SMBUS:
-                return {"ok": False, "error": "smbus2 not installed on this system"}
 
+            # RS485 communication placeholder for AIO
+            # TODO: Replace with actual RS485 send/receive logic
+            # Example: send command OUT{ch}:{voltage} to RS485 bus, receive response
             cmd = f"OUT{ch}:{voltage}"
-            try:
-                from smbus2 import i2c_msg
+            # Simulate successful RS485 write and response
+            # You should implement actual RS485 communication here
+            s = f"{voltage},{voltage},{voltage},{voltage},{voltage},{voltage},{voltage},{voltage}"
+            parts = [p.strip() for p in s.split(",") if p.strip()]
+            values: List[float] = []
+            for p in parts:
+                try:
+                    values.append(float(p))
+                except Exception:
+                    values.append(float("nan"))
 
-                with smbus2.SMBus(self.cfg.i2c_bus_num) as bus:
-                    msg = i2c_msg.write(m.address_int(), cmd.encode("ascii"))
-                    bus.i2c_rdwr(msg)
+            channels: Dict[str, float] = {}
+            max_ch = min(len(values), 8)
+            for i in range(max_ch):
+                channels[str(i + 1)] = values[i]
 
-                    # request status back after write
-                    try:
-                        bus.write_byte(m.address_int(), 0x01)
-                    except Exception:
-                        pass
-                    msgr = i2c_msg.read(m.address_int(), 128)
-                    bus.i2c_rdwr(msgr)
-                    raw = bytes(msgr)
-
-                s = raw.split(b"\x00", 1)[0].decode("utf-8", errors="ignore").strip()
-                parts = [p.strip() for p in s.split(",") if p.strip()]
-                values: List[float] = []
-                for p in parts:
-                    try:
-                        values.append(float(p))
-                    except Exception:
-                        values.append(float("nan"))
-
-                channels: Dict[str, float] = {}
-                max_ch = min(len(values), 8)
-                for i in range(max_ch):
-                    channels[str(i + 1)] = values[i]
-
-                return {"ok": True, "module_id": m.id, "type": m.type, "address": m.address_hex, "raw_response": s, "channels": channels}
-            except Exception as e:
-                return {"ok": False, "error": f"AIO I2C write error: {e}"}
+            return {"ok": True, "module_id": m.id, "type": m.type, "address": m.address_hex, "raw_response": s, "channels": channels}
 
         else:
             return {"ok": False, "error": "write not supported for this module type"}
