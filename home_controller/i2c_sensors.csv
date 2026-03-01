@@ -1,0 +1,6 @@
+name,type,address
+TMP102,temperature,0x48
+ADS1115,adc,0x49
+MCP23017,gpio,0x20
+PCF8574,gpio,0x27
+SI7021,humidity,0x40

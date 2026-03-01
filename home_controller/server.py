@@ -263,7 +263,16 @@ def aio_config_popup():
 
 @app.route("/i2c_config_popup")
 def i2c_config_popup():
-    return render_template("i2c_config.html")
+    # Load i2c_sensors.csv for dropdown options
+    sensors_path = BASE_DIR / "i2c_sensors.csv"
+    i2c_sensors = []
+    if sensors_path.exists():
+        import csv
+        with open(sensors_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                i2c_sensors.append(row)
+    return render_template("i2c_config.html", i2c_sensors=i2c_sensors)
 
 # I2C module settings page
 @app.route("/i2c_config")
