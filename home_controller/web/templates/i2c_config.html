@@ -50,7 +50,11 @@
             {% for i in range(1,9) %}
             <div style="display:flex;align-items:center;gap:8px">
               <input type="text" name="ch{{i}}" placeholder="Channel {{i}}" style="width:90px" />
-              <label>I2C Addr <input type="text" name="ch{{i}}_i2c_addr" style="width:50px" /></label>
+              <select name="type{{i}}" style="width:60px">
+                <option value="di">DI</option>
+                <option value="do">DO</option>
+              </select>
+              <label>I2C Addr <input type="text" name="addr{{i}}" style="width:50px" /></label>
             </div>
             {% endfor %}
           </div>
