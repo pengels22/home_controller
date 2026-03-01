@@ -16,7 +16,7 @@ function toggleDip(idx) {
   state.textContent = val.value === "1" ? "ON" : "OFF";
   // Update address display
   updateDipAddressDisplay();
-}
+// End of showIoChannelPopup
 
 function updateDipAddressDisplay() {
   const dip1 = Number(document.getElementById("dip1")?.value || 0); // DIP1: CLOSED=0, OPEN=1
@@ -331,8 +331,6 @@ function showIoChannelPopup(name, status) {
           break;
         }
       }
-    }
-  }
   popup.querySelector('.popup-title').textContent = ctx.name || name;
   popup.querySelector('.popup-status').textContent = `Status: ${ctx.status || status}`;
   const controls = popup.querySelector('.popup-controls');
@@ -677,12 +675,15 @@ function showIoChannelPopup(name, status) {
             loadExtConfig();
           }
         }
-        });
-    controls.innerHTML = '<div>No config popup for this module type or module_id missing.</div>';
-  }
-  popup.classList.add('active');
-  overlay.style.display = 'block';
-  document.body.classList.add('modal-open');
+      }
+    }
+    // If no form, show missing config message
+    if (!form) {
+      controls.innerHTML = '<div>No config popup for this module type or module_id missing.</div>';
+    }
+    popup.classList.add('active');
+    overlay.style.display = 'block';
+    document.body.classList.add('modal-open');
 }
 
 function hideIoChannelPopup() {
@@ -712,100 +713,6 @@ function hideIoChannelPopup() {
   document.body.classList.remove('modal-open');
 }
 window.showIoChannelPopup = showIoChannelPopup;
-window.hideIoChannelPopup = hideIoChannelPopup;
-
-// cache: moduleId -> { type, svgRoot }
-const MODULE_SVGS = new Map();
-
-
-// Expose for legacy fallbacks
-window.MODULE_SVGS = MODULE_SVGS;
-let MODAL_CTX = {
-  id: null,
-  type: null,
-  address: null,
-  name: null
-};
-
-// Some browsers hide freshly injected inline SVGs unless we nudge display/visibility.
-// Keep this lightweight so a missing helper never blocks rendering.
-function ensureSvgVisible(svgRoot) {
-  if (!svgRoot) return;
-  if (!svgRoot.style.display) svgRoot.style.display = "block";
-  svgRoot.style.visibility = "visible";
-  // Remove any forced opacity to avoid accidental transparency
-  svgRoot.style.opacity = "1";
-  svgRoot.style.filter = "none";
-}
-
-// Scope inline <style> rules inside an injected SVG so they don't leak to other SVGs.
-function scopeSvgStyles(svgRoot, scopeClass) {
-  if (!svgRoot || !scopeClass) return;
-  svgRoot.classList.add(scopeClass);
-
-  const styles = svgRoot.querySelectorAll("style");
-  styles.forEach((st) => {
-    const css = st.textContent || "";
-    if (!css) return;
-
-    // Simple selector-body parser that won't split on commas inside declarations
-    const out = [];
-    const regex = /([^{}]+){([^{}]*)}/g;
-    let m;
-    while ((m = regex.exec(css)) !== null) {
-      const sel = m[1].trim();
-      const body = m[2];
-      if (!sel || sel.startsWith("@")) {
-        out.push(`${sel}{${body}}`);
-        continue;
-      }
-      // prefix each selector in the group
-      const scopedSel = sel
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .map((s) => `.${scopeClass} ${s}`)
-        .join(", ");
-      out.push(`${scopedSel}{${body}}`);
-    }
-    if (out.length) st.textContent = out.join(" ");
-  });
-}
-
-// ============================================================
-// “DIM/OVERLAY” DEFENSE (THIS IS THE REAL FIX)
-// ============================================================
-
-function _clearAnyDimState() {
-  // Hide modal backdrop if it exists
-  const b = $("modal_backdrop");
-  if (b) {
-    b.style.display = "none";
-    b.style.pointerEvents = "none";
-  }
-
-  // Remove any body classes that typically cause dim/blur
-  document.body.classList.remove("modal-open", "dim", "busy", "disabled");
-
-  // Only pointer events and display are managed now
-  const reset = (el) => {
-    if (!el) return;
-    el.style.pointerEvents = "";
-  };
-
-  reset(document.body);
-  reset(document.querySelector(".container"));
-
-  document.querySelectorAll(".card, .modules-row, #modules, .module-card, .module-card svg, .module-svg")
-    .forEach(reset);
-
-  // If any “overlay-ish” nodes exist, force them off
-  document.querySelectorAll(".modal-backdrop, .overlay, .backdrop")
-    .forEach(el => {
-      el.style.display = "none";
-      el.style.pointerEvents = "none";
-    });
-}
 
 // Ensures SVG isn’t inheriting odd filter/opacity from Safari quirks
 
@@ -1075,7 +982,6 @@ function _findLedElement(moduleType, svgRoot, channelIndex) {
       el = svgRoot.querySelector(`#out${channelIndex - 8}`);
       if (el) return el;
     }
-  }
 
   return null;
 }
