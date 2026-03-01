@@ -277,6 +277,7 @@ async function showIoChannelPopup(name, status) {
     aio: '/aio_config_popup',
     ext: '/i2c_config_popup',
     i2c: '/i2c_config_popup',
+    rs485: '/rs485_config_popup',
   };
   const url = urlMap[type];
   if (!url) {
@@ -713,6 +714,81 @@ async function showIoChannelPopup(name, status) {
     };
 
     loadExtConfig();
+    activatePopup();
+    return;
+  }
+
+  // ---------------- RS485 global config ----------------
+  if (type === 'rs485') {
+    form.querySelectorAll('button[type="submit"], button[type="button"]').forEach((btn) => btn.remove());
+    const nameInput = form.querySelector('input[name="module_name"]');
+    if (nameInput && ctx.name) nameInput.value = ctx.name;
+
+    let saveBtn = controls.querySelector('.rs485-global-save');
+    if (!saveBtn) {
+      saveBtn = document.createElement('button');
+      saveBtn.className = 'rs485-global-save';
+      saveBtn.textContent = 'Save';
+      controls.appendChild(saveBtn);
+    }
+
+    // Load labels to prefill names
+    async function loadRs485Labels() {
+      if (!ctx.module_id) return;
+      try {
+        const lr = await fetch(`/labels/${encodeURIComponent(ctx.module_id)}`);
+        const ld = await lr.json();
+        if (lr.ok && ld.ok && ld.labels) {
+          if (nameInput && typeof ld.labels.module_name === 'string') {
+            nameInput.value = ld.labels.module_name;
+          }
+          const ch = ld.labels.channels || {};
+          for (let i = 1; i <= 40; i++) {
+            const nEl = form.querySelector(`[name='ch${i}']`);
+            if (nEl && typeof ch[String(i)] === 'string') nEl.value = ch[String(i)];
+          }
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    saveBtn.onclick = async () => {
+      if (!ctx.module_id) return;
+      const newName = nameInput ? (nameInput.value || '').trim() : '';
+      // Rename module if changed
+      if (newName && newName !== (ctx.name || '')) {
+        try {
+          await fetch('/modules/rename', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: ctx.module_id, name: newName }),
+          });
+          ctx.name = newName;
+        } catch (e) { /* ignore rename errors */ }
+      }
+
+      // Collect channel labels (40)
+      const channels = {};
+      for (let i = 1; i <= 40; i++) {
+        const nEl = form.querySelector(`[name='ch${i}']`);
+        channels[i] = nEl ? nEl.value || `CH${i}` : `CH${i}`;
+      }
+
+      await fetch('/labels/set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          module_id: ctx.module_id,
+          module_name: newName,
+          channels,
+        }),
+      });
+
+      window._lastModuleConfigPopupReload = Date.now();
+      if (typeof loadModules === 'function') loadModules();
+      hideIoChannelPopup();
+    };
+
+    loadRs485Labels();
     activatePopup();
     return;
   }
@@ -1275,7 +1351,7 @@ async function loadModules() {
 
         // Add onclick to IO bubbles (circles/dots) for popup
         const mt = String(m.type).toLowerCase();
-        if (["di", "do", "aio", "ext", "i2c", "rs485"].includes(mt)) {
+        if (["di", "do", "aio", "ext", "i2c"].includes(mt)) {
           const channelGroups = svgRoot.querySelectorAll("g[id^='ch'], circle[id^='ch']");
           channelGroups.forEach((g, idx) => {
             // Support both circle as group child or the circle itself

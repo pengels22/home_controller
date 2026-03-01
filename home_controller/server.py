@@ -274,6 +274,19 @@ def i2c_config_popup():
                 i2c_sensors.append(row)
     return render_template("i2c_config.html", i2c_sensors=i2c_sensors)
 
+# RS485 config popup (uses same sensor list, 40 channels)
+@app.route("/rs485_config_popup")
+def rs485_config_popup():
+    sensors_path = BASE_DIR / "i2c_sensors.csv"
+    i2c_sensors = []
+    if sensors_path.exists():
+        import csv
+        with open(sensors_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                i2c_sensors.append(row)
+    return render_template("rs485_to_i2c_config.html", i2c_sensors=i2c_sensors)
+
 # I2C module settings page
 @app.route("/i2c_config")
 def i2c_config():
