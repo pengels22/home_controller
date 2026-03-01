@@ -725,7 +725,7 @@ function showIoChannelPopup(name, status) {
             // ignore errors, fallback to defaults
           }
             // Save handler for the global popup form: only bottom center Close button saves and closes
-            var form = controls.querySelector('form');
+            form = controls.querySelector('form');
             if (form) {
               // Remove any submit button
               const submitBtn = form.querySelector('button[type="submit"]');
