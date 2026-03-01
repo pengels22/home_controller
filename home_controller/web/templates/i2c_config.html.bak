@@ -1,0 +1,64 @@
+<!-- I2C Module Settings Popup -->
+<div class="module-settings-popup">
+  <h2>I2C Module Settings</h2>
+  <form>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <label style="min-width:110px">Module Name:</label>
+      <input type="text" name="module_name" style="flex:1;min-width:180px" />
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <label style="min-width:110px">I2C Address:</label>
+      <input type="text" name="i2c_address" style="flex:1;min-width:180px" />
+    </div>
+    <div class="channels">
+      <h3>Channel Names</h3>
+      <div style="display:flex;gap:24px">
+        <div>
+          <h4>Channels 1-4</h4>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div>
+                <input type="text" name="ch1" placeholder="CH1 Name" style="width:90px" />
+              <select name="type1">
+                <option value="di">DI</option>
+                <option value="do">DO</option>
+                <option value="aio">AIO</option>
+              </select>
+                <input type="text" name="addr1" placeholder="Addr" style="width:50px" />
+            </div>
+            <div>
+                <input type="text" name="ch2" placeholder="CH2 Name" style="width:90px" />
+              <select name="type2">
+                <option value="di">DI</option>
+                <option value="do">DO</option>
+                <option value="aio">AIO</option>
+              </select>
+                <input type="text" name="addr2" placeholder="Addr" style="width:50px" />
+            </div>
+            <div>
+                <input type="text" name="ch3" placeholder="CH3 Name" style="width:90px" />
+              <select name="type3">
+                <option value="di">DI</option>
+                <option value="do">DO</option>
+                <option value="aio">AIO</option>
+              </select>
+                <input type="text" name="addr3" placeholder="Addr" style="width:50px" />
+            </div>
+            <div>
+                <input type="text" name="ch4" placeholder="CH4 Name" style="width:90px" />
+              <select name="type4">
+                <option value="di">DI</option>
+                <option value="do">DO</option>
+                <option value="aio">AIO</option>
+              </select>
+                <input type="text" name="addr4" placeholder="Addr" style="width:50px" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit">Save</button>
+      <button type="button" onclick="closePopup()">Cancel</button>
+    </div>
+  </form>
+</div>
