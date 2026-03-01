@@ -16,7 +16,7 @@ function toggleDip(idx) {
   state.textContent = val.value === "1" ? "ON" : "OFF";
   // Update address display
   updateDipAddressDisplay();
-// End of showIoChannelPopup
+}
 
 function updateDipAddressDisplay() {
   const dip1 = Number(document.getElementById("dip1")?.value || 0); // DIP1: CLOSED=0, OPEN=1
@@ -66,7 +66,7 @@ function ensureIoChannelPopupOverlay() {
       // Only close if click is directly on overlay, not popup
       if (e.target === overlay) hideIoChannelPopup();
     };
-  }
+// End of showIoChannelPopup
   return overlay;
 }
 
@@ -684,7 +684,7 @@ function showIoChannelPopup(name, status) {
     popup.classList.add('active');
     overlay.style.display = 'block';
     document.body.classList.add('modal-open');
-}
+  }
 
 function hideIoChannelPopup() {
   const popup = document.querySelector('.io-channel-popup');
@@ -1278,7 +1278,7 @@ async function addModuleThenGoBack() {
   if (type === "do") base = 0x30;
   else if (type === "aio") base = 0x40;
   else if (type === "rs485") base = 0x50;
-  else if (type === "ext") base = 0x60;
+  else if (type === "ext") base = 0x60; // I2C Module
   const addrNum = base + dip1*1 + dip2*2 + dip3*4;
   const addr = "0x" + addrNum.toString(16).toUpperCase();
 // DIP switch UI logic (always visible)
@@ -1742,3 +1742,4 @@ _clearAnyDimState();
 loadStatus();
 loadModules();
 setInterval(loadStatus, 4000);
+}
