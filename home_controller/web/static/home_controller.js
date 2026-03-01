@@ -1,4 +1,6 @@
 // ------------------ Unified IO Channel Popup Modal ------------------
+// This section implements a unified popup modal for displaying and configuring IO channels (DI/DO/AIO/I2C).
+// The same popup structure is reused for both per-channel quick settings (clicking on a channel) and full module settings (gear icon).
 // DIP switch toggle logic for Add Module page
 function toggleDip(idx) {
   const slider = document.getElementById(`dip${idx}_slider`);
