@@ -1230,7 +1230,8 @@ async function loadModules() {
               const chNum = i + 1;
               const tEl = svgRoot.querySelector(`#ch${String(chNum).padStart(2, "0")}_type`);
               const aEl = svgRoot.querySelector(`#ch${String(chNum).padStart(2, "0")}_addr`);
-              if (tEl) tEl.textContent = (chans[i].type || "--").toUpperCase();
+              const chName = (chans[i].name || "").trim();
+              if (tEl) tEl.textContent = chName || (chans[i].type || "--").toUpperCase();
               if (aEl) aEl.textContent = (chans[i].address_hex || "0x00").toUpperCase();
             }
           } catch (e) {
@@ -1242,6 +1243,12 @@ async function loadModules() {
         if (svgType === "rs485") {
           const nameEl = svgRoot.querySelector("#rs485_name");
           if (nameEl && m.name) nameEl.textContent = m.name;
+          const chLabels = (m.labels && m.labels.channels) || {};
+          for (let i = 1; i <= 4; i++) {
+            const tEl = svgRoot.querySelector(`#ch${String(i).padStart(2, "0")}_type`);
+            const label = (chLabels[String(i)] || "").trim();
+            if (tEl && label) tEl.textContent = label;
+          }
         }
 
         // Add onclick to IO bubbles (circles/dots) for popup
