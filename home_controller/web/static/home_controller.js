@@ -664,8 +664,6 @@ function showIoChannelPopup(name, status) {
     popup.appendChild(closeBtn);
   }
   let url = '';
-  // ...existing code...
-        } else if (ctx.type === 'aio') {
         const form = controls.querySelector('form');
         if (form) {
           // Remove any template submit/cancel buttons to avoid duplicates
