@@ -1126,6 +1126,14 @@ async function loadModules() {
     } catch (e) { /* ignore label load errors */ }
   }));
 
+  const displayLabel = (raw, chNum) => {
+    const def = `CH${chNum}`;
+    const txt = (raw || "").trim();
+    if (!txt) return "--";
+    if (txt.toUpperCase() === def.toUpperCase()) return "--";
+    return txt;
+  };
+
   row.innerHTML = "";
   MODULE_SVGS.clear();
 
@@ -1243,8 +1251,9 @@ async function loadModules() {
               const chNum = i + 1;
               const tEl = svgRoot.querySelector(`#ch${String(chNum).padStart(2, "0")}_type`);
               const aEl = svgRoot.querySelector(`#ch${String(chNum).padStart(2, "0")}_addr`);
-              const chName = (chans[i].name || m.labels.channels?.[String(chNum)] || "").trim();
-              if (tEl) tEl.textContent = chName || (chans[i].type || "--").toUpperCase();
+              const chName = chans[i].name || m.labels.channels?.[String(chNum)] || `CH${chNum}`;
+              const text = displayLabel(chName, chNum) || (chans[i].type || "--").toUpperCase();
+              if (tEl) tEl.textContent = text;
               if (aEl) aEl.textContent = (chans[i].address_hex || "0x00").toUpperCase();
             }
           } catch (e) {
@@ -1259,8 +1268,8 @@ async function loadModules() {
           const chLabels = (m.labels && m.labels.channels) || labelsMap[m.id]?.channels || {};
           for (let i = 1; i <= 4; i++) {
             const tEl = svgRoot.querySelector(`#ch${String(i).padStart(2, "0")}_type`);
-            const label = (chLabels[String(i)] || "").trim();
-            if (tEl && label) tEl.textContent = label;
+            const label = displayLabel(chLabels[String(i)], i);
+            if (tEl) tEl.textContent = label;
           }
         }
 
@@ -1486,7 +1495,8 @@ async function openModal(module) {
 
     const inp = document.createElement("input");
     inp.id = `ch_name_${i}`;
-    inp.placeholder = `Name for channel ${i}`;
+    inp.placeholder = `CH${i}`;
+    inp.value = `CH${i}`;
     inp.className = "channel-input";
 
     wrap.appendChild(lab);
@@ -1545,7 +1555,8 @@ async function saveModal() {
 
   const channels = {};
   for (let i = 1; i <= 16; i++) {
-    channels[String(i)] = $(`ch_name_${i}`).value || "";
+    const val = $(`ch_name_${i}`).value || `CH${i}`;
+    channels[String(i)] = val;
   }
 
   const r2 = await fetch("/labels/set", {
