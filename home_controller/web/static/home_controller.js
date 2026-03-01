@@ -31,6 +31,7 @@ function updateDipAddressDisplay() {
   else if (type === "aio") base = 0x40;
   else if (type === "rs485") base = 0x50;
   else if (type === "ext") base = 0x60; // I2C Module
+  else if (type === "genmon") base = 0x70;
   // Address mapping: DIP1*1 + DIP2*2 + DIP3*4
   const addrNum = base + dip1*1 + dip2*2 + dip3*4;
   const addr = "0x" + addrNum.toString(16).toUpperCase();
@@ -1363,17 +1364,7 @@ async function loadModules() {
         header.appendChild(left);
         header.appendChild(gear);
 
-        // Details button for GenMon
-        if (String(m.type).toLowerCase() === "genmon") {
-          const det = document.createElement("button");
-          det.className = "icon-btn";
-          det.title = "Details";
-          det.textContent = "ℹ️";
-          det.onclick = () => { showGenmonDetailPopup(m.id); };
-          header.appendChild(det);
-        }
-
-    const svgHolder = document.createElement("div");
+        const svgHolder = document.createElement("div");
     svgHolder.className = "module-svg";
     svgHolder.textContent = "Loading…";
 
@@ -1521,6 +1512,7 @@ async function addModuleThenGoBack() {
   else if (type === "aio") base = 0x40;
   else if (type === "rs485") base = 0x50;
   else if (type === "ext") base = 0x60; // I2C Module
+  else if (type === "genmon") base = 0x70; // GenMon preferred base
   const addrNum = base + dip1*1 + dip2*2 + dip3*4;
   const addr = "0x" + addrNum.toString(16).toUpperCase();
   const errBox = $("add_error");
