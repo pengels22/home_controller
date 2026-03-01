@@ -743,7 +743,7 @@ async function showIoChannelPopup(name, status) {
             nameInput.value = ld.labels.module_name;
           }
           const ch = ld.labels.channels || {};
-          for (let i = 1; i <= 40; i++) {
+          for (let i = 1; i <= 4; i++) {
             const nEl = form.querySelector(`[name='ch${i}']`);
             if (nEl && typeof ch[String(i)] === 'string') nEl.value = ch[String(i)];
           }
@@ -766,9 +766,9 @@ async function showIoChannelPopup(name, status) {
         } catch (e) { /* ignore rename errors */ }
       }
 
-      // Collect channel labels (40)
+      // Collect channel labels (4)
       const channels = {};
-      for (let i = 1; i <= 40; i++) {
+      for (let i = 1; i <= 4; i++) {
         const nEl = form.querySelector(`[name='ch${i}']`);
         channels[i] = nEl ? nEl.value || `CH${i}` : `CH${i}`;
       }
