@@ -675,6 +675,34 @@ function showIoChannelPopup(name, status) {
         controls.querySelectorAll('.popup-close, .global-close-btn').forEach(btn => btn.remove());
         // If DI/DO, fetch per-channel invert/override state from backend and update form
         if (ctx.type === 'di' || ctx.type === 'do') {
+          // Add Save button handler for DI/DO
+          const saveBtn = controls.querySelector('.di-global-save') || controls.querySelector('.do-global-save');
+          const form = controls.querySelector('form');
+          if (saveBtn && form) {
+            saveBtn.onclick = async () => {
+              if (!ctx.module_id) return;
+              const override = {};
+              const invert = {};
+              for (let i = 1; i <= 16; i++) {
+                const ovSel = form.querySelector(`[name='ch${i}_override']`);
+                const invChk = form.querySelector(`[name='ch${i}_invert']`);
+                if (ovSel) override[i] = ovSel.value;
+                if (invChk) invert[i] = !!invChk.checked;
+              }
+              await fetch('/api/module_config_set', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  module_id: ctx.module_id,
+                  override: override,
+                  invert: invert
+                })
+              });
+              hideIoChannelPopup();
+              window._lastModuleConfigPopupReload = Date.now();
+              if (typeof loadModules === 'function') loadModules();
+            };
+          }
           try {
             const res = await fetch(`/api/module_config_get?module_id=${encodeURIComponent(ctx.module_id)}`);
             const data = await res.json();
