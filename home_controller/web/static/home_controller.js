@@ -1231,7 +1231,7 @@ async function loadModules() {
         MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
 
         // Populate expander labels from expansion_config (types/addresses)
-        if (svgType === "ext") {
+        if (svgType === "ext" || svgType === "i2c") {
           try {
             if (!expansionCfg) {
               const cfgRes = await fetch("/api/expansion_config");
@@ -1266,7 +1266,7 @@ async function loadModules() {
 
         // Add onclick to IO bubbles (circles/dots) for popup
         const mt = String(m.type).toLowerCase();
-        if (["di", "do", "aio", "ext", "rs485"].includes(mt)) {
+        if (["di", "do", "aio", "ext", "i2c", "rs485"].includes(mt)) {
           const channelGroups = svgRoot.querySelectorAll("g[id^='ch'], circle[id^='ch']");
           channelGroups.forEach((g, idx) => {
             // Support both circle as group child or the circle itself
@@ -1766,6 +1766,7 @@ async function showExpanderSettingsPopup() {
     if (saveData.ok) {
       alert("Expansion config saved!");
       hideIoChannelPopup();
+      if (typeof loadModules === 'function') loadModules();
     } else {
       alert("Save failed: " + (saveData.error || "Unknown error"));
     }
