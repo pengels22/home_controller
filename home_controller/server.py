@@ -1,11 +1,13 @@
 
 import json
+import os
+import re
+import sys
 from pathlib import Path
 import socket
 import subprocess
 import time
-from typing import Set, Tuple, Optional
-import sys
+from typing import Any, Dict, Optional, Set, Tuple
 # Expansion card settings route
 
 from flask import (
@@ -19,6 +21,7 @@ from flask import (
 import traceback
 from home_controller.core.backend import HomeControllerBackend
 from home_controller.config import aio_max_voltage
+from home_controller.core.genmon_client import GenMonClient
 
 # ------------------------------------------------------------
 # Paths (absolute, based on this file)
@@ -26,6 +29,13 @@ from home_controller.config import aio_max_voltage
 BASE_DIR = Path(__file__).resolve().parent  # .../home_controller/
 TEMPLATES_DIR = BASE_DIR / "web" / "templates"
 STATIC_DIR = BASE_DIR / "web" / "static"
+
+# GenMon defaults (hostname provided by user)
+GENMON_HOST = os.getenv("GENMON_HOST", "GenMon_PI")
+GENMON_PORT = int(os.getenv("GENMON_PORT", "9082"))
+GENMON_TIMEOUT = float(os.getenv("GENMON_TIMEOUT", "3.0"))
+GENMON_CONTACTS_FILE = BASE_DIR / "config" / "genmon_contacts.json"
+GENMON_CONTACT_COUNT = 4
 # ------------------------------------------------------------
 # Flask app
 # ------------------------------------------------------------
@@ -54,6 +64,23 @@ def _parse_i2c_address(addr_str: str) -> int:
 
     if v < 0x03 or v > 0x77:
         raise ValueError(f"address out of 7-bit range: {hex(v)}")
+    return v
+
+
+def _parse_genmon_address(addr_str: str) -> int:
+    """
+    Parse the GenMon RS485 address (allows values as low as 0x01).
+    Accepts hex strings (0x01) or plain integers.
+    """
+    s = (addr_str or "").strip().lower()
+    if not s:
+        raise ValueError("address is empty")
+    if s.startswith("0x"):
+        v = int(s, 16)
+    else:
+        v = int(s, 0)
+    if v < 0x01 or v > 0x7F:
+        raise ValueError(f"address out of range: {hex(v)}")
     return v
 
 
@@ -417,6 +444,172 @@ def _save_labels(data: dict) -> None:
     tmp.replace(LABELS_FILE)
 
 
+# ------------------------------------------------------------
+# GenMon helpers
+# ------------------------------------------------------------
+def _get_genmon_client() -> GenMonClient:
+    return GenMonClient(host=GENMON_HOST, port=GENMON_PORT, timeout=GENMON_TIMEOUT)
+
+
+def _default_genmon_contacts() -> Dict[str, Any]:
+    return {
+        "contacts": [
+            {
+                "id": i,
+                "name": f"Dry Contact {i}",
+                "cmd_on": f"set_button_command=contact{i}:on",
+                "cmd_off": f"set_button_command=contact{i}:off",
+                "state": "unknown",
+            }
+            for i in range(1, GENMON_CONTACT_COUNT + 1)
+        ]
+    }
+
+
+def _load_genmon_contacts() -> Dict[str, Any]:
+    try:
+        if not GENMON_CONTACTS_FILE.exists():
+            return _default_genmon_contacts()
+        with open(GENMON_CONTACTS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return _default_genmon_contacts()
+        if "contacts" not in data or not isinstance(data["contacts"], list):
+            data["contacts"] = _default_genmon_contacts()["contacts"]
+        return data
+    except Exception:
+        return _default_genmon_contacts()
+
+
+def _save_genmon_contacts(data: Dict[str, Any]) -> None:
+    try:
+        GENMON_CONTACTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = GENMON_CONTACTS_FILE.with_suffix(".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, sort_keys=True)
+        tmp.replace(GENMON_CONTACTS_FILE)
+    except Exception:
+        pass
+
+
+def _build_contact_command(entry: Dict[str, Any], state: str) -> str:
+    template = ""
+    if "cmd_template" in entry and entry["cmd_template"]:
+        template = str(entry["cmd_template"])
+    elif state == "on" and entry.get("cmd_on"):
+        template = str(entry["cmd_on"])
+    elif state == "off" and entry.get("cmd_off"):
+        template = str(entry["cmd_off"])
+
+    if template:
+        try:
+            return template.format(contact=entry.get("id"), state=state)
+        except Exception:
+            return template
+
+    # Fallback to simple set_button_command pattern
+    return f"set_button_command=contact{entry.get('id', '')}:{state}"
+
+
+def _update_contact_state(contacts_cfg: Dict[str, Any], contact_id: int, state: str) -> None:
+    for c in contacts_cfg.get("contacts", []):
+        try:
+            if int(c.get("id", -1)) == int(contact_id):
+                c["state"] = state
+                c["updated"] = int(time.time())
+                break
+        except Exception:
+            continue
+
+
+def _walk_items(obj):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            yield k, v
+            for nested in _walk_items(v):
+                yield nested
+    elif isinstance(obj, list):
+        for item in obj:
+            for nested in _walk_items(item):
+                yield nested
+
+
+def _extract_number(val):
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
+        m = re.search(r"-?\d+(?:\.\d+)?", val)
+        if m:
+            try:
+                return float(m.group())
+            except Exception:
+                return None
+    return None
+
+
+def _find_first(obj, key_predicate):
+    for k, v in _walk_items(obj):
+        try:
+            if key_predicate(k, v):
+                return v
+        except Exception:
+            continue
+    return None
+
+
+def _find_numeric(obj, key_predicate):
+    for k, v in _walk_items(obj):
+        try:
+            if key_predicate(k, v):
+                num = _extract_number(v)
+                if num is not None:
+                    return num
+        except Exception:
+            continue
+    return None
+
+
+def _parse_genmon_status(raw: Dict[str, Any]) -> Dict[str, Any]:
+    out: Dict[str, Any] = {}
+
+    rpm = _find_numeric(raw, lambda k, _v: isinstance(k, str) and "rpm" in k.lower())
+    if rpm is not None:
+        out["rpm"] = int(rpm) if rpm.is_integer() else rpm
+
+    hz = _find_numeric(raw, lambda k, _v: isinstance(k, str) and ("hz" in k.lower() or "freq" in k.lower()))
+    if hz is not None:
+        out["hz"] = hz
+
+    temp = _find_numeric(raw, lambda k, _v: isinstance(k, str) and "temp" in k.lower())
+    if temp is not None:
+        out["temp_c"] = temp
+
+    batt_v = _find_numeric(raw, lambda k, _v: isinstance(k, str) and "battery" in k.lower() and "volt" in k.lower())
+    if batt_v is not None:
+        out["battery_v"] = batt_v
+
+    batt_pct = _find_numeric(raw, lambda k, _v: isinstance(k, str) and "battery" in k.lower() and "%" in k.lower())
+    if batt_pct is not None:
+        out["battery_pct"] = batt_pct
+
+    health = _find_first(raw, lambda k, v: isinstance(k, str) and "health" in k.lower() and isinstance(v, (str, int, float)))
+    if health is not None:
+        out["system_health"] = str(health)
+
+    run_state = _find_first(raw, lambda k, v: isinstance(k, str) and "engine" in k.lower() and "state" in k.lower())
+    if run_state is None:
+        run_state = _find_first(raw, lambda k, v: isinstance(k, str) and k.lower() in ("state", "status") and isinstance(v, str))
+    if run_state is not None:
+        out["run_state"] = str(run_state)
+        out["running"] = str(run_state).lower() in ("run", "running", "on", "active")
+    elif rpm is not None:
+        out["running"] = rpm > 0
+
+    out["ts"] = int(time.time())
+    out["raw"] = raw
+    return out
+
+
 
 
 # Backend instance. Support developer simulation mode via `-dev` flag or env var.
@@ -434,6 +627,9 @@ def _startup_module_check():
     present_hex = {f"0x{a:02x}" for a in addrs}
     missing = []
     for m in backend.list_modules():
+        # GenMon is not on the I2C bus; skip presence check
+        if m.type == "genmon":
+            continue
         if m.address_hex.lower() not in present_hex:
             missing.append(m)
     if missing:
@@ -534,14 +730,114 @@ def genmon_detail(module_id: str):
     return render_template("genmon_detail.html", module=mod)
 
 
+# ------------------------------------------------------------
+# GenMon API
+# ------------------------------------------------------------
+@app.get("/api/genmon/<module_id>/status")
+def api_genmon_status(module_id: str):
+    mod = next((m for m in backend.list_modules() if m.id == module_id), None)
+    if not mod or mod.type != "genmon":
+        return jsonify({"ok": False, "error": "module not found"}), 404
+
+    try:
+        raw = _get_genmon_client().status()
+        if not isinstance(raw, dict):
+            raw = {}
+        parsed = _parse_genmon_status(raw)
+        return jsonify(
+            {
+                "ok": True,
+                "module_id": module_id,
+                "host": GENMON_HOST,
+                "port": GENMON_PORT,
+                **parsed,
+            }
+        )
+    except Exception as e:
+        tb = traceback.format_exc()
+        return jsonify({"ok": False, "error": str(e), "trace": tb}), 502
+
+
+@app.get("/api/genmon/<module_id>/contacts")
+def api_genmon_contacts(module_id: str):
+    mod = next((m for m in backend.list_modules() if m.id == module_id), None)
+    if not mod or mod.type != "genmon":
+        return jsonify({"ok": False, "error": "module not found"}), 404
+    cfg = _load_genmon_contacts()
+    return jsonify({"ok": True, "module_id": module_id, "contacts": cfg.get("contacts", [])})
+
+
+@app.post("/api/genmon/<module_id>/contacts/<int:contact_id>")
+def api_genmon_set_contact(module_id: str, contact_id: int):
+    mod = next((m for m in backend.list_modules() if m.id == module_id), None)
+    if not mod or mod.type != "genmon":
+        return jsonify({"ok": False, "error": "module not found"}), 404
+
+    if contact_id < 1 or contact_id > GENMON_CONTACT_COUNT:
+        return jsonify({"ok": False, "error": f"contact must be 1-{GENMON_CONTACT_COUNT}"}), 400
+
+    data = request.get_json(force=True, silent=True) or {}
+    raw_state = data.get("state")
+    state = ""
+    if isinstance(raw_state, bool):
+        state = "on" if raw_state else "off"
+    elif isinstance(raw_state, (int, float)):
+        state = "on" if raw_state else "off"
+    elif isinstance(raw_state, str):
+        rs = raw_state.strip().lower()
+        if rs in ("on", "1", "true", "yes"):
+            state = "on"
+        elif rs in ("off", "0", "false", "no"):
+            state = "off"
+    if state not in ("on", "off"):
+        return jsonify({"ok": False, "error": "state must be on/off"}), 400
+
+    cfg = _load_genmon_contacts()
+    entry = None
+    for c in cfg.get("contacts", []):
+        try:
+            if int(c.get("id", -1)) == int(contact_id):
+                entry = c
+                break
+        except Exception:
+            continue
+    if entry is None:
+        return jsonify({"ok": False, "error": "contact not defined"}), 404
+
+    cmd = _build_contact_command(entry, state)
+
+    try:
+        resp = _get_genmon_client().command(cmd, expect_json=False)
+    except Exception as e:
+        tb = traceback.format_exc()
+        return jsonify({"ok": False, "error": str(e), "trace": tb}), 502
+
+    _update_contact_state(cfg, contact_id, state)
+    _save_genmon_contacts(cfg)
+
+    return jsonify(
+        {
+            "ok": True,
+            "module_id": module_id,
+            "contact": contact_id,
+            "state": state,
+            "command": cmd,
+            "resp": str(resp),
+        }
+    )
+
+
 @app.post("/modules/add")
 def modules_add():
     data = request.get_json(force=True, silent=True) or {}
     try:
-        addr_str = str(data.get("address", "")).strip()
-        addr_val = _parse_i2c_address(addr_str)
-        addr_hex = f"0x{addr_val:02x}"
         mtype = str(data.get("type", "")).strip().lower()
+        addr_str = str(data.get("address", "")).strip()
+        if mtype == "genmon":
+            addr_val = _parse_genmon_address(addr_str)
+        else:
+            addr_val = _parse_i2c_address(addr_str)
+        addr_hex = f"0x{addr_val:02x}"
         # Disable I2C address validation for all modules
         m = backend.add_module(
             mtype=mtype,
