@@ -1075,37 +1075,57 @@ async function _refreshHeadStatusOnce() {
 
     // Hat indicators
     try {
-      const hr = await fetch("/api/hat_status", { cache: "no-store" });
-      if (hr.ok) {
-        const hs = await hr.json();
-        if (hs && hs.ok) {
-          for (let i = 1; i <= 8; i++) {
-            const el = svg.querySelector(`#hat_mod_${i}`);
-            if (!el) continue;
+      const [hr, er] = await Promise.all([
+        fetch("/api/hat_status", { cache: "no-store" }),
+        fetch("/api/module_errors", { cache: "no-store" }),
+      ]);
+      const hs = hr.ok ? await hr.json() : null;
+      const errs = er.ok ? await er.json() : null;
+      const errMap = (errs && errs.errors) || {};
 
-            let a = false, b = false;
-            if (hs.modules && hs.modules[String(i)]) {
-              a = !!hs.modules[String(i)]["24v_a"];
-              b = !!hs.modules[String(i)]["24v_b"];
-            } else if (hs.ports) {
-              const ga = Number(hs.ports.gpio_a || 0);
-              const gb = Number(hs.ports.gpio_b || 0);
-              a = !!((ga >> (i - 1)) & 1);
-              b = !!((gb >> (i - 1)) & 1);
-            }
+      if (hs && hs.ok) {
+        for (let i = 1; i <= 10; i++) {
+          const el = svg.querySelector(`#hat_mod_${i}`);
+          if (!el) continue;
 
+          let a = false, b = false;
+          if (hs.modules && hs.modules[String(i)]) {
+            a = !!hs.modules[String(i)]["24v_a"];
+            b = !!hs.modules[String(i)]["24v_b"];
+          } else if (hs.ports) {
+            const ga = Number(hs.ports.gpio_a || 0);
+            const gb = Number(hs.ports.gpio_b || 0);
+            a = !!((ga >> (i - 1)) & 1);
+            b = !!((gb >> (i - 1)) & 1);
+          }
+
+          // default power fill
           if (a && b) el.style.fill = "#39d353";
           else if (a && !b) el.style.fill = "#ffd43b";
           else if (!a && b) el.style.fill = "#ff4d4f";
           else el.style.fill = "#cfcfcf";
+
+          // error overlay
+          const errEntry = errMap[String(i)];
+          if (errEntry && errEntry.error) {
+            el.style.fill = "#ff4a4a";
+            el.dataset.error = errEntry.error;
+          } else {
+            delete el.dataset.error;
+          }
+
+          // click to show error
+          el.style.cursor = "pointer";
+          el.onclick = () => {
+            if (el.dataset.error) alert(`Module ${i} error: ${el.dataset.error}`);
+          };
         }
 
-          const extEl = svg.querySelector("#hat_ext");
-          const extEl2 = svg.querySelector("#hat_ext_2");
-          const extFill = hs.ext_present ? "#39d353" : "#cfcfcf";
-          if (extEl) extEl.style.fill = extFill;
-          if (extEl2) extEl2.style.fill = extFill;
-        }
+        const extEl = svg.querySelector("#hat_ext");
+        const extEl2 = svg.querySelector("#hat_ext_2");
+        const extFill = hs.ext_present ? "#39d353" : "#cfcfcf";
+        if (extEl) extEl.style.fill = extFill;
+        if (extEl2) extEl2.style.fill = extFill;
       }
     } catch (e) {
       // ignore hat indicator errors
@@ -1764,7 +1784,8 @@ async function openModal(module) {
     id: module.id,
     type: module.type,
     address: module.address,
-    name: module.name || ""
+    name: module.name || "",
+    module_num: module.module_num || "",
   };
 
   $("modal_title").textContent = `Settings • ${String(module.type || "").toUpperCase()}`;
@@ -1772,6 +1793,8 @@ async function openModal(module) {
 
   $("modal_module_name").value = module.name || "";
   $("modal_address_display").textContent = module.address || "0x00";
+  const moduleNumSel = $("modal_module_num");
+  if (moduleNumSel) moduleNumSel.value = module.module_num ? String(module.module_num) : "";
 
   const changeBtn = $("change_addr_btn");
   const addrPrompt = $("addr_prompt");
@@ -1878,6 +1901,8 @@ async function saveModal() {
   if (!MODAL_CTX.id) return;
 
   const moduleName = $("modal_module_name").value || "";
+  const moduleNumSel = $("modal_module_num");
+  const moduleNumVal = moduleNumSel ? moduleNumSel.value : "";
 
   const r1 = await fetch("/modules/rename", {
     method: "POST",
@@ -1891,6 +1916,23 @@ async function saveModal() {
       err.style.display = "block";
     }
     return;
+  }
+
+  // Save module number (unique 1-10 or cleared)
+  if (MODAL_CTX.id) {
+    const rnum = await fetch("/modules/set_number", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: MODAL_CTX.id, module_num: moduleNumVal }),
+    });
+    const dnum = await rnum.json();
+    if (!dnum.ok) {
+      if (err) {
+        err.textContent = "Error saving module ID: " + dnum.error;
+        err.style.display = "block";
+      }
+      return;
+    }
   }
 
   const channels = {};

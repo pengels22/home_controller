@@ -46,6 +46,15 @@
           <label for="modal_module_name">Module Name</label>
           <input id="modal_module_name" placeholder="e.g., Doors, Lights, Inputs…" />
         </div>
+        <div class="form-row">
+          <label for="modal_module_num">Module ID (1-10)</label>
+          <select id="modal_module_num">
+            <option value="">(none)</option>
+            {% for i in range(1,11) %}
+            <option value="{{ i }}">{{ i }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
         <div class="form-row">
           <label>I2C Address</label>

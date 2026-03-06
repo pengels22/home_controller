@@ -349,6 +349,10 @@ class HomeControllerBackend:
     def get_last_error(self, module_id: str) -> Optional[str]:
         return self._last_errors.get(module_id)
 
+    def module_errors_map(self) -> Dict[str, str]:
+        """Return map of module_id -> last_error (only those with errors)."""
+        return dict(self._last_errors)
+
     # --------
     # Public API
     # --------
@@ -461,6 +465,7 @@ class HomeControllerBackend:
             raise ValueError(f"Module not found: {module_id}")
 
         m = self.cfg.modules[idx]
+        self._set_last_error(module_id, None)
 
         addr_key = m.address_hex.lower()
 
@@ -900,7 +905,9 @@ class HomeControllerBackend:
                         fw_channel = channel - 1  # firmware uses 0-15
                         res = self.rs485.write_do(m.address_int(), fw_channel, bool(int(value)))
                         if not res.get("ok"):
+                            self._set_last_error(module_id, res.get("error", "RS485 write failed"))
                             return {"ok": False, "error": res.get("error", "RS485 write failed")}
+                        self._set_last_error(module_id, None)
                         return {
                             "ok": True,
                             "comms_ok": True,
@@ -915,6 +922,7 @@ class HomeControllerBackend:
                             "raw": res.get("raw"),
                         }
                     except Exception as e:
+                        self._set_last_error(module_id, f"RS485 DO write error: {e}")
                         return {"ok": False, "error": f"RS485 DO write error: {e}"}
 
             if not _HAS_SMBUS:
@@ -994,6 +1002,7 @@ class HomeControllerBackend:
                 }
 
             except Exception as e:
+                self._set_last_error(module_id, f"I2C write error: {e}")
                 return {"ok": False, "error": f"I2C write error: {e}"}
 
         elif m.type == "aio":
@@ -1039,6 +1048,7 @@ class HomeControllerBackend:
                 for i in range(8):
                     channels[str(i + 1)] = chans[i]
 
+                self._set_last_error(module_id, None)
                 return {
                     "ok": True,
                     "comms_ok": True,
@@ -1058,8 +1068,10 @@ class HomeControllerBackend:
                     fw_ch = 7 + ch
                     res = self.rs485.write_aio_channel(m.address_int(), fw_ch, counts)
                     if not res.get("ok"):
+                        self._set_last_error(module_id, res.get("error", "RS485 write failed"))
                         return {"ok": False, "error": res.get("error", "RS485 write failed")}
                     returned_counts = int(res.get("value12", counts))
+                    self._set_last_error(module_id, None)
                     return {
                         "ok": True,
                         "comms_ok": True,
@@ -1075,6 +1087,7 @@ class HomeControllerBackend:
                         "raw": res.get("raw"),
                     }
                 except Exception as e:
+                    self._set_last_error(module_id, f"RS485 AIO write error: {e}")
                     return {"ok": False, "error": f"RS485 AIO write error: {e}"}
 
             # Fall back to legacy placeholder if RS485 unavailable

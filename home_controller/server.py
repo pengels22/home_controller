@@ -852,6 +852,7 @@ def modules_add():
                     "type": m.type,
                     "address": m.address_hex,
                     "name": m.name,
+                    "module_num": m.module_num,
                 },
             }
         )
@@ -916,6 +917,21 @@ def modules_rename():
             new_name=str(data.get("name", "")),
         )
         return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+
+@app.post("/modules/set_number")
+def modules_set_number():
+    data = request.get_json(force=True, silent=True) or {}
+    try:
+        mid = str(data.get("id", "")).strip()
+        num_val = data.get("module_num", None)
+        module_num = None
+        if num_val is not None and num_val != "":
+            module_num = int(num_val)
+        updated = backend.set_module_number(mid, module_num)
+        return jsonify({"ok": True, "module": {"id": updated.id, "module_num": updated.module_num}})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 400
 
@@ -1007,6 +1023,19 @@ def head_status():
     )
 
 
+@app.get("/api/module_errors")
+def api_module_errors():
+    errs = backend.module_errors_map()
+    # include module_num for convenience
+    by_num = {}
+    for m in backend.list_modules():
+        if m.module_num is None:
+            continue
+        if m.id in errs:
+            by_num[str(m.module_num)] = {"module_id": m.id, "error": errs[m.id]}
+    return jsonify({"ok": True, "errors": by_num})
+
+
 # ------------------------------------------------------------
 # GUI helpers API
 # ------------------------------------------------------------
@@ -1059,6 +1088,8 @@ def api_gui_modules():
                 "present": m.address_hex.lower() in present,
                 "channels_in": ch_in,
                 "channels_out": ch_out,
+                "module_num": m.module_num,
+                "last_error": backend.get_last_error(m.id),
             }
         )
 
