@@ -14,7 +14,7 @@
       .small { font: 600 7px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #555; }
       .lednum { font: 700 6px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #222; text-anchor: middle; dominant-baseline: middle;}
       .led { fill: #d8d8d8; stroke: #7a7a7a; stroke-width: 1; }
-      .led-on { fill: #4aa3ff; stroke: #1c66b5; }
+      .led-on { fill: #38d26a; stroke: #1d8f43; }
       .led-warn { fill: #ffd24a; stroke: #c49a13; }
       .type { font: 700 7px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #555; text-anchor: start; }
       .addr { font: 600 7px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #777; text-anchor: start; }

@@ -1238,16 +1238,22 @@ function _flashLed(el, on) {
 }
 
 function _setStatusLed(root, ids, state) {
+  const colors = {
+    green: { fill: "#38d26a", stroke: "#1d8f43" },
+    yellow: { fill: "#ffd24a", stroke: "#c49a13" },
+    red: { fill: "#ff4a4a", stroke: "#b51f1f" },
+    off: { fill: "#d8d8d8", stroke: "#7a7a7a" },
+  };
+  const col = colors[state] || colors.off;
   const targets = Array.isArray(ids) ? ids : [ids];
   targets.forEach((id) => {
     const g = root.querySelector(`#${id}`);
     if (!g) return;
     const c = g.querySelector("circle");
     if (!c) return;
-    c.classList.remove("led-on", "led-warn", "led-err", "led-off");
-    if (state === "green") c.classList.add("led-on");
-    else if (state === "yellow") c.classList.add("led-warn");
-    else if (state === "red") c.classList.add("led-err");
+    c.classList.remove("led-on", "led-warn", "led-err", "led-off", "led-ok", "led-run");
+    c.style.fill = col.fill;
+    c.style.stroke = col.stroke;
   });
 }
 

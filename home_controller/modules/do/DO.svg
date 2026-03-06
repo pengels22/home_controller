@@ -16,7 +16,7 @@
 
       /* Output LEDs slightly darker base */
       .led { fill: #d8d8d8; stroke: #7a7a7a; stroke-width: 1; }
-      .led-on { fill: #4aa3ff; stroke: #1c66b5; }
+      .led-on { fill: #38d26a; stroke: #1d8f43; }
       .led-warn { fill: #ffd24a; stroke: #c49a13; }
       .led-err { fill: #ff4a4a; stroke: #b51f1f; }
 
