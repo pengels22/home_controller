@@ -73,6 +73,7 @@ class ModuleEntry:
     type: str          # "di" | "do" | "aio" | "i2c" (I2C Module)
     address_hex: str   # "0x21"
     name: str = ""     # optional friendly label
+    module_num: Optional[int] = None  # optional UI slot 1-10
 
     def address_int(self) -> int:
         return int(self.address_hex, 16)
@@ -126,6 +127,7 @@ class HomeControllerBackend:
         self._dev_mode = False
         self._dev_file: Optional[str] = None
         self._dev_data: Dict[str, Any] = {}
+        self._last_errors: Dict[str, str] = {}
 
         self.cfg = self.load_config()
         # Force modules to use the fixed modules I2C bus (ensure modules are always on i2c1)
@@ -225,6 +227,7 @@ class HomeControllerBackend:
                     type=str(m["type"]).lower(),
                     address_hex=str(m["address_hex"]).lower(),
                     name=str(m.get("name", "")),
+                    module_num=int(m["module_num"]) if "module_num" in m and m["module_num"] is not None else None,
                 ))
             except Exception:
                 # skip malformed entries
@@ -337,6 +340,15 @@ class HomeControllerBackend:
                 return i
         return -1
 
+    def _set_last_error(self, module_id: str, err: Optional[str]) -> None:
+        if err:
+            self._last_errors[module_id] = err
+        else:
+            self._last_errors.pop(module_id, None)
+
+    def get_last_error(self, module_id: str) -> Optional[str]:
+        return self._last_errors.get(module_id)
+
     # --------
     # Public API
     # --------
@@ -416,6 +428,24 @@ class HomeControllerBackend:
         self.save_config()
         return m
 
+    def set_module_number(self, module_id: str, module_num: Optional[int]) -> ModuleEntry:
+        """
+        Assign a UI module number (1-10) with uniqueness enforced.
+        """
+        mid = module_id.strip()
+        idx = self._find_module_index(mid)
+        if idx < 0:
+            raise ValueError(f"Module not found: {mid}")
+        if module_num is not None:
+            if not (1 <= module_num <= 10):
+                raise ValueError("module_num must be 1..10")
+            for i, m in enumerate(self.cfg.modules):
+                if i != idx and m.module_num == module_num:
+                    raise ValueError(f"module_num {module_num} already used by {m.id}")
+        self.cfg.modules[idx].module_num = module_num
+        self.save_config()
+        return self.cfg.modules[idx]
+
     # -----------------------------
     # Module-specific I2C reads
     # -----------------------------
@@ -455,6 +485,7 @@ class HomeControllerBackend:
                         break
 
             if dev is not None:
+                self._set_last_error(module_id, None)
                 # DI/DO simulated via gpio_a/gpio_b or explicit channels
                 if m.type in ("di", "do"):
                     a = int(dev.get("gpio_a", 0))
@@ -513,6 +544,7 @@ class HomeControllerBackend:
                 if m.type == "di":
                     res = self.rs485.read_di_bitmap(addr_int)
                     if res.get("ok"):
+                        self._set_last_error(module_id, None)
                         bm = int(res.get("bitmap", 0))
                         channels: Dict[str, int] = {}
                         for i in range(16):
@@ -541,6 +573,7 @@ class HomeControllerBackend:
                     for ch in range(8):
                         r = self.rs485.read_aio_channel(addr_int, ch)
                         if not r.get("ok"):
+                            self._set_last_error(module_id, r.get("error") or "AIO RS485 read failed")
                             return r
                         v12 = int(r.get("value12", 0))
                         if sense_mask is None:
@@ -561,9 +594,11 @@ class HomeControllerBackend:
                     }
                 elif m.type == "do":
                     # DO firmware lacks a read-only command; avoid changing outputs implicitly.
+                    self._set_last_error(module_id, "DO read over RS485 not supported (would change state)")
                     return {"ok": False, "error": "DO read over RS485 not supported (would change state)"}
             except Exception as e:
                 # fall through to legacy I2C path on any RS485 issue
+                self._set_last_error(module_id, str(e))
                 pass
 
         if not _HAS_SMBUS:
@@ -578,6 +613,7 @@ class HomeControllerBackend:
                 with smbus2.SMBus(self.cfg.i2c_bus_num) as bus:
                     a = bus.read_byte_data(m.address_int(), MCP_GPIOA)
                     b = bus.read_byte_data(m.address_int(), MCP_GPIOB)
+                self._set_last_error(module_id, None)
 
                 # Map bits to channel numbers: 1-8 -> GPIOA bit0..7, 9-16 -> GPIOB bit0..7
                 channels: Dict[str, int] = {}
@@ -598,6 +634,7 @@ class HomeControllerBackend:
                     "comms_led": "green",
                 }
             except Exception as e:
+                self._set_last_error(module_id, f"I2C read error: {e}")
                 return {"ok": False, "error": f"I2C read error: {e}"}
 
 
@@ -684,6 +721,7 @@ class HomeControllerBackend:
                     "alerts": alerts,
                 }
             except Exception as e:
+                self._set_last_error(module_id, f"AIO I2C read error: {e}")
                 return {"ok": False, "error": f"AIO I2C read error: {e}"}
 
         else:
