@@ -320,10 +320,15 @@ async function showIoChannelPopup(name, status) {
     const nameInput = form.querySelector('input[name="module_name"]');
     const addressSpan = form.querySelector('#address_value');
     const modNumSel = form.querySelector('select[name="module_num"]');
+    const baseAddr = type === 'di' ? 0x20 : 0x30;
+    let targetAddr = ctx.address;
     if (nameInput && ctx.name) nameInput.value = ctx.name;
     if (addressSpan && ctx.address) addressSpan.textContent = ctx.address;
     if (modNumSel && ctx.module_num) modNumSel.value = String(ctx.module_num);
-    _applyDipsFromAddress(form, type === 'di' ? 0x20 : 0x30, ctx.address);
+    _applyDipsFromAddress(form, baseAddr, ctx.address);
+    _wireDipSwitches(form, baseAddr, {
+      onChange: (addr) => { targetAddr = addr; },
+    });
 
     // Pre-fill invert/override + names
     async function loadConfig() {
@@ -378,6 +383,24 @@ async function showIoChannelPopup(name, status) {
             });
             ctx.name = newName;
           } catch (e) { /* ignore rename errors */ }
+        }
+
+        // Change address if DIP changed
+        if (targetAddr && targetAddr !== ctx.address) {
+          try {
+            const resp = await fetch('/modules/change_address', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: ctx.module_id, address: targetAddr }),
+            });
+            const dj = await resp.json();
+            if (resp.ok && dj && dj.ok && dj.module) {
+              ctx.address = dj.module.address;
+              ctx.module_id = dj.module.id || ctx.module_id;
+            } else {
+              ctx.address = targetAddr;
+            }
+          } catch (e) { /* ignore */ }
         }
 
         // Collect invert/override
@@ -439,11 +462,16 @@ async function showIoChannelPopup(name, status) {
     const addrInput = form.querySelector('input[name="i2c_address"]');
     const modNumSel = form.querySelector('select[name="module_num"]');
     const addrSpan = form.querySelector('#address_value');
+    const baseAddr = 0x40;
+    let targetAddr = ctx.address;
     if (nameInput && ctx.name) nameInput.value = ctx.name;
     if (addrInput && ctx.address) addrInput.value = ctx.address;
     if (addrSpan && ctx.address) addrSpan.textContent = ctx.address;
     if (modNumSel && ctx.module_num) modNumSel.value = String(ctx.module_num);
-    _applyDipsFromAddress(form, 0x40, ctx.address);
+    _applyDipsFromAddress(form, baseAddr, ctx.address);
+    _wireDipSwitches(form, baseAddr, {
+      onChange: (addr) => { targetAddr = addr; if (addrSpan) addrSpan.textContent = addr; if (addrInput) addrInput.value = addr; },
+    });
 
     let saveBtn = controls.querySelector('.aio-global-save');
     if (!saveBtn) {
@@ -498,7 +526,23 @@ async function showIoChannelPopup(name, status) {
     }
 
     async function loadAioMaxConfig() {
-      if (!ctx.module_id) return;
+        if (!ctx.module_id) return;
+        if (targetAddr && targetAddr !== ctx.address) {
+          try {
+            const resp = await fetch('/modules/change_address', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: ctx.module_id, address: targetAddr }),
+            });
+            const dj = await resp.json();
+            if (resp.ok && dj && dj.ok && dj.module) {
+              ctx.address = dj.module.address;
+              ctx.module_id = dj.module.id || ctx.module_id;
+            } else {
+              ctx.address = targetAddr;
+            }
+          } catch (e) { /* ignore */ }
+        }
       try {
         const res = await fetch(`/api/aio_max_voltage/${encodeURIComponent(ctx.module_id)}`);
         const data = await res.json();
@@ -633,8 +677,12 @@ async function showIoChannelPopup(name, status) {
     const nameInput = form.querySelector('input[name="module_name"]');
     const addrInput = form.querySelector('input[name="i2c_address"]');
     const modNumSel = form.querySelector('select[name="module_num"]');
+    const baseAddr = 0x60;
     if (modNumSel && ctx.module_num) modNumSel.value = String(ctx.module_num);
-    _applyDipsFromAddress(form, 0x60, ctx.address);
+    _applyDipsFromAddress(form, baseAddr, ctx.address);
+    _wireDipSwitches(form, baseAddr, {
+      onChange: (addr) => { if (addrInput) addrInput.value = addr; },
+    });
 
     let saveBtn = controls.querySelector('.ext-global-save');
     if (!saveBtn) {
@@ -765,10 +813,15 @@ async function showIoChannelPopup(name, status) {
     const nameInput = form.querySelector('input[name="module_name"]');
     const addrSpan = form.querySelector('#address_value');
     const modNumSel = form.querySelector('select[name="module_num"]');
+    const baseAddr = 0x50;
+    let targetAddr = ctx.address;
     if (nameInput && ctx.name) nameInput.value = ctx.name;
     if (addrSpan && ctx.address) addrSpan.textContent = ctx.address;
     if (modNumSel && ctx.module_num) modNumSel.value = String(ctx.module_num);
-    _applyDipsFromAddress(form, 0x50, ctx.address);
+    _applyDipsFromAddress(form, baseAddr, ctx.address);
+    _wireDipSwitches(form, baseAddr, {
+      onChange: (addr) => { targetAddr = addr; if (addrSpan) addrSpan.textContent = addr; },
+    });
 
     let saveBtn = controls.querySelector('.rs485-global-save');
     if (!saveBtn) {
@@ -817,6 +870,23 @@ async function showIoChannelPopup(name, status) {
       for (let i = 1; i <= 4; i++) {
         const nEl = form.querySelector(`[name='ch${i}']`);
         channels[i] = nEl ? nEl.value || `CH${i}` : `CH${i}`;
+      }
+
+      if (targetAddr && targetAddr !== ctx.address) {
+        try {
+          const resp = await fetch('/modules/change_address', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: ctx.module_id, address: targetAddr }),
+          });
+          const dj = await resp.json();
+          if (resp.ok && dj && dj.ok && dj.module) {
+            ctx.address = dj.module.address;
+            ctx.module_id = dj.module.id || ctx.module_id;
+          } else {
+            ctx.address = targetAddr;
+          }
+        } catch (e) { /* ignore */ }
       }
 
       await fetch('/labels/set', {
@@ -877,11 +947,17 @@ async function showIoChannelPopup(name, status) {
     const addrInput = form.querySelector('input[name="i2c_address"]');
     const addrSpan = form.querySelector('#address_value');
     const modNumSel = form.querySelector('select[name="module_num"]');
+    const baseAddr = 0x01;
+    let targetAddr = ctx.address;
     if (nameInput && ctx.name) nameInput.value = ctx.name;
     if (addrInput && ctx.address) addrInput.value = ctx.address;
     if (addrSpan && ctx.address) addrSpan.textContent = ctx.address;
     if (modNumSel && ctx.module_num) modNumSel.value = String(ctx.module_num);
-    _applyDipsFromAddress(form, 0x01, ctx.address);
+    _applyDipsFromAddress(form, baseAddr, ctx.address);
+    _wireDipSwitches(form, baseAddr, {
+      format: 'dec',
+      onChange: (addr) => { targetAddr = addr; if (addrInput) addrInput.value = addr; if (addrSpan) addrSpan.textContent = addr; },
+    });
 
     let saveBtn = controls.querySelector('.genmon-global-save');
     if (!saveBtn) {
@@ -894,7 +970,7 @@ async function showIoChannelPopup(name, status) {
     saveBtn.onclick = async () => {
       if (!ctx.module_id) return;
       const newName = nameInput ? (nameInput.value || '').trim() : '';
-      const newAddr = addrInput ? (addrInput.value || '').trim() : '';
+      const newAddr = (addrInput ? (addrInput.value || '').trim() : '') || targetAddr;
 
       if (newName && newName !== (ctx.name || '')) {
         try {
@@ -909,12 +985,18 @@ async function showIoChannelPopup(name, status) {
 
       if (newAddr && newAddr !== (ctx.address || '')) {
         try {
-          await fetch('/modules/change_address', {
+          const resp = await fetch('/modules/change_address', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: ctx.module_id, address: newAddr }),
           });
-          ctx.address = newAddr;
+          const dj = await resp.json();
+          if (resp.ok && dj && dj.ok && dj.module) {
+            ctx.address = dj.module.address;
+            ctx.module_id = dj.module.id || ctx.module_id;
+          } else {
+            ctx.address = newAddr;
+          }
         } catch (e) { /* ignore address errors */ }
       }
 
@@ -1510,6 +1592,39 @@ function _applyDipsFromAddress(form, baseAddr, addrHex) {
     }
     if (state) state.textContent = bit ? "ON" : "OFF";
   }
+}
+
+function _addressFromDips(form, baseAddr, format = "hex") {
+  const d1 = Number(form.querySelector("#dip1")?.value || 0);
+  const d2 = Number(form.querySelector("#dip2")?.value || 0);
+  const d3 = Number(form.querySelector("#dip3")?.value || 0);
+  const addrInt = baseAddr + d1 + d2 * 2 + d3 * 4;
+  if (format === "dec") return String(addrInt);
+  return "0x" + addrInt.toString(16).toUpperCase().padStart(2, "0");
+}
+
+function _wireDipSwitches(form, baseAddr, opts = {}) {
+  if (!form) return { getAddr: () => null };
+  const addrSpan = opts.addrSpan || form.querySelector("#address_value");
+  const format = opts.format || "hex";
+  let current = addrSpan ? addrSpan.textContent : null;
+  const refresh = () => {
+    const addrStr = _addressFromDips(form, baseAddr, format);
+    current = addrStr;
+    if (addrSpan) addrSpan.textContent = addrStr;
+    if (typeof opts.onChange === "function") opts.onChange(addrStr);
+  };
+  for (let i = 1; i <= 3; i++) {
+    const slider = form.querySelector(`#dip${i}_slider`);
+    if (slider) {
+      slider.onclick = () => {
+        toggleDip(i);
+        refresh();
+      };
+    }
+  }
+  refresh();
+  return { getAddr: () => current };
 }
 
 // ============================================================
