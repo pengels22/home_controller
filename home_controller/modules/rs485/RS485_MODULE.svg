@@ -15,6 +15,7 @@
       .lednum { font: 700 6px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #222; text-anchor: middle; dominant-baseline: middle;}
       .led { fill: #d8d8d8; stroke: #7a7a7a; stroke-width: 1; }
       .led-on { fill: #4aa3ff; stroke: #1c66b5; }
+      .led-warn { fill: #ffd24a; stroke: #c49a13; }
       .type { font: 700 7px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #555; text-anchor: start; }
       .addr { font: 600 7px system-ui, -apple-system, Segoe UI, Arial, sans-serif; fill: #777; text-anchor: start; }
     </style>
@@ -28,6 +29,19 @@
 
   <!-- Name field -->
   <text class="small" x="50" y="38" text-anchor="middle" id="rs485_name">Branch Name</text>
+
+  <!-- Status LEDs -->
+  <text class="small" x="25" y="52" text-anchor="middle">PWR</text>
+  <g id="status_pwrA">
+    <circle class="led" cx="25" cy="65" r="7"/>
+    <circle class="led-warn" cx="-999" cy="-999" r="0" style="display:none;"/>
+  </g>
+
+  <text class="small" x="75" y="52" text-anchor="middle">LINK</text>
+  <g id="status_pwrB">
+    <circle class="led" cx="75" cy="65" r="7"/>
+    <circle class="led-warn" cx="-999" cy="-999" r="0" style="display:none;"/>
+  </g>
 
   <!-- Single column: channels 1–4; spacing and positions mirror DO card left column -->
   <!-- x positions: number 23, dot 35, type 50, addr 72; y start 85, step 16 -->

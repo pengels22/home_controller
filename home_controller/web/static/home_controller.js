@@ -1195,6 +1195,75 @@ function _flashLed(el, on) {
   }
 }
 
+function _setStatusLed(root, ids, state) {
+  const targets = Array.isArray(ids) ? ids : [ids];
+  targets.forEach((id) => {
+    const g = root.querySelector(`#${id}`);
+    if (!g) return;
+    const c = g.querySelector("circle");
+    if (!c) return;
+    c.classList.remove("led-on", "led-warn", "led-err", "led-off");
+    if (state === "green") c.classList.add("led-on");
+    else if (state === "yellow") c.classList.add("led-warn");
+    else if (state === "red") c.classList.add("led-err");
+  });
+}
+
+function _applyStatusIndicators(moduleId, powerState, linkState) {
+  const info = MODULE_SVGS.get(moduleId);
+  if (!info || !info.svgRoot) return;
+  _setStatusLed(info.svgRoot, ["status_pwr", "status_pwrA"], powerState || "off");
+  _setStatusLed(info.svgRoot, ["status_link", "status_pwrB"], linkState || "off");
+}
+
+function _powerFromSense(mask) {
+  const s1 = (mask & 0x01) !== 0;
+  const s2 = (mask & 0x02) !== 0;
+  if (s1 && s2) return "green";
+  if (s1 || s2) return "yellow";
+  return "off";
+}
+
+async function _refreshModuleStatus(m) {
+  const mt = String(m.type || "").toLowerCase();
+  let power = m.present ? "green" : "off";
+  let link = m.present ? "green" : "off";
+
+  if (["di", "do", "aio"].includes(mt)) {
+    power = "off";
+    link = "off";
+    try {
+      const res = await fetch("/api/gui/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ module_id: m.id, action: "read" }),
+      });
+      const data = await res.json();
+      if (res.ok && data && data.ok) {
+        link = data.comms_led || (data.comms_ok ? "green" : "off");
+        const sm =
+          typeof data.sense_mask === "number"
+            ? data.sense_mask
+            : typeof data.power?.sense_mask === "number"
+            ? data.power.sense_mask
+            : null;
+        if (sm !== null) power = _powerFromSense(sm);
+        else if (data.power && data.power.power_led) power = data.power.power_led;
+        else power = "green";
+      }
+    } catch (e) {
+      // leave as off
+    }
+    if (power === "off" && m.present) power = "green";
+    if (link === "off" && m.present) link = "green";
+  } else if (["rs485", "ext", "i2c"].includes(mt)) {
+    power = m.present ? "green" : "off";
+    link = m.present ? "green" : "off";
+  }
+
+  _applyStatusIndicators(m.id, power, link);
+}
+
 async function runTestLoop() {
   TEST_RUNNING = true;
   _setTestBtn(true);
@@ -1443,11 +1512,11 @@ async function loadModules() {
         // Add onclick to IO bubbles (circles/dots) for popup
         const mt = String(m.type).toLowerCase();
         if (["di", "do", "aio", "ext", "i2c"].includes(mt)) {
-          const channelGroups = svgRoot.querySelectorAll("g[id^='ch'], circle[id^='ch']");
-          channelGroups.forEach((g, idx) => {
-            // Support both circle as group child or the circle itself
-            const circle = g.tagName.toLowerCase() === 'circle' ? g : g.querySelector("circle");
-            if (!circle) return;
+        const channelGroups = svgRoot.querySelectorAll("g[id^='ch'], circle[id^='ch']");
+        channelGroups.forEach((g, idx) => {
+          // Support both circle as group child or the circle itself
+          const circle = g.tagName.toLowerCase() === 'circle' ? g : g.querySelector("circle");
+          if (!circle) return;
 
             const idStr = (circle.id || g.id || "").toLowerCase();
             let chNum = idx + 1;
@@ -1476,6 +1545,8 @@ async function loadModules() {
             };
           });
         }
+
+        await _refreshModuleStatus(m);
       }
     } catch (e) {
       svgHolder.textContent = `No SVG for type: ${m.type}`;
