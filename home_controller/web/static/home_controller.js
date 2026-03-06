@@ -1133,6 +1133,7 @@ let TEST_RUNNING = false;
 let _TEST_PWR_ALT = false;
 let _TEST_LINK_ALT = false;
 let _TEST_BAT_PCT = 80;
+let _TEST_BAT_PCT_DIR = -5;
 
 function _sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1282,27 +1283,29 @@ function _setGenmonBattery(root, percent) {
     fill.setAttribute("height", h.toFixed(1));
     fill.setAttribute("y", (2 + (maxH - h)).toFixed(1));
     fill.style.fill = _batteryColor(p);
+    fill.style.transition = "fill 0.4s linear, height 0.4s linear, y 0.4s linear";
   }
   if (vText) vText.textContent = (12.0 + (p / 100) * 1.0).toFixed(1) + "V"; // simple fake voltage
   if (pctText) pctText.textContent = `${Math.round(p)}%`;
 }
 
 function _batteryColor(pct) {
-  // interpolate red->yellow->green
+  // interpolate red->yellow->green using smoothstep
   const clamp = (v) => Math.max(0, Math.min(1, v));
   const t = clamp(pct / 100);
+  // smoothstep for less abrupt transitions
+  const s = t * t * (3 - 2 * t);
+  // red (255,74,74) at 0, yellow (255,210,74) at 0.5, green (56,210,106) at 1
   let r, g, b;
-  if (t < 0.5) {
-    // red (255,74,74) to yellow (255,210,74)
-    const u = t / 0.5;
+  if (s < 0.5) {
+    const u = s / 0.5;
     r = 255;
     g = 74 + (210 - 74) * u;
     b = 74;
   } else {
-    // yellow to green (56,210,106)
-    const u = (t - 0.5) / 0.5;
+    const u = (s - 0.5) / 0.5;
     r = 255 - (255 - 56) * u;
-    g = 210 - (210 - 210) * u; // stays 210
+    g = 210; // stays constant from midpoint
     b = 74 + (106 - 74) * u;
   }
   return `rgb(${r.toFixed(0)}, ${g.toFixed(0)}, ${b.toFixed(0)})`;
@@ -1370,8 +1373,10 @@ async function runTestLoop() {
 
   while (TEST_RUNNING) {
     _setAllIndicators(true);
-    // swing battery level between 30 and 90
-    _TEST_BAT_PCT = _TEST_BAT_PCT === 80 ? 35 : 80;
+    // swing battery level through full range smoothly
+    _TEST_BAT_PCT += _TEST_BAT_PCT_DIR;
+    if (_TEST_BAT_PCT >= 100) { _TEST_BAT_PCT = 100; _TEST_BAT_PCT_DIR = -1; }
+    if (_TEST_BAT_PCT <= 5) { _TEST_BAT_PCT = 5; _TEST_BAT_PCT_DIR = 1; }
     _TEST_PWR_ALT = !_TEST_PWR_ALT;
     _TEST_LINK_ALT = !_TEST_LINK_ALT;
     await _sleep(600);
