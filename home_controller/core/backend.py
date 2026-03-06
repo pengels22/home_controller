@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import datetime
-from home_controller.config import aio_max_voltage
-
 #!/usr/bin/env python3
 """
 home_controller/core/backend.py
@@ -25,6 +22,14 @@ import os
 import time
 from dataclasses import dataclass, asdict
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+import datetime
+from home_controller.config import aio_max_voltage
+try:
+    from home_controller.core.backend_core import RS485Backend, RS485NotReady
+except Exception:  # backend_core may fail if pyserial missing
+    RS485Backend = None  # type: ignore
+    RS485NotReady = Exception  # type: ignore
 
 # Optional smbus2 import for direct I2C access. If missing, reads will report an error.
 try:
@@ -125,6 +130,24 @@ class HomeControllerBackend:
         self.cfg = self.load_config()
         # Force modules to use the fixed modules I2C bus (ensure modules are always on i2c1)
         self.cfg.i2c_bus_num = DEFAULT_I2C_BUS_NUM
+
+        # Optional RS485 transport (for *_core.ino firmwares)
+        self.rs485: Optional[RS485Backend] = None
+        self._rs485_err: Optional[str] = None
+        self._rs485_port = os.getenv("HC_RS485_PORT", "/dev/ttyAMA0")
+        self._rs485_baud = int(os.getenv("HC_RS485_BAUD", "115200"))
+        self._rs485_enabled = os.getenv("HC_RS485_ENABLE", "1").lower() not in ("0", "false", "no")
+
+        if self._rs485_enabled and RS485Backend is not None and RS485Backend.available():
+            try:
+                self.rs485 = RS485Backend(port=self._rs485_port, baudrate=self._rs485_baud, timeout=0.08)
+            except Exception as exc:
+                self._rs485_err = str(exc)
+        else:
+            if not self._rs485_enabled:
+                self._rs485_err = "RS485 disabled via HC_RS485_ENABLE"
+            elif RS485Backend is None or not getattr(RS485Backend, "available", lambda: False)():
+                self._rs485_err = "pyserial not installed"
 
     def enable_dev_mode(self, dev_file: Optional[str] = None) -> None:
         """Enable developer simulation mode and load data from `dev_file`.
@@ -250,6 +273,32 @@ class HomeControllerBackend:
 
         return f"0x{val:02x}", val
 
+    # --------
+    # AIO scaling helpers
+    # --------
+    def _aio_max_in(self, module_id: str, ch: int) -> float:
+        cfg = aio_max_voltage.load_aio_max_voltage(module_id)
+        try:
+            return float(cfg.get("in", {}).get(str(ch), cfg.get("in", {}).get("default", 10.0)))
+        except Exception:
+            return 10.0
+
+    def _aio_max_out(self, module_id: str, ch: int) -> float:
+        cfg = aio_max_voltage.load_aio_max_voltage(module_id)
+        try:
+            return float(cfg.get("out", {}).get(str(ch), cfg.get("out", {}).get("default", 10.0)))
+        except Exception:
+            return 10.0
+
+    def _counts_to_voltage(self, counts: int, module_id: str, ch: int, direction: str = "in") -> float:
+        full_scale = self._aio_max_in(module_id, ch) if direction == "in" else self._aio_max_out(module_id, ch)
+        return (max(0, min(4095, counts)) / 4095.0) * full_scale
+
+    def _voltage_to_counts(self, voltage: float, module_id: str, ch: int) -> int:
+        maxv = self._aio_max_out(module_id, ch)
+        v = max(0.0, min(maxv, float(voltage)))
+        return int(round((v / maxv) * 4095.0))
+
     def _module_id(self, address_hex: str) -> str:
         # Enforce bus number for module IDs to DEFAULT_I2C_BUS_NUM (i2c1)
         return f"i2c{DEFAULT_I2C_BUS_NUM}-{address_hex.lower()}"
@@ -345,7 +394,7 @@ class HomeControllerBackend:
 
     def read_module(self, module_id: str) -> Dict[str, Any]:
         """
-        Read and parse a configured module's state from I2C.
+        Read and parse a configured module's state (prefers RS485 when enabled, falls back to I2C/dev-mode).
 
         Returns a dict with keys: ok, module_id, type, address, and type-specific data.
         """
@@ -423,6 +472,56 @@ class HomeControllerBackend:
                         "raw_response": dev.get("raw_response", ",".join(str(v) for v in values)),
                         "channels": channels,
                     }
+
+        # RS485 path (preferred when enabled)
+        addr_int = m.address_int()
+        if self.rs485:
+            try:
+                if m.type == "di":
+                    res = self.rs485.read_di_bitmap(addr_int)
+                    if res.get("ok"):
+                        bm = int(res.get("bitmap", 0))
+                        channels: Dict[str, int] = {}
+                        for i in range(16):
+                            channels[str(i + 1)] = 1 if ((bm >> i) & 1) else 0
+                        return {
+                            "ok": True,
+                            "module_id": m.id,
+                            "type": m.type,
+                            "address": m.address_hex,
+                            "bitmap": bm,
+                            "sense_mask": res.get("sense_mask"),
+                            "channels": channels,
+                            "raw": {
+                                "lo": res.get("raw_lo"),
+                                "hi": res.get("raw_hi"),
+                            },
+                        }
+                elif m.type == "aio":
+                    channels: Dict[str, float] = {}
+                    raw_frames: Dict[str, str] = {}
+                    # Read AI channels 0..7 (presented as 1..8 to UI)
+                    for ch in range(8):
+                        r = self.rs485.read_aio_channel(addr_int, ch)
+                        if not r.get("ok"):
+                            return r
+                        v12 = int(r.get("value12", 0))
+                        raw_frames[str(ch + 1)] = r.get("raw", b"").hex() if isinstance(r.get("raw"), (bytes, bytearray)) else ""
+                        channels[str(ch + 1)] = self._counts_to_voltage(v12, m.id, ch + 1, direction="in")
+                    return {
+                        "ok": True,
+                        "module_id": m.id,
+                        "type": m.type,
+                        "address": m.address_hex,
+                        "channels": channels,
+                        "raw_frames": raw_frames,
+                    }
+                elif m.type == "do":
+                    # DO firmware lacks a read-only command; avoid changing outputs implicitly.
+                    return {"ok": False, "error": "DO read over RS485 not supported (would change state)"}
+            except Exception as e:
+                # fall through to legacy I2C path on any RS485 issue
+                pass
 
         if not _HAS_SMBUS:
             return {"ok": False, "error": "smbus2 not installed on this system"}
@@ -634,7 +733,7 @@ class HomeControllerBackend:
         Write a single channel for DO (1-16) or AIO (1-8).
 
         For DO: `value` must be 0 or 1.
-        For AIO: `value` is a voltage (float) and will be sent as ASCII `OUT{ch}:{voltage}`.
+        For AIO: `value` is a voltage (float); converted to DAC counts and sent over RS485 when enabled.
         """
         idx = self._find_module_index(module_id)
         if idx < 0:
@@ -705,6 +804,25 @@ class HomeControllerBackend:
                     "ports": {"gpio_a": a, "gpio_b": b},
                     "channels": channels,
                 }
+
+            if self.rs485:
+                try:
+                    fw_channel = channel - 1  # firmware uses 0-15
+                    res = self.rs485.write_do(m.address_int(), fw_channel, bool(int(value)))
+                    if not res.get("ok"):
+                        return {"ok": False, "error": res.get("error", "RS485 write failed")}
+                    return {
+                        "ok": True,
+                        "module_id": m.id,
+                        "type": m.type,
+                        "address": m.address_hex,
+                        "channel": channel,
+                        "state": res.get("actual"),
+                        "sense_mask": res.get("sense_mask"),
+                        "raw": res.get("raw"),
+                    }
+                except Exception as e:
+                    return {"ok": False, "error": f"RS485 DO write error: {e}"}
 
             if not _HAS_SMBUS:
                 return {"ok": False, "error": "smbus2 not installed on this system"}
@@ -827,13 +945,30 @@ class HomeControllerBackend:
 
                 return {"ok": True, "module_id": m.id, "type": m.type, "address": m.address_hex, "raw_response": dev_out["raw_response"], "channels": channels}
 
+            if self.rs485:
+                try:
+                    counts = self._voltage_to_counts(voltage, m.id, ch)
+                    # AO channels in firmware are 8..15; map UI 1..8 -> firmware 8..15
+                    fw_ch = 7 + ch
+                    res = self.rs485.write_aio_channel(m.address_int(), fw_ch, counts)
+                    if not res.get("ok"):
+                        return {"ok": False, "error": res.get("error", "RS485 write failed")}
+                    returned_counts = int(res.get("value12", counts))
+                    return {
+                        "ok": True,
+                        "module_id": m.id,
+                        "type": m.type,
+                        "address": m.address_hex,
+                        "channel": ch,
+                        "voltage": self._counts_to_voltage(returned_counts, m.id, ch, direction="out"),
+                        "value12": returned_counts,
+                        "sense_mask": res.get("sense_mask"),
+                        "raw": res.get("raw"),
+                    }
+                except Exception as e:
+                    return {"ok": False, "error": f"RS485 AIO write error: {e}"}
 
-            # RS485 communication placeholder for AIO
-            # TODO: Replace with actual RS485 send/receive logic
-            # Example: send command OUT{ch}:{voltage} to RS485 bus, receive response
-            cmd = f"OUT{ch}:{voltage}"
-            # Simulate successful RS485 write and response
-            # You should implement actual RS485 communication here
+            # Fall back to legacy placeholder if RS485 unavailable
             s = f"{voltage},{voltage},{voltage},{voltage},{voltage},{voltage},{voltage},{voltage}"
             parts = [p.strip() for p in s.split(",") if p.strip()]
             values: List[float] = []
