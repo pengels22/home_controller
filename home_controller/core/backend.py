@@ -330,8 +330,17 @@ class HomeControllerBackend:
 
         return {"sense1": s1, "sense2": s2, "power_led": led}
 
-    def _module_id(self, address_hex: str) -> str:
-        # Enforce bus number for module IDs to DEFAULT_I2C_BUS_NUM (i2c1)
+    def _module_id(self, address_hex: str, mtype: Optional[str] = None) -> str:
+        """
+        Build a module id string that is unique per bus.
+
+        - I2C-based modules (di/do/aio/i2c/ext) keep the historical
+          `i2c<bus>-0xNN` format.
+        - RS485-based modules (rs485 hub, genmon) use `rs485-0xNN`
+          so they no longer collide with I2C addresses.
+        """
+        if (mtype or "").lower() in ("rs485", "genmon"):
+            return f"rs485-{address_hex.lower()}"
         return f"i2c{DEFAULT_I2C_BUS_NUM}-{address_hex.lower()}"
 
     def _find_module_index(self, mid: str) -> int:
@@ -367,7 +376,7 @@ class HomeControllerBackend:
 
         # No address normalization or guardrails for any module type
         address_hex = address.strip()
-        mid = self._module_id(address_hex)
+        mid = self._module_id(address_hex, mtype)
         if self._find_module_index(mid) >= 0:
             raise ValueError(f"Module already exists: {mid}")
         entry = ModuleEntry(id=mid, type=mtype, address_hex=address_hex, name=name.strip())
@@ -420,7 +429,7 @@ class HomeControllerBackend:
             if not (AIO_BASE <= address_int <= AIO_MAX):
                 raise ValueError("AIO addresses must be in 0x30–0x37 (AIO base + 3 DIP bits)")
 
-        new_mid = self._module_id(address_hex)
+        new_mid = self._module_id(address_hex, m.type)
         # ensure we won't collide with another module
         existing = self._find_module_index(new_mid)
         if existing >= 0 and existing != idx:
