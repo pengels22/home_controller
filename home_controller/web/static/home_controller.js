@@ -1159,6 +1159,24 @@ function _allLedOff() {
   }
 }
 
+function _setAllIndicators(on = true) {
+  for (const [_mid, info] of MODULE_SVGS.entries()) {
+    const root = info.svgRoot;
+    if (!root) continue;
+
+    // Status LEDs
+    _setStatusLed(root, ["status_pwr", "status_pwrA"], on ? "green" : "off");
+    _setStatusLed(root, ["status_link", "status_pwrB"], on ? "green" : "off");
+
+    // Channel LEDs
+    const circles = root.querySelectorAll("g[id^='ch'] circle.led, g[id^='ch'] circle.led-on, g[id^='ch'] circle.led-off");
+    circles.forEach((el) => {
+      el.classList.remove("led-on", "led-warn", "led-err", "led-off");
+      el.classList.add(on ? "led-on" : "led-off");
+    });
+  }
+}
+
 function _findLedElement(moduleType, svgRoot, channelIndex) {
   if (!svgRoot) return null;
   const mt = String(moduleType || "").toLowerCase();
@@ -1273,26 +1291,11 @@ async function runTestLoop() {
   _setTestBtn(true);
   _allLedOff();
 
-  // Pre-light all status indicators (simulate power + link good)
-  for (const [_mid, info] of MODULE_SVGS.entries()) {
-    _setStatusLed(info.svgRoot, ["status_pwr", "status_pwrA"], "green");
-    _setStatusLed(info.svgRoot, ["status_link", "status_pwrB"], "green");
-  }
-
   while (TEST_RUNNING) {
-    for (const [_moduleId, info] of MODULE_SVGS.entries()) {
-      if (!TEST_RUNNING) break;
-
-      for (let ch = 1; ch <= 16; ch++) {
-        if (!TEST_RUNNING) break;
-
-        const el = _findLedElement(info.type, info.svgRoot, ch);
-        _flashLed(el, true);
-        await _sleep(250);
-        _flashLed(el, false);
-        await _sleep(80);
-      }
-    }
+    _setAllIndicators(true);
+    await _sleep(600);
+    _setAllIndicators(false);
+    await _sleep(200);
   }
 
   _allLedOff();
