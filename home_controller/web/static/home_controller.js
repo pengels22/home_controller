@@ -1553,13 +1553,30 @@ async function runTestLoop() {
   _setTestBtn(false);
 }
 
+async function _injectHeadTestError(enable) {
+  try {
+    await fetch("/api/module_errors/inject", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        module_num: 1,
+        error: enable ? "Test-induced error" : "",
+      }),
+    });
+  } catch (e) {
+    /* ignore: endpoint only active in debug/allow mode */
+  }
+}
+
 function toggleTest() {
   if (TEST_RUNNING) {
     TEST_RUNNING = false;
     _setTestBtn(false);
     _allLedOff();
+    _injectHeadTestError(false);
     return;
   }
+  _injectHeadTestError(true);
   runTestLoop();
 }
 window.toggleTest = toggleTest;
