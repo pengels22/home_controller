@@ -1167,7 +1167,14 @@ function _setAllIndicators(on = true) {
     const mt = String(info.type || "").toLowerCase();
 
     // Status LEDs
-    _setStatusLed(root, ["status_pwr", "status_pwrA"], on ? "green" : "off");
+    if (on && ["aio", "di", "do"].includes(mt)) {
+      // cycle PWR through green/yellow/red for multi-power modules
+      _setStatusLed(root, ["status_pwr", "status_pwrA"], "green");
+      setTimeout(() => _setStatusLed(root, ["status_pwr", "status_pwrA"], "yellow"), 200);
+      setTimeout(() => _setStatusLed(root, ["status_pwr", "status_pwrA"], "red"), 400);
+    } else {
+      _setStatusLed(root, ["status_pwr", "status_pwrA"], on ? "green" : "off");
+    }
     _setStatusLed(root, ["status_link", "status_pwrB"], on ? "green" : "off");
 
     if (mt === "genmon") {
