@@ -21,6 +21,7 @@
       /* Suggested state colors */
       .led-in { fill: #38d26a; stroke: #1d8f43; }   /* inputs */
       .led-out { fill: #4aa3ff; stroke: #1c66b5; }  /* outputs */
+      .led-on { fill: #38d26a; stroke: #1d8f43; }
 
       .shine { fill: rgba(255,255,255,0.35); }
     </style>

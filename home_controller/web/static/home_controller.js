@@ -1173,13 +1173,18 @@ function _setAllIndicators(on = true) {
     if (mt === "genmon") {
       const sys = root.querySelector("#sys_led");
       const run = root.querySelector("#run_led");
-      [sys, run].forEach((el) => {
-        if (!el) return;
-        el.classList.remove("led-on", "led-warn", "led-err", "led-off");
-        el.classList.add(on ? "led-on" : "led-off");
-      });
+      if (sys) {
+        sys.classList.remove("led-on", "led-warn", "led-err", "led-off", "led-ok");
+        sys.classList.add(on ? "led-ok" : "led-off");
+      }
+      if (run) {
+        run.classList.remove("led-on", "led-warn", "led-err", "led-off", "led-run");
+        run.classList.add(on ? "led-run" : "led-off");
+      }
       const batFill = root.querySelector("#bat_fill");
-      if (batFill) batFill.classList.toggle("led-on", on);
+      if (batFill) {
+        batFill.style.fill = on ? "#38d26a" : "#cfcfcf";
+      }
       continue; // no channel circles on generator card
     }
 
