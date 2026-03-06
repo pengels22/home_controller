@@ -1152,6 +1152,10 @@ function _allLedOff() {
       el.classList.remove("led-on");
       el.classList.add("led-off");
     });
+
+    // Turn off status LEDs too
+    _setStatusLed(root, ["status_pwr", "status_pwrA"], "off");
+    _setStatusLed(root, ["status_link", "status_pwrB"], "off");
   }
 }
 
@@ -1268,6 +1272,12 @@ async function runTestLoop() {
   TEST_RUNNING = true;
   _setTestBtn(true);
   _allLedOff();
+
+  // Pre-light all status indicators (simulate power + link good)
+  for (const [_mid, info] of MODULE_SVGS.entries()) {
+    _setStatusLed(info.svgRoot, ["status_pwr", "status_pwrA"], "green");
+    _setStatusLed(info.svgRoot, ["status_link", "status_pwrB"], "green");
+  }
 
   while (TEST_RUNNING) {
     for (const [_moduleId, info] of MODULE_SVGS.entries()) {
