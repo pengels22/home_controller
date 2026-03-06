@@ -1130,6 +1130,8 @@ function startHeadStatusPolling() {
 // ============================================================
 
 let TEST_RUNNING = false;
+let _TEST_PWR_ALT = false;
+let _TEST_LINK_ALT = false;
 
 function _sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1168,14 +1170,20 @@ function _setAllIndicators(on = true) {
 
     // Status LEDs
     if (on && ["aio", "di", "do"].includes(mt)) {
-      // cycle PWR through green/yellow/red for multi-power modules
-      _setStatusLed(root, ["status_pwr", "status_pwrA"], "green");
-      setTimeout(() => _setStatusLed(root, ["status_pwr", "status_pwrA"], "yellow"), 200);
-      setTimeout(() => _setStatusLed(root, ["status_pwr", "status_pwrA"], "red"), 400);
+      // cycle PWR between yellow and green
+      const pwrColor = _TEST_PWR_ALT ? "green" : "yellow";
+      _setStatusLed(root, ["status_pwr", "status_pwrA"], pwrColor);
     } else {
       _setStatusLed(root, ["status_pwr", "status_pwrA"], on ? "green" : "off");
     }
-    _setStatusLed(root, ["status_link", "status_pwrB"], on ? "green" : "off");
+
+    if (on) {
+      // cycle LINK between red and green
+      const linkColor = _TEST_LINK_ALT ? "green" : "red";
+      _setStatusLed(root, ["status_link", "status_pwrB"], linkColor);
+    } else {
+      _setStatusLed(root, ["status_link", "status_pwrB"], "off");
+    }
 
     if (mt === "genmon") {
       const sys = root.querySelector("#sys_led");
@@ -1327,6 +1335,8 @@ async function runTestLoop() {
   while (TEST_RUNNING) {
     _setAllIndicators(true);
     await _sleep(600);
+    _TEST_PWR_ALT = !_TEST_PWR_ALT;
+    _TEST_LINK_ALT = !_TEST_LINK_ALT;
     _setAllIndicators(false);
     await _sleep(200);
   }
