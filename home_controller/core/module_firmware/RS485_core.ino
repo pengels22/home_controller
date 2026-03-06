@@ -76,6 +76,7 @@ static const uint32_t SPI_HZ = 4000000;
 static const size_t MAX_PAYLOAD = 96;
 static const uint16_t DOWNSTREAM_REPLY_TIMEOUT_MS = 60;
 static const uint16_t DOWNSTREAM_INTERBYTE_GAP_MS = 4;
+static const uint16_t BUS_WRITE_TIMEOUT_MS = 20; // fail fast if a UART FIFO never frees
 
 // ---------------- Upstream serial ----------------
 static HardwareSerial &UP = Serial1;
@@ -280,9 +281,13 @@ static bool busWrite(uint8_t busNum, const uint8_t *data, size_t len) {
   const uint8_t ch = BUS_MAP[busNum].channel;
 
   size_t sent = 0;
+  uint32_t tStart = millis();
   while (sent < len) {
     uint8_t room = scReadReg(cs, ch, REG_TXLVL);
     if (room == 0) {
+      if ((millis() - tStart) > BUS_WRITE_TIMEOUT_MS) {
+        return false; // give up instead of hanging main loop
+      }
       delay(1);
       continue;
     }

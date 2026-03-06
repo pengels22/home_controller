@@ -256,8 +256,16 @@ void setup() {
 }
 
 void loop() {
-  // If AO bank loses power, keep outputs forced off
-  if (!sense2High()) forceAllAOOff();
+  // If AO bank loses power, force outputs off and drop cached setpoints
+  static bool sense2_prev = false;
+  bool sense2_now = sense2High();
+  if (!sense2_now) {
+    if (sense2_prev) {
+      clearAOcache();   // require fresh writes after power/sense loss
+    }
+    forceAllAOOff();
+  }
+  sense2_prev = sense2_now;
 
   // Parse request: [AA][addr][ch][cmd][d0][d1][crc]
   while (RS485.available() > 0) {

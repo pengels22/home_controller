@@ -605,7 +605,7 @@ static uint8_t gpioWrite(uint8_t type, uint8_t i2c_addr, uint8_t pin, uint8_t va
   if (type == SENSOR_PCF8574) {
     if (pin >= 8) return ST_BAD_ARG;
     uint8_t port = 0xFF;
-    pcf8574ReadPort(i2c_addr, port);
+    if (!pcf8574ReadPort(i2c_addr, port)) return ST_READ_FAIL;
     if (value) port |= (1u << pin);
     else port &= ~(1u << pin);
     if (!pcf8574WritePort(i2c_addr, port)) return ST_WRITE_FAIL;
