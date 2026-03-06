@@ -1038,6 +1038,36 @@ def api_module_errors():
     return jsonify({"ok": True, "errors": by_num})
 
 
+@app.post("/api/module_errors/inject")
+def api_module_errors_inject():
+    """
+    Dev/test helper: manually set/clear the last_error for a module so the
+    head-module indicators can be verified.
+
+    Enable with FLASK_DEBUG=1 or ALLOW_ERROR_INJECT=1.
+    Body:
+      { "module_num": 1, "error": "something bad" }
+      or { "module_id": "rs485-0x50", "error": "" } to clear.
+    """
+    if not (app.debug or os.getenv("ALLOW_ERROR_INJECT", "")):
+        return jsonify({"ok": False, "error": "inject disabled (set FLASK_DEBUG=1 or ALLOW_ERROR_INJECT=1)"}), 403
+
+    data = request.get_json(force=True, silent=True) or {}
+    err = data.get("error")
+    err = str(err) if err is not None else None
+
+    try:
+        if "module_id" in data and str(data["module_id"]).strip():
+            backend.set_last_error_for_module(str(data["module_id"]), err)
+        elif "module_num" in data:
+            backend.set_last_error_for_module_num(int(data["module_num"]), err)
+        else:
+            return jsonify({"ok": False, "error": "module_id or module_num required"}), 400
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+
 # ------------------------------------------------------------
 # GUI helpers API
 # ------------------------------------------------------------

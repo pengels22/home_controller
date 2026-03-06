@@ -362,6 +362,24 @@ class HomeControllerBackend:
         """Return map of module_id -> last_error (only those with errors)."""
         return dict(self._last_errors)
 
+    def set_last_error_for_module(self, module_id: str, err: Optional[str]) -> None:
+        """Public helper to set/clear last_error for a module by id."""
+        mid = module_id.strip()
+        idx = self._find_module_index(mid)
+        if idx < 0:
+            raise ValueError(f"Module not found: {mid}")
+        self._set_last_error(mid, err)
+
+    def set_last_error_for_module_num(self, module_num: int, err: Optional[str]) -> None:
+        """Public helper to set/clear last_error by module_num (1-10)."""
+        if not (1 <= int(module_num) <= 10):
+            raise ValueError("module_num must be 1..10")
+        for m in self.cfg.modules:
+            if m.module_num == int(module_num):
+                self._set_last_error(m.id, err)
+                return
+        raise ValueError(f"No module assigned to Module ID {module_num}")
+
     # --------
     # Public API
     # --------
