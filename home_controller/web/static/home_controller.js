@@ -319,8 +319,11 @@ async function showIoChannelPopup(name, status) {
   if (type === 'di' || type === 'do') {
     const nameInput = form.querySelector('input[name="module_name"]');
     const addressSpan = form.querySelector('#address_value');
+    const modNumSel = form.querySelector('select[name="module_num"]');
     if (nameInput && ctx.name) nameInput.value = ctx.name;
     if (addressSpan && ctx.address) addressSpan.textContent = ctx.address;
+    if (modNumSel && ctx.module_num) modNumSel.value = String(ctx.module_num);
+    _applyDipsFromAddress(form, type === 'di' ? 0x20 : 0x30, ctx.address);
 
     // Pre-fill invert/override + names
     async function loadConfig() {
@@ -406,6 +409,16 @@ async function showIoChannelPopup(name, status) {
           }),
         });
 
+        // Save module id (1-10 unique)
+        if (modNumSel) {
+          const numVal = modNumSel.value;
+          const resNum = await _saveModuleNum(ctx.module_id, numVal);
+          if (!resNum.ok) {
+            alert(resNum.error || 'Failed to save Module ID');
+            return;
+          }
+        }
+
         window._lastModuleConfigPopupReload = Date.now();
         if (typeof loadModules === 'function') loadModules();
         hideIoChannelPopup();
@@ -424,8 +437,13 @@ async function showIoChannelPopup(name, status) {
 
     const nameInput = form.querySelector('input[name="module_name"]');
     const addrInput = form.querySelector('input[name="i2c_address"]');
+    const modNumSel = form.querySelector('select[name="module_num"]');
+    const addrSpan = form.querySelector('#address_value');
     if (nameInput && ctx.name) nameInput.value = ctx.name;
     if (addrInput && ctx.address) addrInput.value = ctx.address;
+    if (addrSpan && ctx.address) addrSpan.textContent = ctx.address;
+    if (modNumSel && ctx.module_num) modNumSel.value = String(ctx.module_num);
+    _applyDipsFromAddress(form, 0x40, ctx.address);
 
     let saveBtn = controls.querySelector('.aio-global-save');
     if (!saveBtn) {
@@ -560,6 +578,16 @@ async function showIoChannelPopup(name, status) {
         }
       }
 
+      // Save module number
+      if (modNumSel) {
+        const numVal = modNumSel.value;
+        const rnum = await _saveModuleNum(currentModuleId, numVal);
+        if (!rnum.ok) {
+          alert(rnum.error || 'Failed to save Module ID');
+          return false;
+        }
+      }
+
       const payload = collectAioMaxConfig();
       try {
         const resp = await fetch(`/api/aio_max_voltage/${encodeURIComponent(currentModuleId)}`, {
@@ -604,6 +632,9 @@ async function showIoChannelPopup(name, status) {
     form.querySelectorAll('button[type="submit"], button[type="button"]').forEach((btn) => btn.remove());
     const nameInput = form.querySelector('input[name="module_name"]');
     const addrInput = form.querySelector('input[name="i2c_address"]');
+    const modNumSel = form.querySelector('select[name="module_num"]');
+    if (modNumSel && ctx.module_num) modNumSel.value = String(ctx.module_num);
+    _applyDipsFromAddress(form, 0x60, ctx.address);
 
     let saveBtn = controls.querySelector('.ext-global-save');
     if (!saveBtn) {
@@ -695,6 +726,12 @@ async function showIoChannelPopup(name, status) {
           alert(data && data.error ? data.error : 'Save failed');
           return false;
         }
+        if (modNumSel) {
+          const rnum = await _saveModuleNum(ctx.module_id, modNumSel.value);
+          if (!rnum.ok) {
+            alert(rnum.error || 'Failed to save Module ID');
+          }
+        }
       } catch (e) {
         alert('Network error saving expansion config');
         return false;
@@ -726,7 +763,12 @@ async function showIoChannelPopup(name, status) {
   if (type === 'rs485') {
     form.querySelectorAll('button[type="submit"], button[type="button"]').forEach((btn) => btn.remove());
     const nameInput = form.querySelector('input[name="module_name"]');
+    const addrSpan = form.querySelector('#address_value');
+    const modNumSel = form.querySelector('select[name="module_num"]');
     if (nameInput && ctx.name) nameInput.value = ctx.name;
+    if (addrSpan && ctx.address) addrSpan.textContent = ctx.address;
+    if (modNumSel && ctx.module_num) modNumSel.value = String(ctx.module_num);
+    _applyDipsFromAddress(form, 0x50, ctx.address);
 
     let saveBtn = controls.querySelector('.rs485-global-save');
     if (!saveBtn) {
@@ -787,6 +829,14 @@ async function showIoChannelPopup(name, status) {
         }),
       });
 
+      if (modNumSel) {
+        const resNum = await _saveModuleNum(ctx.module_id, modNumSel.value);
+        if (!resNum.ok) {
+          alert(resNum.error || 'Failed to save Module ID');
+          return;
+        }
+      }
+
       window._lastModuleConfigPopupReload = Date.now();
       if (typeof loadModules === 'function') loadModules();
       hideIoChannelPopup();
@@ -825,8 +875,13 @@ async function showIoChannelPopup(name, status) {
     form.querySelectorAll('button[type="submit"], button[type="button"]').forEach((btn) => btn.remove());
     const nameInput = form.querySelector('input[name="module_name"]');
     const addrInput = form.querySelector('input[name="i2c_address"]');
+    const addrSpan = form.querySelector('#address_value');
+    const modNumSel = form.querySelector('select[name="module_num"]');
     if (nameInput && ctx.name) nameInput.value = ctx.name;
     if (addrInput && ctx.address) addrInput.value = ctx.address;
+    if (addrSpan && ctx.address) addrSpan.textContent = ctx.address;
+    if (modNumSel && ctx.module_num) modNumSel.value = String(ctx.module_num);
+    _applyDipsFromAddress(form, 0x01, ctx.address);
 
     let saveBtn = controls.querySelector('.genmon-global-save');
     if (!saveBtn) {
@@ -861,6 +916,14 @@ async function showIoChannelPopup(name, status) {
           });
           ctx.address = newAddr;
         } catch (e) { /* ignore address errors */ }
+      }
+
+      if (modNumSel) {
+        const resNum = await _saveModuleNum(ctx.module_id, modNumSel.value);
+        if (!resNum.ok) {
+          alert(resNum.error || 'Failed to save Module ID');
+          return;
+        }
       }
 
       window._lastModuleConfigPopupReload = Date.now();
@@ -1419,6 +1482,36 @@ function toggleTest() {
 }
 window.toggleTest = toggleTest;
 
+async function _saveModuleNum(moduleId, numVal) {
+  const resp = await fetch("/modules/set_number", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: moduleId, module_num: numVal }),
+  });
+  const data = await resp.json();
+  return { ok: resp.ok && data.ok, error: data.error };
+}
+
+function _applyDipsFromAddress(form, baseAddr, addrHex) {
+  if (!form) return;
+  const addrSpan = form.querySelector("#address_value");
+  const addr = parseInt(String(addrHex || "0x00"), 16);
+  if (addrSpan) addrSpan.textContent = addrHex || "0x00";
+  const offset = Math.max(0, addr - baseAddr) & 0x07;
+  for (let i = 1; i <= 3; i++) {
+    const bit = (offset >> (i - 1)) & 1;
+    const inp = form.querySelector(`#dip${i}`);
+    const slider = form.querySelector(`#dip${i}_slider`);
+    const state = form.querySelector(`#dip${i}_val`);
+    if (inp) inp.value = String(bit);
+    if (slider) {
+      slider.classList.toggle("dipswitch-on", bit === 1);
+      slider.classList.toggle("dipswitch-off", bit === 0);
+    }
+    if (state) state.textContent = bit ? "ON" : "OFF";
+  }
+}
+
 // ============================================================
 // STATUS PILL
 // ============================================================
@@ -1549,7 +1642,8 @@ async function loadModules() {
           type: m.type && m.type.toLowerCase(),
           name: m.name || `${String(m.type || '').toUpperCase()} MODULE`,
           address: m.address,
-          status: m.status || undefined
+          status: m.status || undefined,
+          module_num: m.module_num
         });
 
         header.appendChild(left);

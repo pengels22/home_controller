@@ -716,6 +716,8 @@ def modules_list():
                 "address": addr_hex,
                 "name": m.name,
                 "present": True,
+                "module_num": m.module_num,
+                "last_error": backend.get_last_error(m.id),
             }
         )
     return jsonify(out)
