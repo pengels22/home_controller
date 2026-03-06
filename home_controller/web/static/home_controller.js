@@ -1555,14 +1555,24 @@ async function runTestLoop() {
 
 async function _injectHeadTestError(enable) {
   try {
-    await fetch("/api/module_errors/inject", {
+    const resp = await fetch("/api/module_errors/test_toggle", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        module_num: 1,
-        error: enable ? "Test-induced error" : "",
+        enable: !!enable,
       }),
     });
+    if (!resp.ok) {
+      // fallback for older servers
+      await fetch("/api/module_errors/inject", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          module_num: 1,
+          error: enable ? "Test-induced error" : "",
+        }),
+      });
+    }
   } catch (e) {
     /* ignore: endpoint only active in debug/allow mode */
   }

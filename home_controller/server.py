@@ -1038,6 +1038,22 @@ def api_module_errors():
     return jsonify({"ok": True, "errors": by_num})
 
 
+@app.post("/api/module_errors/test_toggle")
+def api_module_errors_test_toggle():
+    """
+    Test helper used by the UI Test button: toggles an error on Module ID 1.
+    Always enabled; limited to module_num=1 with a fixed message.
+    Body: { "enable": true|false }
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    enable = bool(data.get("enable"))
+    try:
+        backend.set_last_error_for_module_num(1, "Test-induced error" if enable else None)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+
 @app.post("/api/module_errors/inject")
 def api_module_errors_inject():
     """
