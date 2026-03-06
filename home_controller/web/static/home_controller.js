@@ -1164,11 +1164,26 @@ function _setAllIndicators(on = true) {
     const root = info.svgRoot;
     if (!root) continue;
 
+    const mt = String(info.type || "").toLowerCase();
+
     // Status LEDs
     _setStatusLed(root, ["status_pwr", "status_pwrA"], on ? "green" : "off");
     _setStatusLed(root, ["status_link", "status_pwrB"], on ? "green" : "off");
 
-    // Channel LEDs
+    if (mt === "genmon") {
+      const sys = root.querySelector("#sys_led");
+      const run = root.querySelector("#run_led");
+      [sys, run].forEach((el) => {
+        if (!el) return;
+        el.classList.remove("led-on", "led-warn", "led-err", "led-off");
+        el.classList.add(on ? "led-on" : "led-off");
+      });
+      const batFill = root.querySelector("#bat_fill");
+      if (batFill) batFill.classList.toggle("led-on", on);
+      continue; // no channel circles on generator card
+    }
+
+    // Channel LEDs (all others)
     const circles = root.querySelectorAll("g[id^='ch'] circle.led, g[id^='ch'] circle.led-on, g[id^='ch'] circle.led-off");
     circles.forEach((el) => {
       el.classList.remove("led-on", "led-warn", "led-err", "led-off");
