@@ -454,7 +454,11 @@ class HomeControllerBackend:
                 raise ValueError("module_num must be 1..10")
             for i, m in enumerate(self.cfg.modules):
                 if i != idx and m.module_num == module_num:
-                    raise ValueError(f"module_num {module_num} already used by {m.id}")
+                    friendly = m.name or f"{m.type.upper()} @ {m.address_hex}"
+                    raise ValueError(
+                        f"Module ID {module_num} is already used by {friendly} "
+                        f"({m.type.upper()} @ {m.address_hex})"
+                    )
         self.cfg.modules[idx].module_num = module_num
         self.save_config()
         return self.cfg.modules[idx]
