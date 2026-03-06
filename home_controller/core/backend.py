@@ -516,22 +516,22 @@ class HomeControllerBackend:
                         bm = int(res.get("bitmap", 0))
                         channels: Dict[str, int] = {}
                         for i in range(16):
-                        channels[str(i + 1)] = 1 if ((bm >> i) & 1) else 0
-                    return {
-                        "ok": True,
-                        "comms_ok": True,
-                        "module_id": m.id,
-                        "type": m.type,
-                        "address": m.address_hex,
-                        "bitmap": bm,
-                        "sense_mask": res.get("sense_mask"),
-                        "power": self._sense_info(res.get("sense_mask"), two_lines=True),
-                        "comms_led": "green",
-                        "channels": channels,
-                        "raw": {
-                            "lo": res.get("raw_lo"),
-                            "hi": res.get("raw_hi"),
-                        },
+                            channels[str(i + 1)] = 1 if ((bm >> i) & 1) else 0
+                        return {
+                            "ok": True,
+                            "comms_ok": True,
+                            "module_id": m.id,
+                            "type": m.type,
+                            "address": m.address_hex,
+                            "bitmap": bm,
+                            "sense_mask": res.get("sense_mask"),
+                            "power": self._sense_info(res.get("sense_mask"), two_lines=True),
+                            "comms_led": "green",
+                            "channels": channels,
+                            "raw": {
+                                "lo": res.get("raw_lo"),
+                                "hi": res.get("raw_hi"),
+                            },
                         }
                 elif m.type == "aio":
                     channels: Dict[str, float] = {}
