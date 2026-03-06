@@ -1228,12 +1228,14 @@ async function _refreshHeadStatusOnce() {
       const errs = er.ok ? await er.json() : null;
       const errMap = (errs && errs.errors) || {};
 
-      if (hs && hs.ok) {
-        for (let i = 1; i <= 10; i++) {
-          const el = svg.querySelector(`#hat_mod_${i}`);
-          if (!el) continue;
+      // Always wire up the hat slots so errors still display even if hat_status fails
+      for (let i = 1; i <= 10; i++) {
+        const el = svg.querySelector(`#hat_mod_${i}`);
+        if (!el) continue;
 
-          let a = false, b = false;
+        // Base fill from hat_status if available, otherwise default to grey
+        let a = false, b = false;
+        if (hs && hs.ok) {
           if (hs.modules && hs.modules[String(i)]) {
             a = !!hs.modules[String(i)]["24v_a"];
             b = !!hs.modules[String(i)]["24v_b"];
@@ -1243,35 +1245,36 @@ async function _refreshHeadStatusOnce() {
             a = !!((ga >> (i - 1)) & 1);
             b = !!((gb >> (i - 1)) & 1);
           }
-
-          // default power fill
-          if (a && b) el.style.fill = "#39d353";
-          else if (a && !b) el.style.fill = "#ffd43b";
-          else if (!a && b) el.style.fill = "#ff4d4f";
-          else el.style.fill = "#cfcfcf";
-
-          // error overlay
-          const errEntry = errMap[String(i)];
-          if (errEntry && errEntry.error) {
-            el.style.fill = "#ff4a4a";
-            el.dataset.error = errEntry.error;
-          } else {
-            delete el.dataset.error;
-          }
-
-          // click to show error
-          el.style.cursor = "pointer";
-          el.onclick = () => {
-            if (el.dataset.error) alert(`Module ${i} error: ${el.dataset.error}`);
-          };
         }
 
-        const extEl = svg.querySelector("#hat_ext");
-        const extEl2 = svg.querySelector("#hat_ext_2");
-        const extFill = hs.ext_present ? "#39d353" : "#cfcfcf";
-        if (extEl) extEl.style.fill = extFill;
-        if (extEl2) extEl2.style.fill = extFill;
+        if (a && b) el.style.fill = "#39d353";
+        else if (a && !b) el.style.fill = "#ffd43b";
+        else if (!a && b) el.style.fill = "#ff4d4f";
+        else el.style.fill = "#cfcfcf";
+
+        // error overlay (apply even if hat_status failed)
+        const errEntry = errMap[String(i)];
+        if (errEntry && errEntry.error) {
+            el.style.fill = "#ff4a4a";
+            el.setAttribute("data-error", errEntry.error);
+        } else {
+            el.removeAttribute("data-error");
+        }
+
+        // click to show error (use getAttribute to support SVG elements)
+        const hasErr = !!(errEntry && errEntry.error);
+        el.style.cursor = hasErr ? "pointer" : "default";
+        el.onclick = () => {
+          const msg = el.getAttribute("data-error");
+          if (msg) alert(`Module ${i} error: ${msg}`);
+        };
       }
+
+      const extEl = svg.querySelector("#hat_ext");
+      const extEl2 = svg.querySelector("#hat_ext_2");
+      const extFill = (hs && hs.ok && hs.ext_present) ? "#39d353" : "#cfcfcf";
+      if (extEl) extEl.style.fill = extFill;
+      if (extEl2) extEl2.style.fill = extFill;
     } catch (e) {
       // ignore hat indicator errors
     }
