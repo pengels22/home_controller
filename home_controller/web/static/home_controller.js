@@ -1573,24 +1573,29 @@ async function _injectHeadTestError(enable) {
         }),
       });
     }
+    // tiny delay to let server persist before UI refresh
+    await _sleep(150);
   } catch (e) {
     /* ignore: endpoint only active in debug/allow mode */
   }
 }
 
-function toggleTest() {
+async function toggleTest() {
   if (TEST_RUNNING) {
     TEST_RUNNING = false;
     _setTestBtn(false);
     _allLedOff();
-    _injectHeadTestError(false);
+    await _injectHeadTestError(false);
+    if (typeof _refreshHeadStatusOnce === "function") {
+      _refreshHeadStatusOnce();
+    }
     return;
   }
   // New behavior: use Test to trigger head-module error without running
   // the indicator flash loop.
   TEST_RUNNING = true;
   _setTestBtn(true);
-  _injectHeadTestError(true);
+  await _injectHeadTestError(true);
   // Also refresh head status so the red slot appears promptly.
   if (typeof _refreshHeadStatusOnce === "function") {
     _refreshHeadStatusOnce();
