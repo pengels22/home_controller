@@ -1132,6 +1132,7 @@ function startHeadStatusPolling() {
 let TEST_RUNNING = false;
 let _TEST_PWR_ALT = false;
 let _TEST_LINK_ALT = false;
+let _TEST_BAT_PCT = 80;
 
 function _sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1196,10 +1197,7 @@ function _setAllIndicators(on = true) {
         run.classList.remove("led-on", "led-warn", "led-err", "led-off", "led-run");
         run.classList.add(on ? "led-run" : "led-off");
       }
-      const batFill = root.querySelector("#bat_fill");
-      if (batFill) {
-        batFill.style.fill = on ? "#38d26a" : "#cfcfcf";
-      }
+      _setGenmonBattery(root, on ? _TEST_BAT_PCT : 0);
       continue; // no channel circles on generator card
     }
 
@@ -1272,6 +1270,44 @@ function _setStatusLed(root, ids, state) {
   });
 }
 
+function _setGenmonBattery(root, percent) {
+  const p = Math.max(0, Math.min(100, percent));
+  const fill = root.querySelector("#bat_fill");
+  const vText = root.querySelector("#bat_voltage");
+  const pctText = root.querySelector("#bat_percent");
+  // Map 0–100% to height 0–26 (SVG note in file) and y from 28..2
+  const maxH = 26;
+  const h = (p / 100) * maxH;
+  if (fill) {
+    fill.setAttribute("height", h.toFixed(1));
+    fill.setAttribute("y", (2 + (maxH - h)).toFixed(1));
+    fill.style.fill = _batteryColor(p);
+  }
+  if (vText) vText.textContent = (12.0 + (p / 100) * 1.0).toFixed(1) + "V"; // simple fake voltage
+  if (pctText) pctText.textContent = `${Math.round(p)}%`;
+}
+
+function _batteryColor(pct) {
+  // interpolate red->yellow->green
+  const clamp = (v) => Math.max(0, Math.min(1, v));
+  const t = clamp(pct / 100);
+  let r, g, b;
+  if (t < 0.5) {
+    // red (255,74,74) to yellow (255,210,74)
+    const u = t / 0.5;
+    r = 255;
+    g = 74 + (210 - 74) * u;
+    b = 74;
+  } else {
+    // yellow to green (56,210,106)
+    const u = (t - 0.5) / 0.5;
+    r = 255 - (255 - 56) * u;
+    g = 210 - (210 - 210) * u; // stays 210
+    b = 74 + (106 - 74) * u;
+  }
+  return `rgb(${r.toFixed(0)}, ${g.toFixed(0)}, ${b.toFixed(0)})`;
+}
+
 function _applyStatusIndicators(moduleId, powerState, linkState) {
   const info = MODULE_SVGS.get(moduleId);
   if (!info || !info.svgRoot) return;
@@ -1334,9 +1370,11 @@ async function runTestLoop() {
 
   while (TEST_RUNNING) {
     _setAllIndicators(true);
-    await _sleep(600);
+    // swing battery level between 30 and 90
+    _TEST_BAT_PCT = _TEST_BAT_PCT === 80 ? 35 : 80;
     _TEST_PWR_ALT = !_TEST_PWR_ALT;
     _TEST_LINK_ALT = !_TEST_LINK_ALT;
+    await _sleep(600);
     _setAllIndicators(false);
     await _sleep(200);
   }
