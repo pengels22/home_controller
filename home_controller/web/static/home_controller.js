@@ -1586,8 +1586,15 @@ function toggleTest() {
     _injectHeadTestError(false);
     return;
   }
+  // New behavior: use Test to trigger head-module error without running
+  // the indicator flash loop.
+  TEST_RUNNING = true;
+  _setTestBtn(true);
   _injectHeadTestError(true);
-  runTestLoop();
+  // Also refresh head status so the red slot appears promptly.
+  if (typeof _refreshHeadStatusOnce === "function") {
+    _refreshHeadStatusOnce();
+  }
 }
 window.toggleTest = toggleTest;
 
