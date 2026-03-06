@@ -299,6 +299,34 @@ class HomeControllerBackend:
         v = max(0.0, min(maxv, float(voltage)))
         return int(round((v / maxv) * 4095.0))
 
+    # --------
+    # Sense / LED helpers
+    # --------
+    @staticmethod
+    def _sense_info(sense_mask: Optional[int], two_lines: bool = True) -> Dict[str, Any]:
+        """
+        Returns standardized sense/power indicator info for the UI:
+          sense1, sense2 (bool or None), power_led in {"off","yellow","green"}.
+        two_lines=False treats only sense1.
+        """
+        if sense_mask is None:
+            return {"sense1": None, "sense2": None, "power_led": "off"}
+
+        s1 = bool(sense_mask & 0x01)
+        s2 = bool(sense_mask & 0x02) if two_lines else None
+
+        if two_lines:
+            if s1 and s2:
+                led = "green"
+            elif s1 or s2:
+                led = "yellow"
+            else:
+                led = "off"
+        else:
+            led = "green" if s1 else "off"
+
+        return {"sense1": s1, "sense2": s2, "power_led": led}
+
     def _module_id(self, address_hex: str) -> str:
         # Enforce bus number for module IDs to DEFAULT_I2C_BUS_NUM (i2c1)
         return f"i2c{DEFAULT_I2C_BUS_NUM}-{address_hex.lower()}"
@@ -438,11 +466,13 @@ class HomeControllerBackend:
                         channels[str(9 + i)] = 1 if ((b >> i) & 1) else 0
                     return {
                         "ok": True,
+                        "comms_ok": True,
                         "module_id": m.id,
                         "type": m.type,
                         "address": m.address_hex,
                         "ports": {"gpio_a": a, "gpio_b": b},
                         "channels": channels,
+                        "power": self._sense_info(None, two_lines=True),
                     }
                 elif m.type == "aio":
                     # AIO simulated via channels list or raw_response
@@ -466,11 +496,14 @@ class HomeControllerBackend:
 
                     return {
                         "ok": True,
+                        "comms_ok": True,
                         "module_id": m.id,
                         "type": m.type,
                         "address": m.address_hex,
                         "raw_response": dev.get("raw_response", ",".join(str(v) for v in values)),
                         "channels": channels,
+                        "power": self._sense_info(None, two_lines=True),
+                        "comms_led": "green",
                     }
 
         # RS485 path (preferred when enabled)
@@ -483,37 +516,47 @@ class HomeControllerBackend:
                         bm = int(res.get("bitmap", 0))
                         channels: Dict[str, int] = {}
                         for i in range(16):
-                            channels[str(i + 1)] = 1 if ((bm >> i) & 1) else 0
-                        return {
-                            "ok": True,
-                            "module_id": m.id,
-                            "type": m.type,
-                            "address": m.address_hex,
-                            "bitmap": bm,
-                            "sense_mask": res.get("sense_mask"),
-                            "channels": channels,
-                            "raw": {
-                                "lo": res.get("raw_lo"),
-                                "hi": res.get("raw_hi"),
-                            },
+                        channels[str(i + 1)] = 1 if ((bm >> i) & 1) else 0
+                    return {
+                        "ok": True,
+                        "comms_ok": True,
+                        "module_id": m.id,
+                        "type": m.type,
+                        "address": m.address_hex,
+                        "bitmap": bm,
+                        "sense_mask": res.get("sense_mask"),
+                        "power": self._sense_info(res.get("sense_mask"), two_lines=True),
+                        "comms_led": "green",
+                        "channels": channels,
+                        "raw": {
+                            "lo": res.get("raw_lo"),
+                            "hi": res.get("raw_hi"),
+                        },
                         }
                 elif m.type == "aio":
                     channels: Dict[str, float] = {}
                     raw_frames: Dict[str, str] = {}
+                    sense_mask = None
                     # Read AI channels 0..7 (presented as 1..8 to UI)
                     for ch in range(8):
                         r = self.rs485.read_aio_channel(addr_int, ch)
                         if not r.get("ok"):
                             return r
                         v12 = int(r.get("value12", 0))
+                        if sense_mask is None:
+                            sense_mask = r.get("sense_mask")
                         raw_frames[str(ch + 1)] = r.get("raw", b"").hex() if isinstance(r.get("raw"), (bytes, bytearray)) else ""
                         channels[str(ch + 1)] = self._counts_to_voltage(v12, m.id, ch + 1, direction="in")
                     return {
                         "ok": True,
+                        "comms_ok": True,
                         "module_id": m.id,
                         "type": m.type,
                         "address": m.address_hex,
                         "channels": channels,
+                        "sense_mask": sense_mask,
+                        "power": self._sense_info(sense_mask, two_lines=True),
+                        "comms_led": "green",
                         "raw_frames": raw_frames,
                     }
                 elif m.type == "do":
@@ -545,11 +588,14 @@ class HomeControllerBackend:
 
                 return {
                     "ok": True,
+                    "comms_ok": True,
                     "module_id": m.id,
                     "type": m.type,
                     "address": m.address_hex,
                     "ports": {"gpio_a": a, "gpio_b": b},
                     "channels": channels,
+                    "power": self._sense_info(None, two_lines=True),
+                    "comms_led": "green",
                 }
             except Exception as e:
                 return {"ok": False, "error": f"I2C read error: {e}"}
@@ -627,11 +673,14 @@ class HomeControllerBackend:
 
                 return {
                     "ok": True,
+                    "comms_ok": True,
                     "module_id": m.id,
                     "type": m.type,
                     "address": m.address_hex,
                     "raw_response": s,
                     "channels": channels,
+                    "power": self._sense_info(None, two_lines=True),
+                    "comms_led": "green",
                     "alerts": alerts,
                 }
             except Exception as e:
@@ -798,31 +847,37 @@ class HomeControllerBackend:
 
                 return {
                     "ok": True,
+                    "comms_ok": True,
                     "module_id": m.id,
                     "type": m.type,
                     "address": m.address_hex,
                     "ports": {"gpio_a": a, "gpio_b": b},
                     "channels": channels,
+                    "power": self._sense_info(None, two_lines=True),
+                    "comms_led": "green",
                 }
 
-            if self.rs485:
-                try:
-                    fw_channel = channel - 1  # firmware uses 0-15
-                    res = self.rs485.write_do(m.address_int(), fw_channel, bool(int(value)))
-                    if not res.get("ok"):
-                        return {"ok": False, "error": res.get("error", "RS485 write failed")}
-                    return {
-                        "ok": True,
-                        "module_id": m.id,
-                        "type": m.type,
-                        "address": m.address_hex,
-                        "channel": channel,
-                        "state": res.get("actual"),
-                        "sense_mask": res.get("sense_mask"),
-                        "raw": res.get("raw"),
-                    }
-                except Exception as e:
-                    return {"ok": False, "error": f"RS485 DO write error: {e}"}
+                if self.rs485:
+                    try:
+                        fw_channel = channel - 1  # firmware uses 0-15
+                        res = self.rs485.write_do(m.address_int(), fw_channel, bool(int(value)))
+                        if not res.get("ok"):
+                            return {"ok": False, "error": res.get("error", "RS485 write failed")}
+                        return {
+                            "ok": True,
+                            "comms_ok": True,
+                            "module_id": m.id,
+                            "type": m.type,
+                            "address": m.address_hex,
+                            "channel": channel,
+                            "state": res.get("actual"),
+                            "sense_mask": res.get("sense_mask"),
+                            "power": self._sense_info(res.get("sense_mask"), two_lines=True),
+                            "comms_led": "green",
+                            "raw": res.get("raw"),
+                        }
+                    except Exception as e:
+                        return {"ok": False, "error": f"RS485 DO write error: {e}"}
 
             if not _HAS_SMBUS:
                 return {"ok": False, "error": "smbus2 not installed on this system"}
@@ -890,11 +945,14 @@ class HomeControllerBackend:
 
                 return {
                     "ok": True,
+                    "comms_ok": True,
                     "module_id": m.id,
                     "type": m.type,
                     "address": m.address_hex,
                     "ports": {"gpio_a": a, "gpio_b": b},
                     "channels": channels,
+                    "power": self._sense_info(None, two_lines=True),
+                    "comms_led": "green",
                 }
 
             except Exception as e:
@@ -943,7 +1001,17 @@ class HomeControllerBackend:
                 for i in range(8):
                     channels[str(i + 1)] = chans[i]
 
-                return {"ok": True, "module_id": m.id, "type": m.type, "address": m.address_hex, "raw_response": dev_out["raw_response"], "channels": channels}
+                return {
+                    "ok": True,
+                    "comms_ok": True,
+                    "module_id": m.id,
+                    "type": m.type,
+                    "address": m.address_hex,
+                    "raw_response": dev_out["raw_response"],
+                    "channels": channels,
+                    "power": self._sense_info(None, two_lines=True),
+                    "comms_led": "green",
+                }
 
             if self.rs485:
                 try:
@@ -956,6 +1024,7 @@ class HomeControllerBackend:
                     returned_counts = int(res.get("value12", counts))
                     return {
                         "ok": True,
+                        "comms_ok": True,
                         "module_id": m.id,
                         "type": m.type,
                         "address": m.address_hex,
@@ -963,6 +1032,8 @@ class HomeControllerBackend:
                         "voltage": self._counts_to_voltage(returned_counts, m.id, ch, direction="out"),
                         "value12": returned_counts,
                         "sense_mask": res.get("sense_mask"),
+                        "power": self._sense_info(res.get("sense_mask"), two_lines=True),
+                        "comms_led": "green",
                         "raw": res.get("raw"),
                     }
                 except Exception as e:
