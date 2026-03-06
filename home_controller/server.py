@@ -1027,15 +1027,10 @@ def head_status():
 
 @app.get("/api/module_errors")
 def api_module_errors():
-    errs = backend.module_errors_map()
-    # include module_num for convenience
-    by_num = {}
-    for m in backend.list_modules():
-        if m.module_num is None:
-            continue
-        if m.id in errs:
-            by_num[str(m.module_num)] = {"module_id": m.id, "error": errs[m.id]}
-    return jsonify({"ok": True, "errors": by_num})
+    try:
+        return jsonify({"ok": True, "errors": backend.module_errors_by_num()})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @app.post("/api/module_errors/test_toggle")

@@ -128,6 +128,7 @@ class HomeControllerBackend:
         self._dev_file: Optional[str] = None
         self._dev_data: Dict[str, Any] = {}
         self._last_errors: Dict[str, str] = {}
+        self._manual_errors_by_num: Dict[int, str] = {}
 
         self.cfg = self.load_config()
         # Force modules to use the fixed modules I2C bus (ensure modules are always on i2c1)
@@ -362,6 +363,22 @@ class HomeControllerBackend:
         """Return map of module_id -> last_error (only those with errors)."""
         return dict(self._last_errors)
 
+    def module_errors_by_num(self) -> Dict[str, Dict[str, str]]:
+        """
+        Return map of module_num (string) -> {module_id, error}
+        Includes real module errors and any manual/test errors set by module_num.
+        """
+        out: Dict[str, Dict[str, str]] = {}
+        errs = self._last_errors
+        for m in self.cfg.modules:
+            if m.module_num is None:
+                continue
+            if m.id in errs:
+                out[str(m.module_num)] = {"module_id": m.id, "error": errs[m.id]}
+        for num, msg in self._manual_errors_by_num.items():
+            out[str(num)] = {"module_id": None, "error": msg}
+        return out
+
     def set_last_error_for_module(self, module_id: str, err: Optional[str]) -> None:
         """Public helper to set/clear last_error for a module by id."""
         mid = module_id.strip()
@@ -374,11 +391,15 @@ class HomeControllerBackend:
         """Public helper to set/clear last_error by module_num (1-10)."""
         if not (1 <= int(module_num) <= 10):
             raise ValueError("module_num must be 1..10")
+        # clear manual entry first
+        self._manual_errors_by_num.pop(int(module_num), None)
         for m in self.cfg.modules:
             if m.module_num == int(module_num):
                 self._set_last_error(m.id, err)
                 return
-        raise ValueError(f"No module assigned to Module ID {module_num}")
+        # if no module exists with that slot, keep a manual entry so UI can show it
+        if err:
+            self._manual_errors_by_num[int(module_num)] = err
 
     # --------
     # Public API
