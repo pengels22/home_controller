@@ -456,7 +456,7 @@ async function showIoChannelPopup(name, status) {
     const saveBtn = controls.querySelector('.di-global-save') || controls.querySelector('.do-global-save') || controls.querySelector('button[type="submit"]');
     if (saveBtn) {
       saveBtn.type = 'button';
-      saveBtn.textContent = 'Save & Close';
+      saveBtn.textContent = 'Save';
       saveBtn.onclick = async () => {
         if (!ctx.module_id) return;
         // Rename if needed
