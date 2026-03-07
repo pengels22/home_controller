@@ -824,70 +824,18 @@ async function showIoChannelPopup(name, status) {
       saveBtn.textContent = 'Save';
     }
 
-    function fillForm(exp) {
-      if (nameInput) nameInput.value = exp.name || '';
-      if (addrInput) addrInput.value = exp.address_hex || '';
-      for (let i = 0; i < 8; i++) {
-        const ch = (exp.channels && exp.channels[i]) || {};
-        const n = form.querySelector(`[name='ch${i+1}']`);
-        const t = form.querySelector(`[name='type${i+1}']`);
-        const a = form.querySelector(`[name='addr${i+1}']`);
-        if (n) n.value = ch.name || '';
-        if (t) t.value = ch.type || 'di';
-        if (a) a.value = ch.address_hex || '';
-      }
+    function fillForm() {
+      if (nameInput) nameInput.value = 'RS485 I2C Bridge';
+      if (addrInput) addrInput.value = ctx.address_hex || '';
     }
 
+    // Expansion module deprecated; no remote load/save.
     async function loadExtConfig() {
-      try {
-        const res = await fetch('/api/expansion_config');
-        const data = await res.json();
-        if (res.ok && data && data.ok) fillForm(data.exp || {});
-      } catch (e) { /* ignore */ }
-    }
-
-    function collectExtConfig() {
-      const channels = [];
-      for (let i = 0; i < 8; i++) {
-        const n = form.querySelector(`[name='ch${i+1}']`);
-        const t = form.querySelector(`[name='type${i+1}']`);
-        const a = form.querySelector(`[name='addr${i+1}']`);
-        channels.push({
-          name: n ? n.value : '',
-          type: t ? t.value : 'di',
-          address_hex: a ? a.value : '',
-        });
-      }
-      return {
-        name: nameInput ? nameInput.value : '',
-        address_hex: addrInput ? addrInput.value : '',
-        channels,
-      };
+      fillForm();
     }
 
     async function saveExt() {
-      const payload = collectExtConfig();
-      try {
-        const resp = await fetch('/api/expansion_config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const data = await resp.json();
-        if (!resp.ok || !data.ok) {
-          alert(data && data.error ? data.error : 'Save failed');
-          return false;
-        }
-        if (modNumSel) {
-          const rnum = await _saveModuleNum(ctx.module_id, modNumSel.value);
-          if (!rnum.ok) {
-            alert(rnum.error || 'Failed to save Module ID');
-          }
-        }
-      } catch (e) {
-        alert('Network error saving expansion config');
-        return false;
-      }
+      // Nothing to persist; just close.
       return true;
     }
 
@@ -1924,27 +1872,9 @@ async function loadModules() {
         ensureSvgVisible(svgRoot);
         MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
 
-        // Populate expander labels from expansion_config (types/addresses)
+        // Expansion module deprecated; no label population.
         if (svgType === "ext" || svgType === "i2c") {
-          try {
-            if (!expansionCfg) {
-              const cfgRes = await fetch("/api/expansion_config");
-              const cfgData = await cfgRes.json();
-              if (cfgRes.ok && cfgData && cfgData.ok) expansionCfg = cfgData.exp;
-            }
-            const chans = (expansionCfg && expansionCfg.channels) || [];
-            for (let i = 0; i < Math.min(8, chans.length); i++) {
-              const chNum = i + 1;
-              const tEl = svgRoot.querySelector(`#ch${String(chNum).padStart(2, "0")}_type`);
-              const aEl = svgRoot.querySelector(`#ch${String(chNum).padStart(2, "0")}_addr`);
-              const chName = chans[i].name || m.labels.channels?.[String(chNum)] || `CH${chNum}`;
-              const text = displayLabel(chName, chNum) || (chans[i].type || "--").toUpperCase();
-              if (tEl) tEl.textContent = text;
-              if (aEl) aEl.textContent = (chans[i].address_hex || "0x00").toUpperCase();
-            }
-          } catch (e) {
-            // ignore
-          }
+          // no-op
         }
 
         // RS485: set branch name in SVG
@@ -2411,104 +2341,10 @@ async function showExpanderSettingsPopup() {
   const popup = ensureIoChannelPopup();
   const overlay = ensureIoChannelPopupOverlay();
   ensureRemoveButton(popup, null);
-  popup.querySelector('.popup-title').textContent = "Expansion Card Settings";
+  popup.querySelector('.popup-title').textContent = "Expansion Module Deprecated";
   popup.querySelector('.popup-status').textContent = "";
   const controls = popup.querySelector('.popup-controls');
-  controls.innerHTML = "Loading…";
-
-  // Fetch config
-  const res = await fetch("/api/expansion_config");
-  const data = await res.json();
-  if (!data.ok) { controls.innerHTML = "Failed to load config"; return; }
-  const exp = data.exp;
-
-  // Build form with 2px padding for all inputs
-  let html = `
-    <form id="expander_settings_form">
-      <div style="margin-bottom:10px;">
-        <label style="padding:2px;">Name</label><br/>
-        <input style="padding:2px;" name="name" value="${exp.name || ""}" />
-      </div>
-      <div style="margin-bottom:10px;">
-        <label style="padding:2px;">I2C Address</label><br/>
-        <input style="padding:2px;" name="address_hex" value="${exp.address_hex || ""}" />
-      </div>
-      <button type="button" id="remove_expansion_card_btn" style="background:#f44336;color:#fff;margin-bottom:10px;">Remove This Card</button>
-      <hr/>
-      <h3>Channels</h3>
-  `;
-  exp.channels.forEach((ch, i) => {
-    html += `
-      <div style="margin-bottom:10px;">
-        <label style="padding:2px;">Channel ${i+1} Name</label><br/>
-        <input style="padding:2px;" name="ch${i}_name" value="${ch.name || ""}" />
-        <label style="padding:2px;">Type</label>
-        <select style="padding:2px;" name="ch${i}_type">
-          <option value="di" ${ch.type === 'di' ? 'selected' : ''}>DI</option>
-          <option value="do" ${ch.type === 'do' ? 'selected' : ''}>DO</option>
-          <option value="aio" ${ch.type === 'aio' ? 'selected' : ''}>AIO</option>
-        </select>
-        <label style="padding:2px;">I2C Address</label>
-        <input style="padding:2px;" name="ch${i}_address" value="${ch.address_hex || ""}" />
-      </div>
-    `;
-  });
-  html += `<button type="submit" class="global-save">Save</button></form>`;
-  controls.innerHTML = html;
-
-  // Handle remove card button
-  const removeBtn = controls.querySelector("#remove_expansion_card_btn");
-  if (removeBtn) {
-    removeBtn.onclick = async function() {
-      if (!confirm("Are you sure you want to remove this expansion card? This cannot be undone.")) return;
-      // Remove expansion card config by clearing the file
-      const res = await fetch("/api/expansion_config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "", address_hex: "", channels: [] })
-      });
-      const data = await res.json();
-      if (data.ok) {
-        alert("Expansion card removed.");
-        hideIoChannelPopup();
-        // Optionally reload UI
-        if (typeof loadModules === 'function') loadModules();
-      } else {
-        alert("Failed to remove card: " + (data.error || "Unknown error"));
-      }
-    };
-  }
-
-  // Handle form submit
-  controls.querySelector("#expander_settings_form").onsubmit = async function(e) {
-    e.preventDefault();
-    // Gather data
-    const form = e.target;
-    const payload = {
-      name: form.name.value,
-      address_hex: form.address_hex.value,
-      channels: exp.channels.map((ch, i) => ({
-        name: form[`ch${i}_name`].value,
-        type: form[`ch${i}_type`].value,
-        address_hex: form[`ch${i}_address`].value
-      }))
-    };
-    // Save
-    const saveRes = await fetch("/api/expansion_config", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const saveData = await saveRes.json();
-    if (saveData.ok) {
-      alert("Expansion config saved!");
-      hideIoChannelPopup();
-      if (typeof loadModules === 'function') loadModules();
-    } else {
-      alert("Save failed: " + (saveData.error || "Unknown error"));
-    }
-  };
-
+  controls.innerHTML = "<div style="padding:12px;">Expansion/Extender module has been replaced by the RS485 I2C Bridge. Use RS485 module settings instead.</div>";
   popup.classList.add('active');
   overlay.style.display = 'block';
 }
