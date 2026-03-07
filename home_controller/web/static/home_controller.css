@@ -228,7 +228,19 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
   z-index: 2;
     opacity: 1 !important;
     filter: none !important;
+}
+
+.drag-handle {
   cursor: grab;
+  user-select: none;
+  padding: 0 6px;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.module-card.dragging .drag-handle {
+  color: #5c7cfa;
 }
 
 .module-card.dragging {

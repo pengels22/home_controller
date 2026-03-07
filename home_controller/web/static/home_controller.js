@@ -1894,6 +1894,11 @@ async function loadModules() {
     `;
 
 
+    const handle = document.createElement("span");
+    handle.className = "drag-handle";
+    handle.title = "Drag to reorder";
+    handle.textContent = "⋮⋮";
+
     const gear = document.createElement("button");
     gear.className = "icon-btn";
     gear.title = "Settings";
@@ -1909,6 +1914,7 @@ async function loadModules() {
         });
 
         header.appendChild(left);
+        header.appendChild(handle);
         header.appendChild(gear);
 
         const svgHolder = document.createElement("div");
