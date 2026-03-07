@@ -15,13 +15,15 @@
   </style>
 </head>
 <body>
-  <nav>
-    <a href="/">Dashboard</a>
-    <a href="/modules">Modules</a>
-    <a href="/config">Config</a>
-    <a href="/i2c_config">I2C Module</a>
-  </nav>
-  <hr />
+  {% if not hide_nav %}
+    <nav>
+      <a href="/">Dashboard</a>
+      <a href="/modules">Modules</a>
+      <a href="/config">Config</a>
+      <a href="/i2c_config">I2C Module</a>
+    </nav>
+    <hr />
+  {% endif %}
   {% block content %}{% endblock %}
 </body>
 </html>

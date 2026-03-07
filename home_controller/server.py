@@ -723,7 +723,7 @@ def genmon_detail(module_id: str):
     mod = next((m for m in backend.list_modules() if m.id == module_id), None)
     if not mod:
         abort(404)
-    return render_template("genmon_detail.html", module=mod)
+    return render_template("genmon_detail.html", module=mod, hide_nav=True)
 
 
 # ------------------------------------------------------------
