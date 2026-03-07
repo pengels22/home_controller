@@ -1,4 +1,8 @@
 flask>=3.0.0
-pyyaml>=6.0.0
-smbus2>=0.5.5
 pyserial>=3.5
+# Optional: only needed when direct I2C access is used (not required in RS485-only mode)
+smbus2>=0.5.5
+
+# Standard library imports (for reference; do NOT pip install):
+# os, json, typing, csv, pathlib, threading, time, struct, socket,
+# dataclasses, datetime, re, sys, subprocess, traceback
