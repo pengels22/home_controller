@@ -1,6 +1,12 @@
-name,type,address
-TMP102,temperature,0x48
-ADS1115,adc,0x49
-MCP23017,gpio,0x20
-PCF8574,gpio,0x27
-SI7021,humidity,0x40
+id,name,category,default_address,description
+0x01,INA219,power,0x40,Current/voltage monitor (shunt + bus)
+0x02,INA226,power,0x40,High-side current/voltage monitor
+0x03,ADS1115,adc,0x48,4-ch 16-bit ADC
+0x04,TMP102,temperature,0x48,Temperature sensor
+0x05,LM75,temperature,0x48,Temperature sensor
+0x06,MCP23017,gpio,0x20,16-bit GPIO expander
+0x07,PCF8574,gpio,0x20,8-bit GPIO expander
+0x08,BME280,env,0x76,Temp/humidity/pressure
+0x09,BME680,env,0x77,Temp/humidity/pressure/gas
+0x0A,SHT31,humidity,0x44,Temp/humidity
+0x0B,HTU21D,humidity,0x40,Temp/humidity

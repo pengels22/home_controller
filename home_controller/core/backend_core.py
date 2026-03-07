@@ -37,7 +37,8 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import Dict, Optional
+import struct
+from typing import Dict, Optional, Any
 
 try:
     import serial  # type: ignore
@@ -68,6 +69,23 @@ def _unpack12(d0: int, d1: int) -> int:
     return (d0 & 0xFF) | ((d1 & 0x0F) << 8)
 
 
+def _crc16_ccitt_false(data: bytes) -> int:
+    """
+    CRC-16/CCITT-FALSE (poly=0x1021, init=0xFFFF, refin/out=false, xorout=0).
+    Matches the implementation in gen_core.ino.
+    """
+    crc = 0xFFFF
+    for b in data:
+        crc ^= b << 8
+        for _ in range(8):
+            if crc & 0x8000:
+                crc = (crc << 1) ^ 0x1021
+            else:
+                crc <<= 1
+            crc &= 0xFFFF
+    return crc
+
+
 class RS485Backend:
     """
     Thin, synchronous RS485 transport for the RP2040 modules.
@@ -91,6 +109,7 @@ class RS485Backend:
             raise RS485NotReady(f"could not open RS485 port {port}: {exc}")
         self._lock = threading.Lock()
         self._timeout = timeout
+        self._gen_seq = 0  # generator frame sequence counter
 
     @staticmethod
     def available() -> bool:
@@ -274,6 +293,250 @@ class RS485Backend:
             "d3": reply[9],
             "status": reply[10],
             "raw": reply,
+        }
+
+    def send_i2c_cmd_multi(
+        self,
+        addr: int,
+        cmd: int,
+        sensor_type: int,
+        i2c_addr: int,
+        p0: int = 0,
+        p1: int = 0,
+        p2: int = 0,
+        timeout: float = 0.6,
+        idle_gap: float = 0.08,
+    ) -> Dict[str, Any]:
+        """
+        Sends a command that may return multiple 12B frames. Collects frames until no data is
+        received for idle_gap or overall timeout expires.
+        """
+        req = bytes(
+            [
+                0xAA,
+                addr & 0xFF,
+                cmd & 0xFF,
+                sensor_type & 0xFF,
+                i2c_addr & 0xFF,
+                p0 & 0xFF,
+                p1 & 0xFF,
+                p2 & 0xFF,
+            ]
+        )
+        crc = _xor_crc(req)
+        req += bytes([crc])
+        frames = []
+        with self._lock:
+            self._ser.reset_input_buffer()
+            self._ser.write(req)
+            self._ser.flush()
+            deadline = time.time() + timeout
+            last_rx = time.time()
+            while time.time() < deadline and (time.time() - last_rx) <= idle_gap:
+                buf = b""
+                while len(buf) < 12 and time.time() < deadline:
+                    chunk = self._ser.read(12 - len(buf))
+                    if chunk:
+                        buf += chunk
+                        last_rx = time.time()
+                    else:
+                        break
+                if len(buf) < 12:
+                    break
+                if buf[0] != 0x55:
+                    frames.append({"ok": False, "error": "bad preamble", "raw": buf})
+                    continue
+                if buf[-1] != _xor_crc(buf[:-1]):
+                    frames.append({"ok": False, "error": "bad crc", "raw": buf})
+                    continue
+                frames.append(
+                    {
+                        "ok": True,
+                        "addr": buf[1],
+                        "cmd": buf[2],
+                        "sensor_type": buf[3],
+                        "i2c_addr": buf[4],
+                        "field": buf[5],
+                        "d0": buf[6],
+                        "d1": buf[7],
+                        "d2": buf[8],
+                        "d3": buf[9],
+                        "status": buf[10],
+                        "raw": buf,
+                    }
+                )
+        return {"ok": True, "frames": frames}
+
+    # -------------------------------------------------
+    # Generator (FD485 framing from gen_core.ino)
+    # -------------------------------------------------
+    _GEN_SYNC = b"\xAA\x55"
+    _GEN_VER = 0x01
+    _GEN_MSG_TELEM = 0x01
+    _GEN_MSG_CMD = 0x02
+    _GEN_MSG_ACK = 0x03
+    _GEN_CABINET_ID = 0x01  # host/head ID
+
+    def _gen_build_frame(self, msg_type: int, dst: int, payload: bytes) -> bytes:
+        seq = self._gen_seq & 0xFF
+        self._gen_seq = (self._gen_seq + 1) & 0xFF
+        hdr = bytes([
+            self._GEN_SYNC[0], self._GEN_SYNC[1],
+            self._GEN_VER,
+            msg_type & 0xFF,
+            self._GEN_CABINET_ID,
+            dst & 0xFF,
+            seq,
+            len(payload) & 0xFF,
+        ])
+        crc = _crc16_ccitt_false(hdr + payload)
+        return hdr + payload + bytes([(crc >> 8) & 0xFF, crc & 0xFF])
+
+    def _gen_read_frame(self, timeout: float = 0.5, expect_type: Optional[int] = None, expect_src: Optional[int] = None) -> Dict[str, Any]:
+        """Parse one FD485 frame; returns error dict on timeout or CRC failure."""
+        deadline = time.time() + timeout
+
+        def read_exact(n: int, until: float) -> Optional[bytes]:
+            out = bytearray()
+            while len(out) < n and time.time() < until:
+                chunk = self._ser.read(n - len(out))
+                if chunk:
+                    out += chunk
+            return bytes(out) if len(out) == n else None
+
+        while time.time() < deadline:
+            b1 = self._ser.read(1)
+            if not b1 or b1 != self._GEN_SYNC[:1]:
+                continue
+            b2 = self._ser.read(1)
+            if b2 != self._GEN_SYNC[1:2]:
+                continue
+            hdr_rest = read_exact(6, deadline)
+            if hdr_rest is None:
+                break
+            ver, msg_type, src, dst, seq, plen = hdr_rest
+            payload_crc = read_exact(plen + 2, deadline)
+            if payload_crc is None:
+                break
+            payload = payload_crc[:-2]
+            crc_got = (payload_crc[-2] << 8) | payload_crc[-1]
+            frame = b"".join([self._GEN_SYNC, hdr_rest, payload_crc])
+            crc_calc = _crc16_ccitt_false(frame[:-2])
+            if crc_calc != crc_got:
+                continue
+            if ver != self._GEN_VER:
+                continue
+            if expect_type is not None and msg_type != expect_type:
+                continue
+            if expect_src is not None and src != expect_src:
+                continue
+            return {
+                "ok": True,
+                "type": msg_type,
+                "src": src,
+                "dst": dst,
+                "seq": seq,
+                "payload": payload,
+                "raw": frame,
+            }
+        return {"ok": False, "error": "timeout waiting for generator frame"}
+
+    def gen_send_cmd(self, addr: int, cmd: int, cmd_flags: int = 0, param1: int = 0, param2: int = 0, token: int = 0, timeout: float = 0.6) -> Dict[str, Any]:
+        """
+        Send a generator command (MSG_CMD) and wait for ACK/NAK.
+        """
+        payload = bytes([
+            cmd & 0xFF,
+            cmd_flags & 0xFF,
+            param1 & 0xFF, (param1 >> 8) & 0xFF,
+            param2 & 0xFF, (param2 >> 8) & 0xFF,
+            token & 0xFF, (token >> 8) & 0xFF, (token >> 16) & 0xFF, (token >> 24) & 0xFF,
+        ])
+        frame = self._gen_build_frame(self._GEN_MSG_CMD, addr, payload)
+        with self._lock:
+            self._ser.reset_input_buffer()
+            self._ser.write(frame)
+            self._ser.flush()
+            ack = self._gen_read_frame(timeout=timeout, expect_type=self._GEN_MSG_ACK, expect_src=addr)
+        if not ack.get("ok"):
+            return ack
+        pl = ack.get("payload", b"")
+        if len(pl) < 2:
+            return {"ok": False, "error": "ack payload too short", "raw": ack.get("raw")}
+        detail = pl[2] | (pl[3] << 8) if len(pl) >= 4 else 0
+        return {"ok": True, "cmd": pl[0], "result": pl[1], "detail": detail, "raw": ack.get("raw")}
+
+    def gen_snapshot(self, addr: int, timeout: float = 1.2) -> Dict[str, Any]:
+        """
+        Issue CMD_SNAPSHOT and return one telemetry frame as a dict.
+        """
+        CMD_SNAPSHOT = 0x0A
+        ack = self.gen_send_cmd(addr, CMD_SNAPSHOT, timeout=timeout)
+        if not ack.get("ok"):
+            return ack
+        with self._lock:
+            telem = self._gen_read_frame(timeout=timeout, expect_type=self._GEN_MSG_TELEM, expect_src=addr)
+        if not telem.get("ok"):
+            return telem
+        payload = telem.get("payload", b"")
+        fmt = "<I H h H H H H H H B B H H I H H B B H H H H"
+        if len(payload) < struct.calcsize(fmt):
+            return {"ok": False, "error": "telemetry payload too short", "raw": telem.get("raw")}
+        try:
+            (
+                uptime_s,
+                batt_mv,
+                eng_temp_c_x10,
+                gen_v_l1_x10,
+                gen_v_l2_x10,
+                util_v_l1_x10,
+                util_v_l2_x10,
+                amps_l1_x100,
+                amps_l2_x100,
+                amps_flags,
+                amps_src,
+                hz_x100,
+                rpm,
+                run_seconds,
+                alarm_code,
+                warn_code,
+                state,
+                mode,
+                flags,
+                poll_ms,
+                good_frames,
+                bad_frames,
+            ) = struct.unpack(fmt, payload[:struct.calcsize(fmt)])
+        except Exception as exc:
+            return {"ok": False, "error": f"telemetry unpack failed: {exc}"}
+
+        return {
+            "ok": True,
+            "telem": {
+                "uptime_s": uptime_s,
+                "batt_mv": batt_mv,
+                "eng_temp_c_x10": eng_temp_c_x10,
+                "gen_v_l1_x10": gen_v_l1_x10,
+                "gen_v_l2_x10": gen_v_l2_x10,
+                "util_v_l1_x10": util_v_l1_x10,
+                "util_v_l2_x10": util_v_l2_x10,
+                "amps_l1_x100": amps_l1_x100,
+                "amps_l2_x100": amps_l2_x100,
+                "amps_flags": amps_flags,
+                "amps_src": amps_src,
+                "hz_x100": hz_x100,
+                "rpm": rpm,
+                "run_seconds": run_seconds,
+                "alarm_code": alarm_code,
+                "warn_code": warn_code,
+                "state": state,
+                "mode": mode,
+                "flags": flags,
+                "poll_ms": poll_ms,
+                "good_frames": good_frames,
+                "bad_frames": bad_frames,
+            },
+            "raw": telem.get("raw"),
         }
 
     # -------------------------------------------------

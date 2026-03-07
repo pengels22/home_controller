@@ -5,7 +5,7 @@
   height="2.5in"
   viewBox="0 0 100 250"
   role="img"
-  aria-label="GenMon Module">
+  aria-label="Generator Module">
 
   <defs>
     <style>
@@ -87,7 +87,7 @@
     <rect id="bat_fill" class="bat-fill" x="2" y="2" width="14" height="26" rx="1" ry="1"/>
   </g>
 
-  <!-- Optional "details" area (leave for extra GenMon fields later) -->
+  <!-- Optional "details" area (leave for extra generator fields later) -->
   <rect class="panel2" x="10" y="162" width="80" height="76" rx="7" ry="7"/>
   <text class="small" x="50" y="178" text-anchor="middle">DETAILS</text>
 

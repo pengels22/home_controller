@@ -61,7 +61,7 @@
               <input type="text" name="ch{{i}}" placeholder="Channel {{i}}" style="width:90px" />
               <select name="type{{i}}" style="width:120px">
                 {% for sensor in i2c_sensors %}
-                  <option value="{{ sensor.name }}">{{ sensor.name }} ({{ sensor.type }})</option>
+                  <option value="{{ sensor.id }}">{{ sensor.name }} ({{ sensor.category }}) @ {{ sensor.default_address }}</option>
                 {% endfor %}
               </select>
               <label>I2C Addr <input type="text" name="addr{{i}}" style="width:50px" /></label>

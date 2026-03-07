@@ -917,12 +917,12 @@ async function showIoChannelPopup(name, status) {
     return;
   }
 
-  // ---------------- GenMon detail popup helper ----------------
+  // ---------------- Generator detail popup helper ----------------
   async function showGenmonDetailPopup(moduleId) {
     const popup = ensureIoChannelPopup();
     const overlay = ensureIoChannelPopupOverlay();
     const controls = popup.querySelector('.popup-controls');
-    popup.querySelector('.popup-title').textContent = 'GenMon Details';
+    popup.querySelector('.popup-title').textContent = 'Generator Details';
     popup.querySelector('.popup-status').textContent = '';
     controls.innerHTML = `
       <iframe src="/modules/genmon/${encodeURIComponent(moduleId)}/detail"
@@ -940,7 +940,7 @@ async function showIoChannelPopup(name, status) {
     document.body.classList.add('modal-open');
   }
 
-  // ---------------- GenMon global config ----------------
+  // ---------------- Generator global config ----------------
   if (type === 'genmon') {
     form.querySelectorAll('button[type="submit"], button[type="button"]').forEach((btn) => btn.remove());
     const nameInput = form.querySelector('input[name="module_name"]');
@@ -1867,7 +1867,7 @@ async function loadModules() {
           }
         }
 
-        // GenMon: add load-more link click to detail popup
+        // Generator: add load-more link click to detail popup
         if (svgType === "genmon") {
           const more = svgRoot.querySelector("#genmon_load_more");
           if (more) {

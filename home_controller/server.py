@@ -22,6 +22,7 @@ import traceback
 from home_controller.core.backend import HomeControllerBackend
 from home_controller.config import aio_max_voltage
 from home_controller.core.genmon_client import GenMonClient
+from home_controller.core import i2c_catalog
 
 # ------------------------------------------------------------
 # Paths (absolute, based on this file)
@@ -290,34 +291,24 @@ def aio_config_popup():
 
 @app.route("/i2c_config_popup")
 def i2c_config_popup():
-    # Load i2c_sensors.csv for dropdown options
-    sensors_path = BASE_DIR / "i2c_sensors.csv"
-    i2c_sensors = []
-    if sensors_path.exists():
-        import csv
-        with open(sensors_path, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                i2c_sensors.append(row)
+    i2c_sensors = i2c_catalog.load_catalog()
     return render_template("i2c_config.html", i2c_sensors=i2c_sensors)
 
 # RS485 config popup (uses same sensor list, 40 channels)
 @app.route("/rs485_config_popup")
 def rs485_config_popup():
-    sensors_path = BASE_DIR / "i2c_sensors.csv"
-    i2c_sensors = []
-    if sensors_path.exists():
-        import csv
-        with open(sensors_path, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                i2c_sensors.append(row)
+    i2c_sensors = i2c_catalog.load_catalog()
     return render_template("rs485_to_i2c_config.html", i2c_sensors=i2c_sensors)
 
 # GenMon config popup (simple name/address)
 @app.route("/genmon_config_popup")
 def genmon_config_popup():
     return render_template("genmon_config.html")
+
+
+@app.get("/api/i2c/supported")
+def api_i2c_supported():
+    return jsonify({"ok": True, "sensors": i2c_catalog.load_catalog()})
 
 # I2C module settings page
 @app.route("/i2c_config")
@@ -623,6 +614,9 @@ if DEV_MODE:
 
 # On startup, scan I2C and warn if any configured module is missing
 def _startup_module_check():
+    if getattr(backend, "_force_rs485", False):
+        print("[INFO] HC_FORCE_RS485 enabled; skipping I2C presence scan.")
+        return
     addrs, _err = _scan_i2c_addresses(I2C_BUS)
     present_hex = {f"0x{a:02x}" for a in addrs}
     missing = []
@@ -742,19 +736,14 @@ def api_genmon_status(module_id: str):
         return jsonify({"ok": False, "error": "module not found"}), 404
 
     try:
-        raw = _get_genmon_client().status()
-        if not isinstance(raw, dict):
-            raw = {}
-        parsed = _parse_genmon_status(raw)
-        return jsonify(
-            {
-                "ok": True,
-                "module_id": module_id,
-                "host": GENMON_HOST,
-                "port": GENMON_PORT,
-                **parsed,
-            }
-        )
+        res = backend.read_module(module_id)
+        if not res.get("ok"):
+            return jsonify({"ok": False, "error": res.get("error")}), 502
+        out = dict(res)
+        out["module_id"] = module_id
+        out["host"] = "RS485"
+        out["port"] = backend._rs485_port  # type: ignore
+        return jsonify(out)
     except Exception as e:
         tb = traceback.format_exc()
         return jsonify({"ok": False, "error": str(e), "trace": tb}), 502
@@ -808,12 +797,7 @@ def api_genmon_set_contact(module_id: str, contact_id: int):
 
     cmd = _build_contact_command(entry, state)
 
-    try:
-        resp = _get_genmon_client().command(cmd, expect_json=False)
-    except Exception as e:
-        tb = traceback.format_exc()
-        return jsonify({"ok": False, "error": str(e), "trace": tb}), 502
-
+    # RS485 generator modules do not expose dry-contact writes yet; just persist desired state.
     _update_contact_state(cfg, contact_id, state)
     _save_genmon_contacts(cfg)
 
@@ -824,7 +808,7 @@ def api_genmon_set_contact(module_id: str, contact_id: int):
             "contact": contact_id,
             "state": state,
             "command": cmd,
-            "resp": str(resp),
+            "resp": "stored (no-op for RS485 generator)",
         }
     )
 

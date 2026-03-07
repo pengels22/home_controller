@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>GenMon Details</h1>
+<h1>Generator Details</h1>
 
 <div class="card">
   <div><b>Module:</b> {{ module.id }} ({{ module.type|upper }})</div>
   <div><b>Address:</b> {{ module.address_hex }}</div>
   <div><b>Name:</b> {{ module.name or "—" }}</div>
-  <div><b>GenMon host:</b> <span id="gm_host">GenMon_PI</span>:<span id="gm_port">9082</span></div>
+  <div><b>Generator link:</b> <span id="gm_host">GenBus</span>:<span id="gm_port">485</span></div>
   <div class="muted" id="status_meta">Waiting for data…</div>
 </div>
 
@@ -25,7 +25,7 @@
 
 <div class="card">
   <h3 style="margin-top:0">Dry Contacts (4)</h3>
-  <div class="muted" style="margin-bottom:6px;">Toggle contacts are proxied to GenMon via its socket API.</div>
+  <div class="muted" style="margin-bottom:6px;">Toggle contacts are stored locally (RS485 generator module).</div>
   <div id="contacts_error" style="display:none;color:#b00;font-size:12px;"></div>
   <table style="width:100%;border-collapse:collapse;font-size:14px;">
     <thead>
@@ -76,7 +76,7 @@
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
-      setText("gm_host", data.host || "GenMon_PI");
+      setText("gm_host", data.host || "Generator");
       setText("gm_port", data.port || "9082");
       setText("sys_health", data.system_health || "—");
       const runTxt = data.run_state || (data.running ? "RUNNING" : "STOPPED");

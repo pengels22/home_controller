@@ -24,6 +24,7 @@ from dataclasses import dataclass, asdict
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import datetime
+from home_controller.core import i2c_catalog
 from home_controller.config import aio_max_voltage
 try:
     from home_controller.core.backend_core import RS485Backend, RS485NotReady
@@ -140,6 +141,8 @@ class HomeControllerBackend:
         self._rs485_port = os.getenv("HC_RS485_PORT", "/dev/ttyAMA0")
         self._rs485_baud = int(os.getenv("HC_RS485_BAUD", "115200"))
         self._rs485_enabled = os.getenv("HC_RS485_ENABLE", "1").lower() not in ("0", "false", "no")
+        # When set, never fall back to I2C paths; all DI/DO/AIO must use RS485.
+        self._force_rs485 = os.getenv("HC_FORCE_RS485", "1").lower() not in ("0", "false", "no")
 
         if self._rs485_enabled and RS485Backend is not None and RS485Backend.available():
             try:
@@ -521,6 +524,9 @@ class HomeControllerBackend:
 
         addr_key = m.address_hex.lower()
 
+        if self._force_rs485 and not self.rs485:
+            return {"ok": False, "error": "RS485 forced (HC_FORCE_RS485=1) but backend not available"}
+
         # Dev-mode: return simulated data if available. If exact address
         # isn't present in the dev file, fall back to any compatible
         # simulated entry (useful for quick testing where addresses differ).
@@ -647,16 +653,159 @@ class HomeControllerBackend:
                         "sense_mask": sense_mask,
                         "power": self._sense_info(sense_mask, two_lines=True),
                         "comms_led": "green",
-                        "raw_frames": raw_frames,
-                    }
+                            "raw_frames": raw_frames,
+                        }
                 elif m.type == "do":
                     # DO firmware lacks a read-only command; avoid changing outputs implicitly.
                     self._set_last_error(module_id, "DO read over RS485 not supported (would change state)")
                     return {"ok": False, "error": "DO read over RS485 not supported (would change state)"}
+                elif m.type == "genmon":
+                    snap = self.rs485.gen_snapshot(addr_int)
+                    if not snap.get("ok"):
+                        self._set_last_error(module_id, snap.get("error", "Gen RS485 read failed"))
+                        return {"ok": False, "error": snap.get("error", "Gen RS485 read failed")}
+                    t = snap["telem"]
+                    telem = {
+                        "uptime_s": t["uptime_s"],
+                        "battery_v": round(t["batt_mv"] / 1000.0, 3),
+                        "temp_c": round(t["eng_temp_c_x10"] / 10.0, 1),
+                        "gen_v_l1": round(t["gen_v_l1_x10"] / 10.0, 1),
+                        "gen_v_l2": round(t["gen_v_l2_x10"] / 10.0, 1),
+                        "util_v_l1": round(t["util_v_l1_x10"] / 10.0, 1),
+                        "util_v_l2": round(t["util_v_l2_x10"] / 10.0, 1),
+                        "amps_l1": round(t["amps_l1_x100"] / 100.0, 2),
+                        "amps_l2": round(t["amps_l2_x100"] / 100.0, 2),
+                        "hz": round(t["hz_x100"] / 100.0, 2),
+                        "rpm": int(t["rpm"]),
+                        "run_seconds": int(t["run_seconds"]),
+                        "alarm_code": int(t["alarm_code"]),
+                        "warn_code": int(t["warn_code"]),
+                        "state": int(t["state"]),
+                        "mode": int(t["mode"]),
+                        "flags": int(t["flags"]),
+                        "poll_ms": int(t["poll_ms"]),
+                        "good_frames": int(t["good_frames"]),
+                        "bad_frames": int(t["bad_frames"]),
+                    }
+                    state_map = {
+                        0: "UNKNOWN",
+                        1: "STOPPED",
+                        2: "STARTING",
+                        3: "RUNNING",
+                        4: "COOLDOWN",
+                        5: "EXERCISE",
+                        6: "ALARM",
+                        7: "WARNING",
+                    }
+                    mode_map = {0: "UNKNOWN", 1: "OFF", 2: "AUTO", 3: "MANUAL"}
+                    telem["run_state"] = state_map.get(telem["state"], "UNKNOWN")
+                    telem["mode_name"] = mode_map.get(telem["mode"], "UNKNOWN")
+                    running = telem["rpm"] > 0 or telem["state"] == 3
+                    self._set_last_error(module_id, None)
+                    return {
+                        "ok": True,
+                        "comms_ok": True,
+                        "module_id": m.id,
+                        "type": m.type,
+                        "address": m.address_hex,
+                        "running": running,
+                        "run_state": telem["run_state"],
+                        "mode": telem["mode_name"],
+                        "rpm": telem["rpm"],
+                        "hz": telem["hz"],
+                        "battery_v": telem["battery_v"],
+                        "temp_c": telem["temp_c"],
+                        "gen_v_l1": telem["gen_v_l1"],
+                        "gen_v_l2": telem["gen_v_l2"],
+                        "util_v_l1": telem["util_v_l1"],
+                        "util_v_l2": telem["util_v_l2"],
+                        "amps_l1": telem["amps_l1"],
+                        "amps_l2": telem["amps_l2"],
+                        "alarm_code": telem["alarm_code"],
+                        "warn_code": telem["warn_code"],
+                        "raw_telem": telem,
+                    }
+                elif m.type == "i2c":
+                    CMD_SCAN_I2C = 0x05
+                    CMD_LIST_REGISTERED = 0x09
+                    CMD_SAMPLE_ALL = 0x08
+                    # 1) list registered devices
+                    lst = self.rs485.send_i2c_cmd_multi(addr_int, CMD_LIST_REGISTERED, 0, 0, timeout=0.8)
+                    if not lst.get("ok"):
+                        self._set_last_error(module_id, lst.get("error", "I2C module RS485 list failed"))
+                        return {"ok": False, "error": lst.get("error", "I2C module RS485 list failed")}
+                    devices = []
+                    for f in lst["frames"]:
+                        if not f.get("ok"):
+                            continue
+                        if f.get("field") == 0x11 and f.get("status") == 0:  # FIELD_REGISTRY_ENTRY
+                            devices.append(
+                                {
+                                    "sensor_type": f.get("sensor_type"),
+                                    "i2c_addr": f.get("i2c_addr"),
+                                    "slot": f.get("d1"),
+                                    "options": f.get("d2"),
+                                }
+                            )
+
+                    # 2) sample all registered sensors
+                    samples = []
+                    samp = self.rs485.send_i2c_cmd_multi(addr_int, CMD_SAMPLE_ALL, 0, 0, timeout=1.2)
+                    if samp.get("ok"):
+                        for f in samp["frames"]:
+                            if not f.get("ok") or f.get("status") != 0:
+                                continue
+                            val = f.get("d0") | (f.get("d1") << 8) | (f.get("d2") << 16) | (f.get("d3") << 24)
+                            samples.append(
+                                {
+                                    "sensor_type": f.get("sensor_type"),
+                                    "i2c_addr": f.get("i2c_addr"),
+                                    "field": f.get("field"),
+                                    "value": val,
+                                }
+                            )
+
+                    # 3) quick scan for any other devices
+                    scan = self.rs485.send_i2c_cmd_multi(addr_int, CMD_SCAN_I2C, 0, 0, timeout=0.8)
+                    scan_found = []
+                    if scan.get("ok"):
+                        for f in scan["frames"]:
+                            if f.get("ok") and f.get("field") == 0x0E and f.get("status") == 0:
+                                scan_found.append(f.get("i2c_addr"))
+
+                    name_map = i2c_catalog.id_to_name_map()
+                    for d in devices:
+                        try:
+                            sid = int(str(d.get("sensor_type", 0)))
+                            d["sensor_name"] = name_map.get(sid, f"0x{sid:02x}")
+                        except Exception:
+                            pass
+                    for s in samples:
+                        try:
+                            sid = int(str(s.get("sensor_type", 0)))
+                            s["sensor_name"] = name_map.get(sid, f"0x{sid:02x}")
+                        except Exception:
+                            pass
+
+                    self._set_last_error(module_id, None)
+                    return {
+                        "ok": True,
+                        "comms_ok": True,
+                        "module_id": m.id,
+                        "type": m.type,
+                        "address": m.address_hex,
+                        "registered": devices,
+                        "samples": samples,
+                        "scan_found": scan_found,
+                    }
             except Exception as e:
                 # fall through to legacy I2C path on any RS485 issue
                 self._set_last_error(module_id, str(e))
                 pass
+
+        if self._force_rs485:
+            # RS485 is required; don't attempt I2C fallback
+            return {"ok": False, "error": self._last_errors.get(module_id) or "RS485 read failed"}
 
         if not _HAS_SMBUS:
             return {"ok": False, "error": "smbus2 not installed on this system"}
@@ -885,6 +1034,9 @@ class HomeControllerBackend:
 
         m = self.cfg.modules[idx]
 
+        if self._force_rs485 and not self._dev_mode and not self.rs485:
+            return {"ok": False, "error": "RS485 forced (HC_FORCE_RS485=1) but backend not available"}
+
         if m.type == "do":
             # DO behaviour (existing)
             if not (1 <= channel <= 16):
@@ -976,6 +1128,9 @@ class HomeControllerBackend:
                     except Exception as e:
                         self._set_last_error(module_id, f"RS485 DO write error: {e}")
                         return {"ok": False, "error": f"RS485 DO write error: {e}"}
+
+            if self._force_rs485:
+                return {"ok": False, "error": self._last_errors.get(module_id) or "RS485 DO write failed"}
 
             if not _HAS_SMBUS:
                 return {"ok": False, "error": "smbus2 not installed on this system"}
@@ -1142,6 +1297,9 @@ class HomeControllerBackend:
                     self._set_last_error(module_id, f"RS485 AIO write error: {e}")
                     return {"ok": False, "error": f"RS485 AIO write error: {e}"}
 
+            if self._force_rs485:
+                return {"ok": False, "error": self._last_errors.get(module_id) or "RS485 AIO write failed"}
+
             # Fall back to legacy placeholder if RS485 unavailable
             s = f"{voltage},{voltage},{voltage},{voltage},{voltage},{voltage},{voltage},{voltage}"
             parts = [p.strip() for p in s.split(",") if p.strip()]
@@ -1158,6 +1316,9 @@ class HomeControllerBackend:
                 channels[str(i + 1)] = values[i]
 
             return {"ok": True, "module_id": m.id, "type": m.type, "address": m.address_hex, "raw_response": s, "channels": channels}
+
+        elif m.type == "i2c":
+            return {"ok": False, "error": "I2C module write not supported over RS485 yet"}
 
         else:
             return {"ok": False, "error": "write not supported for this module type"}
