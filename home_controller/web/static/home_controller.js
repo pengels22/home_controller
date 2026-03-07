@@ -1744,21 +1744,23 @@ function enableModuleDragAndDrop(rowEl) {
   const cards = Array.from(rowEl.querySelectorAll(".module-card")).filter((c) => c.dataset.moduleId);
 
   cards.forEach((card) => {
-    card.draggable = true;
-    card.addEventListener("dragstart", (e) => {
+    const handle = card.querySelector(".module-header") || card;
+    handle.draggable = true;
+    handle.addEventListener("dragstart", (e) => {
       dragEl = card;
       card.classList.add("dragging");
+      document.body.classList.add("dragging-modules");
       if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = "move";
-        // Some browsers require data to be set to allow dragging.
         e.dataTransfer.setData("text/plain", card.dataset.moduleId || "");
       }
     });
-    card.addEventListener("dragend", () => {
+    handle.addEventListener("dragend", () => {
       card.classList.remove("dragging");
+      document.body.classList.remove("dragging-modules");
       dragEl = null;
     });
-    card.addEventListener("dragover", (e) => {
+    handle.addEventListener("dragover", (e) => {
       e.preventDefault();
       if (!dragEl || dragEl === card) return;
       if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
@@ -1770,7 +1772,7 @@ function enableModuleDragAndDrop(rowEl) {
         rowEl.insertBefore(dragEl, card.nextSibling);
       }
     });
-    card.addEventListener("drop", async (e) => {
+    handle.addEventListener("drop", async (e) => {
       e.preventDefault();
       const ordered = Array.from(rowEl.querySelectorAll(".module-card")).filter((c) => c.dataset.moduleId);
       for (let i = 0; i < ordered.length; i++) {
@@ -1781,6 +1783,8 @@ function enableModuleDragAndDrop(rowEl) {
           console.error("Failed to persist module order", err);
         }
       }
+      // Refresh to reflect new numbering/order
+      loadModules();
     });
   });
 }
@@ -1794,6 +1798,11 @@ async function loadModules() {
   const res = await fetch("/modules");
   const data = await res.json();
   const modules = Array.isArray(data) ? data.slice() : [];
+  modules.sort((a, b) => {
+    const na = Number(a.module_num ?? 1e9);
+    const nb = Number(b.module_num ?? 1e9);
+    return na - nb || String(a.name || "").localeCompare(String(b.name || ""));
+  });
   modules.sort((a, b) => {
     const na = Number(a.module_num ?? 1e6);
     const nb = Number(b.module_num ?? 1e6);
@@ -1885,13 +1894,14 @@ async function loadModules() {
     `;
 
 
-        const gear = document.createElement("button");
-        gear.className = "icon-btn";
-        gear.title = "Settings";
-        gear.textContent = "⚙️";
-        gear.onclick = () => showIoChannelPopup({
-          module_id: m.id,
-          type: m.type && m.type.toLowerCase(),
+    const gear = document.createElement("button");
+    gear.className = "icon-btn";
+    gear.title = "Settings";
+    gear.textContent = "⚙️";
+    gear.draggable = false;
+    gear.onclick = () => showIoChannelPopup({
+      module_id: m.id,
+      type: m.type && m.type.toLowerCase(),
           name: m.name || `${typeLabel} MODULE`,
           address: m.address,
           status: m.status || undefined,
