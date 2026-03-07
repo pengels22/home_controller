@@ -1879,19 +1879,31 @@ async function loadModules() {
 
     const isGenerator = String(m.type || "").toLowerCase() === "genmon";
     const typeLabel = isGenerator ? "GENERATOR" : String(m.type || "").toUpperCase();
+    // Force RS485 module name
+    const forcedName = String(m.type || "").toLowerCase() === "rs485" ? "RS485 HUB" : null;
     const fallbackTitle = isGenerator ? "GENERATOR" : `${String(m.type || "").toUpperCase()} MODULE`;
     const displayName =
-      (m.name && String(m.name).trim().length > 0)
-        ? String(m.name).trim()
-        : fallbackTitle;
+      forcedName
+        ? forcedName
+        : (m.name && String(m.name).trim().length > 0)
+          ? String(m.name).trim()
+          : fallbackTitle;
 
     // Attach labels for downstream rendering convenience
     m.labels = labelsMap[m.id] || {};
 
-    left.innerHTML = `
-      <div class="module-title">${displayName}</div>
-      <div class="module-sub">${typeLabel} • ${m.address}</div>
-    `;
+    // Generator: show type only once; others show type + address
+    if (isGenerator) {
+      left.innerHTML = `
+        <div class="module-title">${typeLabel}</div>
+        <div class="module-sub" style="display:none;"></div>
+      `;
+    } else {
+      left.innerHTML = `
+        <div class="module-title">${displayName}</div>
+        <div class="module-sub">${typeLabel} • ${m.address}</div>
+      `;
+    }
 
 
     const handle = document.createElement("span");
