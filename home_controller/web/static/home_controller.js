@@ -164,6 +164,99 @@ async function showIoChannelPopup(name, status) {
     popup.querySelector('.popup-title').textContent = ctx.name || `Channel ${ctx.channel}`;
     popup.querySelector('.popup-status').textContent = ctx.status ? `Status: ${ctx.status}` : '';
 
+    // I2C module: show live sensor replies instead of override/invert controls
+    if (ctx.type === 'i2c') {
+      controls.innerHTML = `<div style="min-width:280px">Loading sensor data…</div>`;
+      try {
+        const r = await fetch(`/api/module_read/${encodeURIComponent(ctx.module_id)}`);
+        const data = await r.json();
+        if (!r.ok || !data.ok) throw new Error(data.error || `HTTP ${r.status}`);
+
+        const samples = Array.isArray(data.samples) ? data.samples : [];
+        const registered = Array.isArray(data.registered) ? data.registered : [];
+        const scan = Array.isArray(data.scan_found) ? data.scan_found : [];
+
+        const fieldNames = {
+          0x01: "Voltage (mV)",
+          0x02: "Current (mA)",
+          0x03: "ADC0",
+          0x04: "ADC1",
+          0x05: "ADC2",
+          0x06: "ADC3",
+          0x07: "Temp (0.01°C)",
+          0x08: "Humidity (0.01%)",
+          0x09: "Pressure (Pa)",
+          0x0A: "Gas (Ω)",
+          0x0B: "GPIO Low",
+          0x0C: "GPIO High",
+          0x0D: "GPIO Pin",
+          0x0E: "Scan Found",
+          0x0F: "Config Saved",
+          0x10: "Config Deleted",
+          0x11: "Registry Entry",
+          0x12: "Registry Cleared",
+        };
+
+        const sampleRows = samples.map((s, i) => {
+          const fld = Number(s.field || 0);
+          const name = fieldNames[fld] || `Field 0x${fld.toString(16)}`;
+          const sensorName = s.sensor_name || `0x${Number(s.sensor_type || 0).toString(16)}`;
+          return `<tr>
+            <td>${i + 1}</td>
+            <td>${sensorName}</td>
+            <td>0x${Number(s.i2c_addr || 0).toString(16)}</td>
+            <td>${name}</td>
+            <td>${s.value}</td>
+          </tr>`;
+        }).join("") || `<tr><td colspan="5" class="muted">No samples returned.</td></tr>`;
+
+        const regRows = registered.map((d, i) => {
+          const sensorName = d.sensor_name || `0x${Number(d.sensor_type || 0).toString(16)}`;
+          return `<tr>
+            <td>${i + 1}</td>
+            <td>${sensorName}</td>
+            <td>0x${Number(d.i2c_addr || 0).toString(16)}</td>
+            <td>${d.options ?? ""}</td>
+          </tr>`;
+        }).join("") || `<tr><td colspan="4" class="muted">No registered devices.</td></tr>`;
+
+        const scanList = scan.length ? scan.map((a) => `0x${Number(a).toString(16)}`).join(", ") : "None";
+
+        controls.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:10px;min-width:320px;max-width:540px">
+            <div><b>Name:</b> ${ctx.name || `Channel ${ctx.channel}`}</div>
+            <div class="muted">Latest sensor replies from the I2C module.</div>
+            <div style="max-height:220px;overflow:auto;border:1px solid #333;padding:6px;border-radius:8px;">
+              <div style="font-weight:700;margin-bottom:4px;">Samples</div>
+              <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                <thead><tr><th>#</th><th>Sensor</th><th>Addr</th><th>Field</th><th>Value</th></tr></thead>
+                <tbody>${sampleRows}</tbody>
+              </table>
+            </div>
+            <div style="max-height:140px;overflow:auto;border:1px solid #333;padding:6px;border-radius:8px;">
+              <div style="font-weight:700;margin-bottom:4px;">Registered Devices</div>
+              <table style="width:100%;font-size:12px;border-collapse:collapse;">
+                <thead><tr><th>#</th><th>Sensor</th><th>Addr</th><th>Options</th></tr></thead>
+                <tbody>${regRows}</tbody>
+              </table>
+            </div>
+            <div><b>Scan:</b> ${scanList}</div>
+          </div>
+        `;
+      } catch (err) {
+        controls.innerHTML = `<div style="color:#ff6b6b;min-width:280px">Error: ${err}</div>`;
+      }
+
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'popup-close channel';
+      closeBtn.textContent = 'Close';
+      closeBtn.onclick = hideIoChannelPopup;
+      popup.appendChild(closeBtn);
+      overlay.onclick = (e) => { if (e.target === overlay) hideIoChannelPopup(); };
+      activatePopup();
+      return;
+    }
+
     controls.innerHTML = `
       <div style="display:flex;flex-direction:column;gap:10px;min-width:240px">
         <div><b>Name:</b> ${ctx.name || `Channel ${ctx.channel}`}</div>
@@ -2282,7 +2375,7 @@ async function onExtClick(event) {
   headCard.innerHTML = `
     <div class="module-header">
       <div>
-        <div class="module-title">I2C EXPANDER</div>
+        <div class="module-title">I2C MODULE</div>
       </div>
       <button class="icon-btn" id="expander_settings_btn" title="Settings">⚙️</button>
     </div>
