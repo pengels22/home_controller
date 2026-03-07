@@ -1738,6 +1738,48 @@ async function loadStatus() {
 // MODULE LIST + SVG WIRING
 // ============================================================
 
+function enableModuleDragAndDrop(rowEl) {
+  if (!rowEl) return;
+  let dragEl = null;
+  const cards = Array.from(rowEl.querySelectorAll(".module-card")).filter((c) => c.dataset.moduleId);
+
+  cards.forEach((card) => {
+    card.draggable = true;
+    card.addEventListener("dragstart", (e) => {
+      dragEl = card;
+      card.classList.add("dragging");
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+    });
+    card.addEventListener("dragend", () => {
+      card.classList.remove("dragging");
+      dragEl = null;
+    });
+    card.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (!dragEl || dragEl === card) return;
+      const rect = card.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      if (before) {
+        rowEl.insertBefore(dragEl, card);
+      } else {
+        rowEl.insertBefore(dragEl, card.nextSibling);
+      }
+    });
+    card.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      const ordered = Array.from(rowEl.querySelectorAll(".module-card")).filter((c) => c.dataset.moduleId);
+      for (let i = 0; i < ordered.length; i++) {
+        const id = ordered[i].dataset.moduleId;
+        try {
+          await _saveModuleNum(id, i + 1);
+        } catch (err) {
+          console.error("Failed to persist module order", err);
+        }
+      }
+    });
+  });
+}
+
 async function loadModules() {
   _clearAnyDimState();
 
@@ -1746,10 +1788,16 @@ async function loadModules() {
 
   const res = await fetch("/modules");
   const data = await res.json();
+  const modules = Array.isArray(data) ? data.slice() : [];
+  modules.sort((a, b) => {
+    const na = Number(a.module_num ?? 1e6);
+    const nb = Number(b.module_num ?? 1e6);
+    return na - nb || String(a.name || "").localeCompare(String(b.name || ""));
+  });
 
   // Preload label sets for all modules so we can show channel names on card faces.
   const labelsMap = {};
-  await Promise.all((data || []).map(async (m) => {
+  await Promise.all(modules.map(async (m) => {
     try {
       const lr = await fetch(`/labels/${encodeURIComponent(m.id)}`);
       const lj = await lr.json();
@@ -1772,7 +1820,7 @@ async function loadModules() {
   _insertHeadModule(row);
   startHeadStatusPolling();
 
-  if (!data || data.length === 0) {
+  if (!modules || modules.length === 0) {
     const empty = document.createElement("div");
     empty.className = "muted";
     empty.textContent = "No modules configured yet.";
@@ -1786,13 +1834,13 @@ async function loadModules() {
   const normalModules = [];
   let extSubsystemType = null;
 
-  for (const m of data) {
+  for (const m of modules) {
     if (String(m.type).toLowerCase() === "ext") {
       extModules.push(m);
       extSubsystemType = m.subsystem || null;
     }
   }
-  for (const m of data) {
+  for (const m of modules) {
     if (String(m.type).toLowerCase() !== "ext" && extSubsystemType && m.subsystem === extSubsystemType) {
       extSubsystem.push(m);
     } else if (String(m.type).toLowerCase() !== "head" && String(m.type).toLowerCase() !== "ext") {
@@ -1807,6 +1855,8 @@ async function loadModules() {
   for (const m of orderedModules) {
     const card = document.createElement("div");
     card.className = "module-card";
+    card.dataset.moduleId = m.id || "";
+    card.dataset.moduleType = m.type || "";
 
     const header = document.createElement("div");
     header.className = "module-header";
@@ -1948,6 +1998,7 @@ async function loadModules() {
 
   // (Ext row removed: all modules rendered together)
 
+  enableModuleDragAndDrop(row);
   _clearAnyDimState();
 
   // NOTE: opacity/filters are now handled directly in CSS and ensureSvgVisible
@@ -2344,7 +2395,7 @@ async function showExpanderSettingsPopup() {
   popup.querySelector('.popup-title').textContent = "Expansion Module Deprecated";
   popup.querySelector('.popup-status').textContent = "";
   const controls = popup.querySelector('.popup-controls');
-  controls.innerHTML = "<div style="padding:12px;">Expansion/Extender module has been replaced by the RS485 I2C Bridge. Use RS485 module settings instead.</div>";
+  controls.innerHTML = '<div style="padding:12px;">Expansion/Extender module has been replaced by the RS485 I2C Bridge. Use RS485 module settings instead.</div>';
   popup.classList.add('active');
   overlay.style.display = 'block';
 }
