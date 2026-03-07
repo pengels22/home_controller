@@ -1748,7 +1748,11 @@ function enableModuleDragAndDrop(rowEl) {
     card.addEventListener("dragstart", (e) => {
       dragEl = card;
       card.classList.add("dragging");
-      if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = "move";
+        // Some browsers require data to be set to allow dragging.
+        e.dataTransfer.setData("text/plain", card.dataset.moduleId || "");
+      }
     });
     card.addEventListener("dragend", () => {
       card.classList.remove("dragging");
@@ -1757,6 +1761,7 @@ function enableModuleDragAndDrop(rowEl) {
     card.addEventListener("dragover", (e) => {
       e.preventDefault();
       if (!dragEl || dragEl === card) return;
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
       const rect = card.getBoundingClientRect();
       const before = (e.clientY - rect.top) < rect.height / 2;
       if (before) {
