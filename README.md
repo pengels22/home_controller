@@ -17,7 +17,7 @@ Python/Flask application and RS485 backend for monitoring and controlling Home C
 - `core/i2c_catalog.py` + `i2c_sensors.csv` – I2C sensor metadata (used by the RS485-to-I2C bridge UI).
 - `config/` – runtime configuration:
   - `config.json` main controller/modules list.
-  - `expansion_config.json` expander UI data.
+  - `i2c_module_ch_config.json` (formerly expansion_config) reserved for legacy expander data.
   - `ui_labels.json` channel/module labels.
   - `dev_i2c.json` dev-mode simulated data.
   - `aio_max_voltage.py` AIO scaling helpers.

@@ -278,12 +278,12 @@ def genmon_config_popup():
 def api_i2c_supported():
     return jsonify({"ok": True, "sensors": i2c_catalog.load_catalog()})
 
-@app.route("/expansion_config", methods=["GET", "POST"])
-def expansion_config():
-    # Expansion module replaced by RS485-to-I2C bridge; keep route for backward compatibility
-    # but return a redirect-style message.
+@app.route("/i2c_module_ch_config", methods=["GET", "POST"])
+@app.route("/expansion_config", methods=["GET", "POST"])  # backward-compat alias
+def i2c_module_ch_config():
+    # Expansion module replaced by RS485-to-I2C bridge; keep page as a notice.
     return render_template(
-        "expansion_config.html",
+        "i2c_module_ch_config.html",
         exp=None,
         exp_cfg_path=None,
         error="Expansion module deprecated; use the RS485 I2C Bridge configuration instead.",
