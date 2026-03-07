@@ -1224,20 +1224,20 @@ const HEAD_MODULE_SVG = `
           <text class="label" x="-6" y="62" text-anchor="end">4</text>
           <rect id="hat_mod_4" class="hat-off" x="0" y="54" width="16" height="10" rx="2"><title>Module 4</title></rect>
 
-          <rect id="hat_mod_5" class="hat-off" x="36" y="0" width="16" height="10" rx="2"><title>Module 5</title></rect>
-          <text class="label" x="58" y="8" text-anchor="start">5</text>
+          <text class="label" x="-6" y="80" text-anchor="end">5</text>
+          <rect id="hat_mod_5" class="hat-off" x="0" y="72" width="16" height="10" rx="2"><title>Module 5</title></rect>
 
-          <rect id="hat_mod_6" class="hat-off" x="36" y="18" width="16" height="10" rx="2"><title>Module 6</title></rect>
-          <text class="label" x="58" y="26" text-anchor="start">6</text>
+          <rect id="hat_mod_6" class="hat-off" x="36" y="0" width="16" height="10" rx="2"><title>Module 6</title></rect>
+          <text class="label" x="58" y="8" text-anchor="start">6</text>
 
-          <rect id="hat_mod_7" class="hat-off" x="36" y="36" width="16" height="10" rx="2"><title>Module 7</title></rect>
-          <text class="label" x="58" y="44" text-anchor="start">7</text>
+          <rect id="hat_mod_7" class="hat-off" x="36" y="18" width="16" height="10" rx="2"><title>Module 7</title></rect>
+          <text class="label" x="58" y="26" text-anchor="start">7</text>
 
-          <rect id="hat_mod_8" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 8</title></rect>
-          <text class="label" x="58" y="62" text-anchor="start">8</text>
+          <rect id="hat_mod_8" class="hat-off" x="36" y="36" width="16" height="10" rx="2"><title>Module 8</title></rect>
+          <text class="label" x="58" y="44" text-anchor="start">8</text>
 
-          <text class="label" x="-6" y="80" text-anchor="end">9</text>
-          <rect id="hat_mod_9" class="hat-off" x="0" y="72" width="16" height="10" rx="2"><title>Module 9</title></rect>
+          <rect id="hat_mod_9" class="hat-off" x="36" y="54" width="16" height="10" rx="2"><title>Module 9</title></rect>
+          <text class="label" x="58" y="62" text-anchor="start">9</text>
 
           <rect id="hat_mod_10" class="hat-off" x="36" y="72" width="16" height="10" rx="2"><title>Module 10</title></rect>
           <text class="label" x="58" y="80" text-anchor="start">10</text>
