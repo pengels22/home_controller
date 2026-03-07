@@ -330,6 +330,22 @@ button {
 button:hover { background: #2c313a; }
 button.danger { border-color: #ff4a4a; }
 
+/* Consistent primary save button used across module popups */
+.global-save {
+  background: #2d8cff;
+  color: #fff;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 10px;
+  min-width: 120px;
+  font-weight: 800;
+}
+.global-save:hover { background: #1f78ff; }
+.global-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .error-box {
   margin-top: 12px;
   padding: 10px;

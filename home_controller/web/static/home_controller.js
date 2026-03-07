@@ -563,9 +563,12 @@ async function showIoChannelPopup(name, status) {
     let saveBtn = controls.querySelector('.aio-global-save');
     if (!saveBtn) {
       saveBtn = document.createElement('button');
-      saveBtn.className = 'aio-global-save';
+      saveBtn.className = 'global-save aio-global-save';
       saveBtn.textContent = 'Save';
       controls.appendChild(saveBtn);
+    } else {
+      saveBtn.className = 'global-save aio-global-save';
+      saveBtn.textContent = 'Save';
     }
 
     const clampMax = (n) => {
@@ -747,9 +750,12 @@ async function showIoChannelPopup(name, status) {
     let saveBtn = controls.querySelector('.ext-global-save');
     if (!saveBtn) {
       saveBtn = document.createElement('button');
-      saveBtn.className = 'ext-global-save';
+      saveBtn.className = 'global-save ext-global-save';
       saveBtn.textContent = 'Save';
       controls.appendChild(saveBtn);
+    } else {
+      saveBtn.className = 'global-save ext-global-save';
+      saveBtn.textContent = 'Save';
     }
 
     function fillForm(exp) {
@@ -859,9 +865,12 @@ async function showIoChannelPopup(name, status) {
     let saveBtn = controls.querySelector('.rs485-global-save');
     if (!saveBtn) {
       saveBtn = document.createElement('button');
-      saveBtn.className = 'rs485-global-save';
+      saveBtn.className = 'global-save rs485-global-save';
       saveBtn.textContent = 'Save';
       controls.appendChild(saveBtn);
+    } else {
+      saveBtn.className = 'global-save rs485-global-save';
+      saveBtn.textContent = 'Save';
     }
 
     // Load labels to prefill names
@@ -995,9 +1004,12 @@ async function showIoChannelPopup(name, status) {
     let saveBtn = controls.querySelector('.genmon-global-save');
     if (!saveBtn) {
       saveBtn = document.createElement('button');
-      saveBtn.className = 'genmon-global-save';
+      saveBtn.className = 'global-save genmon-global-save';
       saveBtn.textContent = 'Save';
       controls.appendChild(saveBtn);
+    } else {
+      saveBtn.className = 'global-save genmon-global-save';
+      saveBtn.textContent = 'Save';
     }
 
     saveBtn.onclick = async () => {
@@ -2421,7 +2433,7 @@ async function showExpanderSettingsPopup() {
       </div>
     `;
   });
-  html += `<button type="submit">Save</button></form>`;
+  html += `<button type="submit" class="global-save">Save</button></form>`;
   controls.innerHTML = html;
 
   // Handle remove card button
