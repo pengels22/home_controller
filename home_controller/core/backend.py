@@ -366,6 +366,29 @@ class HomeControllerBackend:
         """Return map of module_id -> last_error (only those with errors)."""
         return dict(self._last_errors)
 
+    def health_check_modules(self) -> None:
+        """
+        Light health check used by head indicators:
+        - For modules with a module_num, attempt a read.
+        - If read fails, set last_error for that module_num.
+        - If it succeeds and the existing error was a 'not responding' marker, clear it.
+        """
+        for m in self.cfg.modules:
+            if m.module_num is None:
+                continue
+            try:
+                res = self.read_module(m.id)
+                if not res.get("ok"):
+                    msg = f"{m.type.upper()} not responding ({res.get('error', 'error')})"
+                    self.set_last_error_for_module_num(m.module_num, msg)
+                else:
+                    cur = self.get_last_error(m.id)
+                    if cur and "not responding" in cur.lower():
+                        self.set_last_error_for_module_num(m.module_num, None)
+            except Exception as exc:
+                msg = f"{m.type.upper()} not responding ({exc})"
+                self.set_last_error_for_module_num(m.module_num, msg)
+
     def module_errors_by_num(self) -> Dict[str, Dict[str, str]]:
         """
         Return map of module_num (string) -> {module_id, error}

@@ -1012,6 +1012,7 @@ def head_status():
 @app.get("/api/module_errors")
 def api_module_errors():
     try:
+        backend.health_check_modules()
         return jsonify({"ok": True, "errors": backend.module_errors_by_num()})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
