@@ -141,8 +141,8 @@ class HomeControllerBackend:
         self._rs485_port = os.getenv("HC_RS485_PORT", "/dev/ttyAMA0")
         self._rs485_baud = int(os.getenv("HC_RS485_BAUD", "115200"))
         self._rs485_enabled = os.getenv("HC_RS485_ENABLE", "1").lower() not in ("0", "false", "no")
-        # When set, never fall back to I2C paths; all DI/DO/AIO must use RS485.
-        self._force_rs485 = os.getenv("HC_FORCE_RS485", "1").lower() not in ("0", "false", "no")
+        # RS485-only mode: disable direct I2C access and rely solely on the RS485 bridge paths.
+        self._force_rs485 = True
 
         if self._rs485_enabled and RS485Backend is not None and RS485Backend.available():
             try:
@@ -548,7 +548,7 @@ class HomeControllerBackend:
         addr_key = m.address_hex.lower()
 
         if self._force_rs485 and not self.rs485:
-            return {"ok": False, "error": "RS485 forced (HC_FORCE_RS485=1) but backend not available"}
+            return {"ok": False, "error": "RS485-only mode but RS485 backend not available"}
 
         # Dev-mode: return simulated data if available. If exact address
         # isn't present in the dev file, fall back to any compatible
@@ -828,7 +828,7 @@ class HomeControllerBackend:
 
         if self._force_rs485:
             # RS485 is required; don't attempt I2C fallback
-            return {"ok": False, "error": self._last_errors.get(module_id) or "RS485 read failed"}
+            return {"ok": False, "error": self._last_errors.get(module_id) or "RS485 read failed (I2C disabled)"}
 
         if not _HAS_SMBUS:
             return {"ok": False, "error": "smbus2 not installed on this system"}
@@ -958,13 +958,10 @@ class HomeControllerBackend:
 
     def read_hat_status(self, bus_num: int = 0, address: int = 0x20) -> Dict[str, Any]:
         """
-        Read the status MCP23017 on the hat (default bus 0, address 0x20).
-
-        Returns per-module power/status lines. There are 8 modules; for each module N:
-          - '24v_a' corresponds to GPIOA bit (N-1)
-          - '24v_b' corresponds to GPIOB bit (N-1)
+        Report per-slot power/sense info using RS485 module responses (sense masks),
+        instead of direct I2C hat GPIO reads. Falls back to dev data when in dev mode.
         """
-        # Dev-mode: simulated hat entry keyed by hex address
+        # Dev-mode: keep existing simulated hat entries for quick testing
         addr_key = f"0x{address:02x}".lower()
         if self._dev_mode:
             dev = self._dev_data.get(addr_key)
@@ -977,72 +974,61 @@ class HomeControllerBackend:
                         "24v_a": bool((a >> i) & 1),
                         "24v_b": bool((b >> i) & 1),
                     }
-                # i2c module presence: check for a dev entry at the i2c address if provided
-                try:
-                    i2c_addr_env = os.getenv("HC_HAT_I2C_ADDR", "0x21")
-                    i2c_addr = int(i2c_addr_env, 16) if isinstance(i2c_addr_env, str) and i2c_addr_env.startswith("0x") else int(i2c_addr_env, 0)
-                except Exception:
-                    i2c_addr = 0x21
-                i2c_key = f"0x{i2c_addr:02x}".lower()
-                i2c_present = False
-                if self._dev_data.get(i2c_key) is not None:
-                    i2c_present = True
-
                 return {
                     "ok": True,
+                    "source": "dev",
+                    "modules": modules,
                     "bus": bus_num,
                     "address": addr_key,
-                    "ports": {"gpio_a": a, "gpio_b": b},
-                    "modules": modules,
-                    "i2c_present": i2c_present,
                 }
 
-        if not _HAS_SMBUS:
-            return {"ok": False, "error": "smbus2 not installed on this system"}
+        # RS485 path: use module sense masks (already part of DI/AIO reads and DO writes).
+        if self._force_rs485 and not self.rs485:
+            return {"ok": False, "error": "RS485-only mode but RS485 backend not available"}
 
-        # MCP23017 GPIO registers
-        MCP_GPIOA = 0x12
-        MCP_GPIOB = 0x13
-
-        try:
-            with smbus2.SMBus(bus_num) as bus:
-                a = bus.read_byte_data(address, MCP_GPIOA)
-                b = bus.read_byte_data(address, MCP_GPIOB)
-
-            modules: Dict[str, Dict[str, bool]] = {}
-            for i in range(8):
-                modules[str(i + 1)] = {
-                    "24v_a": bool((a >> i) & 1),
-                    "24v_b": bool((b >> i) & 1),
-                }
-
-            # detect optional i2c board at configurable address (env HC_HAT_I2C_ADDR)
-            try:
-                i2c_addr_env = os.getenv("HC_HAT_I2C_ADDR", "0x21")
-                i2c_addr = int(i2c_addr_env, 16) if isinstance(i2c_addr_env, str) and i2c_addr_env.startswith("0x") else int(i2c_addr_env, 0)
-            except Exception:
-                i2c_addr = 0x21
-
-            i2c_present = False
-            if _HAS_SMBUS:
+        if self.rs485:
+            modules: Dict[str, Dict[str, Any]] = {}
+            errs: Dict[str, str] = {}
+            for m in self.cfg.modules:
+                if m.module_num is None:
+                    continue
                 try:
-                    with smbus2.SMBus(bus_num) as bus:
-                        # try a quick read from the i2c address; if it doesn't raise, consider present
-                        _ = bus.read_byte(i2c_addr)
-                        i2c_present = True
-                except Exception:
-                    i2c_present = False
+                    res = self.read_module(m.id)
+                except Exception as exc:
+                    errs[str(m.module_num)] = str(exc)
+                    modules[str(m.module_num)] = {
+                        "module_id": m.id,
+                        "type": m.type,
+                        "address": m.address_hex,
+                        "24v_a": None,
+                        "24v_b": None,
+                        "power_led": "off",
+                        "comms_ok": False,
+                        "error": str(exc),
+                    }
+                    continue
+
+                power = res.get("power", {}) or {}
+                modules[str(m.module_num)] = {
+                    "module_id": m.id,
+                    "type": m.type,
+                    "address": m.address_hex,
+                    "24v_a": power.get("sense1"),
+                    "24v_b": power.get("sense2"),
+                    "power_led": power.get("power_led"),
+                    "comms_ok": res.get("comms_ok", False),
+                    "last_error": self.get_last_error(m.id),
+                }
 
             return {
                 "ok": True,
-                "bus": bus_num,
-                "address": f"0x{address:02x}",
-                "ports": {"gpio_a": a, "gpio_b": b},
+                "source": "rs485",
                 "modules": modules,
-                "i2c_present": i2c_present,
+                "errors": errs if errs else None,
             }
-        except Exception as e:
-            return {"ok": False, "error": f"hat I2C read error: {e}", "bus": bus_num, "address": f"0x{address:02x}"}
+
+        # If RS485 is not forced and not available, indicate lack of support
+        return {"ok": False, "error": "hat status via RS485 not available"}
 
     def write_module(self, module_id: str, channel: int, value: Union[int, float]) -> Dict[str, Any]:
         """
@@ -1058,7 +1044,7 @@ class HomeControllerBackend:
         m = self.cfg.modules[idx]
 
         if self._force_rs485 and not self._dev_mode and not self.rs485:
-            return {"ok": False, "error": "RS485 forced (HC_FORCE_RS485=1) but backend not available"}
+            return {"ok": False, "error": "RS485-only mode but RS485 backend not available"}
 
         if m.type == "do":
             # DO behaviour (existing)

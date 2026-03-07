@@ -37,6 +37,7 @@ GENMON_PORT = int(os.getenv("GENMON_PORT", "9082"))
 GENMON_TIMEOUT = float(os.getenv("GENMON_TIMEOUT", "3.0"))
 GENMON_CONTACTS_FILE = BASE_DIR / "config" / "genmon_contacts.json"
 GENMON_CONTACT_COUNT = 4
+RS485_ONLY = True  # disable direct I2C bus access; only RS485 bridge I2C paths remain
 # ------------------------------------------------------------
 # Flask app
 # ------------------------------------------------------------
@@ -93,6 +94,9 @@ def _scan_i2c_addresses(bus: int, cache_seconds: float = 1.5) -> Tuple[Set[int],
     Caches results briefly to avoid hammering the bus.
     """
     global _I2C_CACHE
+
+    if RS485_ONLY:
+        return set(), "I2C disabled (RS485-only mode)"
 
     now = time.time()
     last_ts, last_addrs, last_err = _I2C_CACHE
@@ -614,8 +618,8 @@ if DEV_MODE:
 
 # On startup, scan I2C and warn if any configured module is missing
 def _startup_module_check():
-    if getattr(backend, "_force_rs485", False):
-        print("[INFO] HC_FORCE_RS485 enabled; skipping I2C presence scan.")
+    if RS485_ONLY or getattr(backend, "_force_rs485", False):
+        print("[INFO] RS485-only mode; skipping I2C presence scan.")
         return
     addrs, _err = _scan_i2c_addresses(I2C_BUS)
     present_hex = {f"0x{a:02x}" for a in addrs}
@@ -1080,15 +1084,19 @@ def api_gui_modules():
     others = [m for m in mods if m.type != "head"]
     ordered = head + others
 
-    addrs, _err = _scan_i2c_addresses(I2C_BUS)
-    present = {f"0x{a:02x}" for a in addrs}
-    # If running in dev mode, treat addresses found in dev data as present too
-    try:
-        if backend._dev_mode:
-            dev_addrs = {str(k).lower() for k in backend._dev_data.keys()}
-            present = present.union(dev_addrs)
-    except Exception:
-        pass
+    if RS485_ONLY:
+        # Assume present in RS485-only mode; RS485 comms/health checks will surface actual faults.
+        present = {m.address_hex.lower() for m in ordered}
+    else:
+        addrs, _err = _scan_i2c_addresses(I2C_BUS)
+        present = {f"0x{a:02x}" for a in addrs}
+        # If running in dev mode, treat addresses found in dev data as present too
+        try:
+            if backend._dev_mode:
+                dev_addrs = {str(k).lower() for k in backend._dev_data.keys()}
+                present = present.union(dev_addrs)
+        except Exception:
+            pass
 
     out = []
     for i, m in enumerate(ordered, start=1):
@@ -1191,7 +1199,7 @@ def ui_gui():
 
 
 # ------------------------------------------------------------
-# Hat MCP23017 status (i2c0)
+# Hat status (power lines), sourced from RS485 module sense masks
 # ------------------------------------------------------------
 @app.get("/api/hat_status")
 def api_hat_status():
