@@ -106,6 +106,59 @@ class HomeControllerBackend:
         fname = f"{mtype.lower()}_{address_hex.lower()}.json"
         return os.path.join(self._repo_root, "home_controller", "config", "modules", fname)
 
+    def _append_bounded_log(self, path: str, entry: dict, limit: int = 2) -> None:
+        """Append a JSON line to path, keeping only the most recent `limit` lines."""
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            existing: list[str] = []
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    existing = [ln.rstrip("\n") for ln in f if ln.strip()]
+            existing.append(json.dumps(entry))
+            # keep only last `limit`
+            trimmed = existing[-limit:]
+            with open(path, "w", encoding="utf-8") as f:
+                for ln in trimmed:
+                    f.write(ln + "\n")
+        except Exception:
+            pass
+
+    def _log_gen_serial(self, event: str, req: bytes, resp: bytes) -> None:
+        """Append a small diagnostic entry when generator RS485/Modbus times out."""
+        try:
+            log_path = os.path.expanduser("~/home_controller/home_controller/Gen_Serial_log.json")
+            entry = {
+                "ts": int(time.time()),
+                "event": event,
+                "request_hex": req.hex() if isinstance(req, (bytes, bytearray)) else "",
+                "response_hex": resp.hex() if isinstance(resp, (bytes, bytearray)) else "",
+            }
+            self._append_bounded_log(log_path, entry, limit=2)
+        except Exception:
+            # logging should never break main path
+            pass
+
+    def _log_module_error(self, mtype: str, module_id: str, address_hex: str, error: str, raw: Any = None) -> None:
+        """Per-module error log written to ~/home_controller/home_controller/<TYPE>_log.json."""
+        if not self._module_log_enabled:
+            return
+        try:
+            safe_id = str(module_id).replace("/", "_").replace("\\", "_")
+            name = f"{safe_id}_log.json"
+            log_path = os.path.expanduser(f"~/home_controller/home_controller/{name}")
+            entry = {
+                "ts": int(time.time()),
+                "module_id": module_id,
+                "type": mtype,
+                "address": address_hex,
+                "error": str(error),
+            }
+            if isinstance(raw, (bytes, bytearray)):
+                entry["raw_hex"] = raw.hex()
+            self._append_bounded_log(log_path, entry, limit=2)
+        except Exception:
+            pass
+
     def load_module_config(self, mtype: str, address_hex: str) -> dict:
         path = self._module_config_path(mtype, address_hex)
         if not os.path.exists(path):
@@ -124,6 +177,8 @@ class HomeControllerBackend:
         self._config_path = config_path or os.path.join(
             self._repo_root, "home_controller", "config", "config.json"
         )
+        # bounded logging helpers
+        self._module_log_enabled: bool = True
         # dev_mode and dev_file may be set by the caller to simulate I2C
         self._dev_mode = False
         self._dev_file: Optional[str] = None
@@ -548,6 +603,7 @@ class HomeControllerBackend:
         addr_key = m.address_hex.lower()
 
         if self._force_rs485 and not self.rs485:
+            self._log_module_error(m.type, m.id, m.address_hex, "RS485-only mode but RS485 backend not available")
             return {"ok": False, "error": "RS485-only mode but RS485 backend not available"}
 
         # Dev-mode: return simulated data if available. If exact address
@@ -651,6 +707,9 @@ class HomeControllerBackend:
                                 "hi": res.get("raw_hi"),
                             },
                         }
+                    else:
+                        self._log_module_error(m.type, m.id, m.address_hex, res.get("error", "DI RS485 read failed"), res.get("raw"))
+                        return res
                 elif m.type == "aio":
                     channels: Dict[str, float] = {}
                     raw_frames: Dict[str, str] = {}
@@ -660,6 +719,7 @@ class HomeControllerBackend:
                         r = self.rs485.read_aio_channel(addr_int, ch)
                         if not r.get("ok"):
                             self._set_last_error(module_id, r.get("error") or "AIO RS485 read failed")
+                            self._log_module_error(m.type, m.id, m.address_hex, r.get("error", "AIO RS485 read failed"), r.get("raw"))
                             return r
                         v12 = int(r.get("value12", 0))
                         if sense_mask is None:
@@ -681,11 +741,13 @@ class HomeControllerBackend:
                 elif m.type == "do":
                     # DO firmware lacks a read-only command; avoid changing outputs implicitly.
                     self._set_last_error(module_id, "DO read over RS485 not supported (would change state)")
+                    self._log_module_error(m.type, m.id, m.address_hex, "DO read over RS485 not supported (would change state)")
                     return {"ok": False, "error": "DO read over RS485 not supported (would change state)"}
                 elif m.type == "genmon":
-                    snap = self.rs485.gen_snapshot(addr_int)
+                    snap = self.rs485.gen_snapshot(addr_int, trace_logger=self._log_gen_serial)
                     if not snap.get("ok"):
                         self._set_last_error(module_id, snap.get("error", "Gen RS485 read failed"))
+                        self._log_module_error(m.type, m.id, m.address_hex, snap.get("error", "Gen RS485 read failed"), snap.get("raw"))
                         return {"ok": False, "error": snap.get("error", "Gen RS485 read failed")}
                     t = snap["telem"]
                     telem = {
@@ -756,6 +818,7 @@ class HomeControllerBackend:
                     lst = self.rs485.send_i2c_cmd_multi(addr_int, CMD_LIST_REGISTERED, 0, 0, timeout=0.8)
                     if not lst.get("ok"):
                         self._set_last_error(module_id, lst.get("error", "I2C module RS485 list failed"))
+                        self._log_module_error(m.type, m.id, m.address_hex, lst.get("error", "I2C module RS485 list failed"), lst.get("raw"))
                         return {"ok": False, "error": lst.get("error", "I2C module RS485 list failed")}
                     devices = []
                     for f in lst["frames"]:

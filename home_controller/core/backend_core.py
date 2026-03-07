@@ -134,7 +134,8 @@ class RS485Backend:
                     buf += chunk
                     continue
                 if time.time() > end_at:
-                    raise TimeoutError(f"RS485 timeout waiting for {expect_len}B reply (got {len(buf)})")
+                    # capture any partial buffer for diagnostics
+                    raise TimeoutError(f"RS485 timeout waiting for {expect_len}B reply (got {len(buf)})", request, buf)
             return buf
 
     # -------------------------------------------------
@@ -396,11 +397,14 @@ class RS485Backend:
         """Parse one FD485 frame; returns error dict on timeout or CRC failure."""
         deadline = time.time() + timeout
 
+        seen = bytearray()
+
         def read_exact(n: int, until: float) -> Optional[bytes]:
             out = bytearray()
             while len(out) < n and time.time() < until:
                 chunk = self._ser.read(n - len(out))
                 if chunk:
+                    seen.extend(chunk)
                     out += chunk
             return bytes(out) if len(out) == n else None
 
@@ -408,9 +412,11 @@ class RS485Backend:
             b1 = self._ser.read(1)
             if not b1 or b1 != self._GEN_SYNC[:1]:
                 continue
+            seen.extend(b1)
             b2 = self._ser.read(1)
             if b2 != self._GEN_SYNC[1:2]:
                 continue
+            seen.extend(b2)
             hdr_rest = read_exact(6, deadline)
             if hdr_rest is None:
                 break
@@ -439,9 +445,9 @@ class RS485Backend:
                 "payload": payload,
                 "raw": frame,
             }
-        return {"ok": False, "error": "timeout waiting for generator frame"}
+        return {"ok": False, "error": "timeout waiting for generator frame", "raw": bytes(seen)}
 
-    def gen_send_cmd(self, addr: int, cmd: int, cmd_flags: int = 0, param1: int = 0, param2: int = 0, token: int = 0, timeout: float = 0.6) -> Dict[str, Any]:
+    def gen_send_cmd(self, addr: int, cmd: int, cmd_flags: int = 0, param1: int = 0, param2: int = 0, token: int = 0, timeout: float = 0.6, trace_logger=None) -> Dict[str, Any]:
         """
         Send a generator command (MSG_CMD) and wait for ACK/NAK.
         """
@@ -459,6 +465,8 @@ class RS485Backend:
             self._ser.flush()
             ack = self._gen_read_frame(timeout=timeout, expect_type=self._GEN_MSG_ACK, expect_src=addr)
         if not ack.get("ok"):
+            if trace_logger:
+                trace_logger("gen_ack_fail", frame, ack.get("raw", b""))
             return ack
         pl = ack.get("payload", b"")
         if len(pl) < 2:
@@ -466,17 +474,21 @@ class RS485Backend:
         detail = pl[2] | (pl[3] << 8) if len(pl) >= 4 else 0
         return {"ok": True, "cmd": pl[0], "result": pl[1], "detail": detail, "raw": ack.get("raw")}
 
-    def gen_snapshot(self, addr: int, timeout: float = 1.2) -> Dict[str, Any]:
+    def gen_snapshot(self, addr: int, timeout: float = 1.2, trace_logger=None) -> Dict[str, Any]:
         """
         Issue CMD_SNAPSHOT and return one telemetry frame as a dict.
         """
         CMD_SNAPSHOT = 0x0A
-        ack = self.gen_send_cmd(addr, CMD_SNAPSHOT, timeout=timeout)
+        ack = self.gen_send_cmd(addr, CMD_SNAPSHOT, timeout=timeout, trace_logger=trace_logger)
         if not ack.get("ok"):
+            if trace_logger:
+                trace_logger("gen_cmd_fail", b"", ack.get("raw", b""))
             return ack
         with self._lock:
             telem = self._gen_read_frame(timeout=timeout, expect_type=self._GEN_MSG_TELEM, expect_src=addr)
         if not telem.get("ok"):
+            if trace_logger:
+                trace_logger("gen_telem_fail", b"", telem.get("raw", b""))
             return telem
         payload = telem.get("payload", b"")
         fmt = "<I H h H H H H H H B B H H I H H B B H H H H"

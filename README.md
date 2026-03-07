@@ -13,7 +13,7 @@ Python/Flask application and RS485 backend for monitoring and controlling Home C
 - `server.py` – Flask app and routes.
 - `core/backend.py` – high-level module logic (RS485, dev-mode, config I/O).
 - `core/backend_core.py` – low-level RS485 framing helpers.
-- `core/genmon_client.py` – TCP client for GenMon.
+- `Generator Pi/generator_backend.py` – RS485 generator helper intended for the Generator Pi (replaces the old GenMon TCP helper). Head communicates to generator via the RS485 trunk, not HTTP.
 - `core/i2c_catalog.py` + `i2c_sensors.csv` – I2C sensor metadata (used by the RS485-to-I2C bridge UI).
 - `config/` – runtime configuration:
   - `config.json` main controller/modules list.

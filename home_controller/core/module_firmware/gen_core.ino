@@ -34,14 +34,19 @@ static const uint8_t  PROTO_VER = 0x01;
 
 // Baud rates
 static const uint32_t FD485_BAUD = 250000;    // fast & reliable for short runs
-static const uint32_t GEN_BAUD_1 = 115200;    // common
-static const uint32_t GEN_BAUD_2 = 9600;      // fallback
+static const uint32_t GEN_BAUD_1 = 115200;    // legacy fast baud (not common on maintenance port)
+static const uint32_t GEN_BAUD_2 = 9600;      // legacy slow baud
 
 // Telemetry interval
 static const uint32_t TELEMETRY_PERIOD_MS = 1000;
 
 // Controller timeout to mark controller-derived values invalid
 static const uint32_t CTRL_GOOD_TIMEOUT_MS = 3000;
+
+// Generac maintenance-port (Modbus RTU) defaults (pulled from GenMon project)
+static const uint8_t  GEN_MODBUS_ID    = 0x9D;   // Evolution/Nexus default slave ID
+static const uint32_t GEN_MODBUS_BAUD  = 9600;   // maintenance port speed
+static const uint32_t GEN_MODBUS_RX_TIMEOUT_MS = 120; // wait per transaction
 
 // CT measurement
 static const uint8_t  CT_PIN_L1 = A2;
@@ -191,6 +196,19 @@ static uint16_t crc16_ccitt_false(const uint8_t* data, size_t len) {
   return crc;
 }
 
+// Modbus RTU CRC16 (poly 0xA001, little-endian on the wire)
+static uint16_t modbus_crc16(const uint8_t* data, size_t len) {
+  uint16_t crc = 0xFFFF;
+  for (size_t i = 0; i < len; i++) {
+    crc ^= data[i];
+    for (uint8_t b = 0; b < 8; b++) {
+      if (crc & 0x0001) crc = (crc >> 1) ^ 0xA001;
+      else              crc >>= 1;
+    }
+  }
+  return crc;
+}
+
 // ------------------------- PACKING HELPERS -------------------------
 
 static inline uint8_t pack_src(AmpSource2b l1, AmpSource2b l2) {
@@ -203,6 +221,66 @@ static inline bool amps_valid_u16_x100(uint16_t a_x100) {
 
 static inline uint16_t avg_u16_round(uint16_t a, uint16_t b) {
   return (uint16_t)((a + b + 1) / 2);
+}
+
+// ------------------------- GENERAC MODBUS HELPERS -------------------------
+// Minimal Modbus RTU read (function 0x03) to pull base registers exposed by Generac
+// Evolution/Nexus controllers. Derived from the public GenMon project:
+//   https://github.com/jgyates/genmon (GNU GPLv2)
+// Notes:
+//   - This does NOT implement the encrypted "encapsulated" EVO2 unlock sequence; it
+//     targets the common unencapsulated register set. Many controllers still answer
+//     these reads. If yours requires encapsulation, this will simply time out.
+//   - We keep this tiny: no retries/backoff; the head-end will see missing data as
+//     comms failures in telemetry counts.
+
+static bool modbusReadRegisters(uint8_t slave, uint16_t reg, uint16_t words, uint16_t* out_buf, size_t out_cap) {
+  if (words == 0 || out_buf == nullptr || out_cap < words) return false;
+
+  uint8_t req[8];
+  req[0] = slave;
+  req[1] = 0x03; // Read Holding Registers
+  req[2] = (uint8_t)(reg >> 8);
+  req[3] = (uint8_t)(reg & 0xFF);
+  req[4] = (uint8_t)(words >> 8);
+  req[5] = (uint8_t)(words & 0xFF);
+  uint16_t crc = modbus_crc16(req, 6);
+  req[6] = (uint8_t)(crc & 0xFF);       // CRC low
+  req[7] = (uint8_t)(crc >> 8);         // CRC high
+
+  // Flush any stale bytes
+  while (GEN_SERIAL.available()) GEN_SERIAL.read();
+  GEN_SERIAL.write(req, sizeof(req));
+  GEN_SERIAL.flush();
+
+  const uint32_t start_ms = millis();
+  const size_t expected = (size_t)(3 + (words * 2) + 2); // addr + func + bytecount + data + crc
+  uint8_t resp[3 + 2 * 16 + 2]; // supports up to 16 words safely
+  size_t idx = 0;
+
+  while ((millis() - start_ms) < GEN_MODBUS_RX_TIMEOUT_MS) {
+    while (GEN_SERIAL.available()) {
+      if (idx >= sizeof(resp)) break;
+      resp[idx++] = (uint8_t)GEN_SERIAL.read();
+      if (idx >= expected) break;
+    }
+    if (idx >= expected) break;
+    delayMicroseconds(300);
+  }
+
+  if (idx < expected) return false;
+  // Basic validation
+  if (resp[0] != slave || resp[1] != 0x03 || resp[2] != (words * 2)) return false;
+  uint16_t rcrc = (uint16_t)resp[expected - 2] | ((uint16_t)resp[expected - 1] << 8);
+  uint16_t ccrc = modbus_crc16(resp, expected - 2);
+  if (rcrc != ccrc) return false;
+
+  for (uint16_t i = 0; i < words; i++) {
+    uint8_t hi = resp[3 + (i * 2)];
+    uint8_t lo = resp[3 + (i * 2) + 1];
+    out_buf[i] = (uint16_t)((hi << 8) | lo);
+  }
+  return true;
 }
 
 // ------------------------- CT RMS SAMPLING -------------------------
@@ -528,45 +606,86 @@ static bool rxTryParseOne() {
   return false;
 }
 
-// ------------------------- GENERAC POLL SCAFFOLD -------------------------
-// These are intentionally "stubs" until you finalize your exact maintenance-port frames.
-// The rest of the system (FD485 + CT + blending) is complete.
+// ------------------------- GENERAC POLL -------------------------
+// Minimal Modbus RTU poll of core registers using GenMon register map.
+// This is intentionally lean but provides real telemetry for the RS485 bridge.
 
 static uint32_t g_last_gen_poll_ms = 0;
-static uint8_t  g_gen_baud_mode = 0; // 0=115200, 1=9600
+static uint8_t  g_gen_baud_mode = 0; // 0=9600 (Modbus default), 1=115200 (legacy/alt)
 
 static void setGenBaud(uint8_t mode) {
   g_gen_baud_mode = mode;
   GEN_SERIAL.end();
   delay(20);
-  GEN_SERIAL.begin((mode == 0) ? GEN_BAUD_1 : GEN_BAUD_2);
-}
-
-// Replace with your real poll frame(s)
-static void pollGenerac() {
-  // Example: if you have a binary poll request, write it here.
-  // For now, we just "ping" by reading any available data.
-  // You will implement:
-  //  1) GEN_SERIAL.write(poll_frame,...)
-  //  2) read response into buffer
-  //  3) parseGeneracFrame(buffer, len)
+  GEN_SERIAL.begin((mode == 0) ? GEN_MODBUS_BAUD : GEN_BAUD_1);
 }
 
 static bool parseGeneracFrame(const uint8_t* buf, size_t len) {
-  // TODO: implement with your real protocol.
-  // When you do, update:
-  //  - g_t.batt_mv
-  //  - g_t.eng_temp_c_x10
-  //  - g_t.gen_v_l1_x10 / gen_v_l2_x10
-  //  - g_t.util_v_l1_x10 / util_v_l2_x10
-  //  - g_ctrl_a_l1_x100 / g_ctrl_a_l2_x100 (if present)
-  //  - g_t.hz_x100, g_t.rpm, g_t.state, g_t.mode, alarm_code, warn_code
-  //
-  // On a successful parse, set:
-  //  g_last_ctrl_good_ms = millis();
-  // and return true.
+  // Placeholder kept for future expanded protocol support.
   (void)buf; (void)len;
   return false;
+}
+
+// Read a handful of base registers defined in GenMon's Evolution map.
+static void pollGenerac() {
+  // Registers:
+  // 0x0007 RPM
+  // 0x0008 Frequency (0.1 Hz units)
+  // 0x0009 Utility Voltage (V)
+  // 0x000A Battery Voltage (0.1 V)
+  // 0x000B/0x000C Run Hours (hi/lo)
+  // 0x0012 Generator Output Voltage (V)
+
+  uint16_t regs[8] = {0};
+  bool ok = modbusReadRegisters(GEN_MODBUS_ID, 0x0007, 6, regs, 8);
+  bool ok_vout = false;
+  uint16_t reg_vout = 0;
+
+  if (ok) {
+    ok_vout = modbusReadRegisters(GEN_MODBUS_ID, 0x0012, 1, &reg_vout, 1);
+  } else {
+    // If first block failed, still try voltage-only read in case controller limits block size.
+    ok_vout = modbusReadRegisters(GEN_MODBUS_ID, 0x0012, 1, &reg_vout, 1);
+  }
+
+  if (!ok && !ok_vout) {
+    return; // no valid data
+  }
+
+  uint32_t now_ms = millis();
+
+  if (ok) {
+    uint16_t rpm = regs[0];
+    uint16_t hz_tenths = regs[1];
+    uint16_t util_v = regs[2];
+    uint16_t batt_tenths = regs[3];
+    uint32_t run_hours = ((uint32_t)regs[4] << 16) | regs[5];
+
+    g_t.rpm = rpm;
+    g_t.hz_x100 = (uint16_t)(hz_tenths * 10); // 0.1 Hz -> x100
+    g_t.util_v_l1_x10 = (uint16_t)(util_v * 10);
+    g_t.util_v_l2_x10 = g_t.util_v_l1_x10;
+    g_t.batt_mv = (uint16_t)(batt_tenths * 100); // 0.1 V -> mV
+    g_t.run_seconds = run_hours * 3600UL;
+
+    // Simple state/mode inference
+    if (rpm > 0) {
+      g_t.state = GEN_RUNNING;
+      g_t.mode  = MODE_AUTO; // best-effort guess
+    } else {
+      g_t.state = GEN_STOPPED;
+      g_t.mode  = MODE_AUTO;
+    }
+
+    g_last_ctrl_good_ms = now_ms;
+  }
+
+  if (ok_vout) {
+    uint16_t gv = reg_vout;
+    uint16_t gv_x10 = (uint16_t)(gv * 10); // volts -> x10
+    g_t.gen_v_l1_x10 = gv_x10;
+    g_t.gen_v_l2_x10 = gv_x10;
+  }
 }
 
 // Optional: auto-fallback baud if nothing valid after N seconds
@@ -638,7 +757,7 @@ void setup() {
   FD485_SERIAL.begin(FD485_BAUD);
 
   // Start GEN UART
-  GEN_SERIAL.begin(GEN_BAUD_1);
+  GEN_SERIAL.begin(GEN_MODBUS_BAUD); // default to 9600 Modbus maintenance port
 
   ctAccumReset(acc_l1);
   ctAccumReset(acc_l2);

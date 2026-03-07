@@ -21,7 +21,6 @@ from flask import (
 import traceback
 from home_controller.core.backend import HomeControllerBackend
 from home_controller.config import aio_max_voltage
-from home_controller.core.genmon_client import GenMonClient
 from home_controller.core import i2c_catalog
 
 # ------------------------------------------------------------
@@ -31,7 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent  # .../home_controller/
 TEMPLATES_DIR = BASE_DIR / "web" / "templates"
 STATIC_DIR = BASE_DIR / "web" / "static"
 
-# GenMon defaults (hostname provided by user)
+# GenMon defaults (hostname provided by user) — retained for compatibility; not used now.
 GENMON_HOST = os.getenv("GENMON_HOST", "GenMon_PI")
 GENMON_PORT = int(os.getenv("GENMON_PORT", "9082"))
 GENMON_TIMEOUT = float(os.getenv("GENMON_TIMEOUT", "3.0"))
@@ -356,9 +355,6 @@ def _save_labels(data: dict) -> None:
 # ------------------------------------------------------------
 # GenMon helpers
 # ------------------------------------------------------------
-def _get_genmon_client() -> GenMonClient:
-    return GenMonClient(host=GENMON_HOST, port=GENMON_PORT, timeout=GENMON_TIMEOUT)
-
 
 def _default_genmon_contacts() -> Dict[str, Any]:
     return {
