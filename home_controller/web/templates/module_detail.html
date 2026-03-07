@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Module: {{ module_type|upper }}</h1>
+<h1>Module: {{ 'GENERATOR' if module_type|lower == 'genmon' else module_type|upper }}</h1>
 
 <div class="card">
   <div><b>Pinmap:</b> <code>{{ pinmap_path }}</code></div>

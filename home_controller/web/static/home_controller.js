@@ -404,7 +404,8 @@ async function showIoChannelPopup(name, status) {
   ensureRemoveButton(popup, ctx);
 
   const type = (ctx.type || '').toLowerCase();
-  popup.querySelector('.popup-title').textContent = ctx.name || name || `${type.toUpperCase()} MODULE`;
+  const typeLabel = type === 'genmon' ? 'GENERATOR' : type.toUpperCase();
+  popup.querySelector('.popup-title').textContent = ctx.name || name || `${typeLabel} MODULE`;
   popup.querySelector('.popup-status').textContent = ctx.status ? `Status: ${ctx.status}` : '';
   controls.innerHTML = '<div>Loading…</div>';
 
@@ -1863,7 +1864,9 @@ async function loadModules() {
 
     const left = document.createElement("div");
 
-    const fallbackTitle = (String(m.type || "").toLowerCase() === "genmon") ? "GENERATOR" : `${String(m.type || "").toUpperCase()} MODULE`;
+    const isGenerator = String(m.type || "").toLowerCase() === "genmon";
+    const typeLabel = isGenerator ? "GENERATOR" : String(m.type || "").toUpperCase();
+    const fallbackTitle = isGenerator ? "GENERATOR" : `${String(m.type || "").toUpperCase()} MODULE`;
     const displayName =
       (m.name && String(m.name).trim().length > 0)
         ? String(m.name).trim()
@@ -1874,7 +1877,7 @@ async function loadModules() {
 
     left.innerHTML = `
       <div class="module-title">${displayName}</div>
-      <div class="module-sub">${String(m.type || "").toUpperCase()} • ${m.address}</div>
+      <div class="module-sub">${typeLabel} • ${m.address}</div>
     `;
 
 
@@ -1885,7 +1888,7 @@ async function loadModules() {
         gear.onclick = () => showIoChannelPopup({
           module_id: m.id,
           type: m.type && m.type.toLowerCase(),
-          name: m.name || `${String(m.type || '').toUpperCase()} MODULE`,
+          name: m.name || `${typeLabel} MODULE`,
           address: m.address,
           status: m.status || undefined,
           module_num: m.module_num

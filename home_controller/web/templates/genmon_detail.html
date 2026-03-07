@@ -3,7 +3,7 @@
 <h1>Generator Details</h1>
 
 <div class="card">
-  <div><b>Module:</b> {{ module.id }} ({{ module.type|upper }})</div>
+  <div><b>Module:</b> {{ module.id }} ({{ 'GENERATOR' if module.type|lower == 'genmon' else module.type|upper }})</div>
   <div><b>Address:</b> {{ module.address_hex }}</div>
   <div><b>Name:</b> {{ module.name or "—" }}</div>
   <div><b>Generator link:</b> <span id="gm_host">GenBus</span>:<span id="gm_port">485</span></div>
