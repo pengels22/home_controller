@@ -575,6 +575,26 @@ async function showIoChannelPopup(name, status) {
           body: JSON.stringify({ module_id: ctx.module_id, invert, override }),
         });
 
+        // For DO modules, push overrides to hardware immediately
+        if (type === 'do') {
+          const writes = [];
+          for (let i = 1; i <= 16; i++) {
+            const ov = override[i];
+            if (ov === 'on' || ov === 'off') {
+              writes.push(fetch('/api/module_write', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  module_id: ctx.module_id,
+                  channel: i,
+                  value: ov === 'on' ? 1 : 0,
+                }),
+              }).catch(() => {}));
+            }
+          }
+          try { await Promise.all(writes); } catch (e) { /* ignore */ }
+        }
+
         await fetch('/labels/set', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -206,6 +206,38 @@ class RS485Backend:
             "raw": reply,
         }
 
+    def read_do_bitmap(self, addr: int) -> Dict[str, int]:
+        """
+        Read 16-bit DO bitmap using special channels 0xFE (low) and 0xFF (high).
+        Requires DO_core firmware with read support.
+        """
+        def _read(ch: int) -> Dict[str, int]:
+            req = bytes([0xAA, addr & 0xFF, ch & 0xFF, 0x00])
+            crc = _xor_crc(req)
+            req += bytes([crc])
+            reply = self._write_and_read(req, expect_len=6)
+            if len(reply) != 6 or reply[0] != 0x55:
+                return {"ok": False, "error": "bad preamble or length", "raw": reply}
+            if reply[-1] != _xor_crc(reply[:-1]):
+                return {"ok": False, "error": "bad crc", "raw": reply}
+            return {"ok": True, "data": reply[3], "sense_mask": reply[4], "raw": reply}
+
+        lo = _read(0xFE)
+        if not lo.get("ok"):
+            return lo
+        hi = _read(0xFF)
+        if not hi.get("ok"):
+            return hi
+        bitmap = lo["data"] | (hi["data"] << 8)
+        return {
+            "ok": True,
+            "addr": addr,
+            "bitmap": bitmap,
+            "sense_mask": lo.get("sense_mask", 0) | hi.get("sense_mask", 0),
+            "raw_lo": lo.get("raw"),
+            "raw_hi": hi.get("raw"),
+        }
+
     # -------------------------------------------------
     # AIO
     # -------------------------------------------------

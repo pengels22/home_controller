@@ -739,10 +739,33 @@ class HomeControllerBackend:
                             "raw_frames": raw_frames,
                         }
                 elif m.type == "do":
-                    # DO firmware lacks a read-only command; avoid changing outputs implicitly.
-                    self._set_last_error(module_id, "DO read over RS485 not supported (would change state)")
-                    self._log_module_error(m.type, m.id, m.address_hex, "DO read over RS485 not supported (would change state)")
-                    return {"ok": False, "error": "DO read over RS485 not supported (would change state)"}
+                    res = self.rs485.read_do_bitmap(addr_int)
+                    if res.get("ok"):
+                        self._set_last_error(module_id, None)
+                        bm = int(res.get("bitmap", 0))
+                        channels: Dict[str, int] = {}
+                        for i in range(16):
+                            channels[str(i + 1)] = 1 if ((bm >> i) & 1) else 0
+                        return {
+                            "ok": True,
+                            "comms_ok": True,
+                            "module_id": m.id,
+                            "type": m.type,
+                            "address": m.address_hex,
+                            "bitmap": bm,
+                            "sense_mask": res.get("sense_mask"),
+                            "power": self._sense_info(res.get("sense_mask"), two_lines=True),
+                            "comms_led": "green",
+                            "channels": channels,
+                            "raw": {
+                                "lo": res.get("raw_lo"),
+                                "hi": res.get("raw_hi"),
+                            },
+                        }
+                    else:
+                        self._set_last_error(module_id, res.get("error", "DO RS485 read failed"))
+                        self._log_module_error(m.type, m.id, m.address_hex, res.get("error", "DO RS485 read failed"), res.get("raw"))
+                        return res
                 elif m.type == "genmon":
                     snap = self.rs485.gen_snapshot(addr_int, trace_logger=self._log_gen_serial)
                     if not snap.get("ok"):

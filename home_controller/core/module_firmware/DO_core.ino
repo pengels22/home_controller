@@ -40,6 +40,7 @@ static inline uint8_t xcrc5(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3, uint
 
 // ---------------- Internal ----------------
 static uint8_t deviceAddr = 0;
+static uint16_t g_do_bitmap = 0; // current outputs (bit0=ch0 ... bit15=ch15)
 
 // RX state machine (5 bytes)
 static uint8_t rx_state = 0;
@@ -68,10 +69,17 @@ static void mcpWrite(uint8_t ch, bool on) {
   mcp.digitalWrite(ch, level ? HIGH : LOW);
 }
 
+static inline void setBitmapBit(uint8_t ch, bool on) {
+  if (ch >= 16) return;
+  if (on) g_do_bitmap |= (1u << ch);
+  else    g_do_bitmap &= ~(1u << ch);
+}
+
 static void forceBankOff(uint8_t bank /*0=A,1=B*/) {
   uint8_t start = (bank == 0) ? 0 : 8;
   for (uint8_t ch = start; ch < start + 8; ch++) {
     mcpWrite(ch, false);
+    setBitmapBit(ch, false);
   }
 }
 
@@ -83,10 +91,12 @@ static uint8_t applyDO(uint8_t ch, uint8_t cmd) {
 
   if (!bankAllowed(ch)) {
     mcpWrite(ch, false);
+    setBitmapBit(ch, false);
     return 0;
   }
 
   mcpWrite(ch, requestedOn);
+  setBitmapBit(ch, requestedOn);
   return requestedOn ? 1 : 0;
 }
 
@@ -104,6 +114,10 @@ static void handleRequest(uint8_t addr, uint8_t ch, uint8_t cmd) {
   uint8_t actual = 0;
   if (ch < 16) {
     actual = applyDO(ch, cmd);
+  } else if (ch == 0xFE) {
+    actual = (uint8_t)(g_do_bitmap & 0xFF); // low byte
+  } else if (ch == 0xFF) {
+    actual = (uint8_t)((g_do_bitmap >> 8) & 0xFF); // high byte
   }
   // Always reply (even if invalid ch) so head can detect bad requests
   sendReply(addr, ch, actual);
@@ -113,6 +127,7 @@ static void initMcpOutputs() {
   for (uint8_t ch = 0; ch < 16; ch++) {
     mcp.pinMode(ch, OUTPUT);
     mcpWrite(ch, false);
+    setBitmapBit(ch, false);
   }
 }
 

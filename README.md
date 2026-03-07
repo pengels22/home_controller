@@ -57,7 +57,7 @@ Environment options:
 - `HC_DEBUG=1` to enable Flask debug
 - `HC_RS485_ENABLE` (default `1`) – keep enabled; I2C fallback is disabled in code.
 - `HC_DEV=1` and optional `HC_DEV_FILE=/path/to/dev_i2c.json` to enable simulation mode.
-- `GENMON_HOST`, `GENMON_PORT`, `GENMON_TIMEOUT` for GenMon integration.
+- (GenMon TCP helper removed; generator control is RS485-only now.)
 
 ## Notable API routes
 - `/api/module_read/<module_id>` – read a module via RS485.
@@ -65,6 +65,7 @@ Environment options:
 - `/api/expansion_config` – get/set expander config.
 - `/api/aio_max_voltage/<module_id>` – get/set per-channel max voltages.
 - `/api/hat_status` – power/sense summary derived from module RS485 responses.
+- `/api/genmon/<id>/status` and `/api/genmon/<id>/contacts` – generator status/contacts via RS485 trunk to Generator Pi.
 - `/ui` – main web UI.
 - `/ui/add` – add module page.
 - `/ui/gui` – simplified GUI panel.
@@ -79,6 +80,7 @@ The server will read/write simulated data in `config/dev_i2c.json`.
 ## Firmware
 Reference RP2040 sketches live in `core/module_firmware/`:
 - `DI_core.ino`, `DO_core.ino`, `AIO_core.ino`, `I2C_core.ino`, `RS485_core.ino`, `gen_core.ino`
+  - `gen_core.ino` now includes Evolution/Nexus support plus Evo2 encapsulated unlock (AES) and auto controller-type detection (flags bit0=plain, bit1=Evo2).
 
 ## Configuration files
 - `config/config.json` – module list (ids like `rs485-0x50`, `i2c1-0x30` for bridge modules).
@@ -89,6 +91,7 @@ Reference RP2040 sketches live in `core/module_firmware/`:
 
 ## Notes
 - RS485-only: direct I2C reads are intentionally disabled; the I2C bridge module remains supported over RS485.
+- Generator control: head talks RS485 half-duplex to the Generator Pi, which forwards generator commands downstream; dry contacts are handled locally on the Generator Pi. Evo2 controllers are supported via encapsulated AES unlock in `gen_core.ino`.
 - If you need pure I2C operation, re-enable it in `core/backend.py` and install `smbus2` + system i2c tools.
 
 ## License
