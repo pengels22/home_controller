@@ -47,6 +47,7 @@ static const uint32_t CTRL_GOOD_TIMEOUT_MS = 3000;
 static const uint8_t  GEN_MODBUS_ID    = 0x9D;   // Evolution/Nexus default slave ID
 static const uint32_t GEN_MODBUS_BAUD  = 9600;   // maintenance port speed
 static const uint32_t GEN_MODBUS_RX_TIMEOUT_MS = 120; // wait per transaction
+static const bool     GEN_EVO2 = true;      // set true for Evolution 2 controllers (encapsulated writes)
 
 // CT measurement
 static const uint8_t  CT_PIN_L1 = A2;
@@ -209,6 +210,111 @@ static uint16_t modbus_crc16(const uint8_t* data, size_t len) {
   return crc;
 }
 
+// ------------------------------------------------------------
+// Tiny AES-128 (encrypt only, CBC) - trimmed for firmware use
+// Source derived from tiny-AES-c (public domain)
+// ------------------------------------------------------------
+
+static const uint8_t sbox[256] = {
+  // 0     1    2    3    4    5    6    7    8    9    A    B    C    D    E    F
+  0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
+  0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
+  0xb7,0xfd,0x93,0x26,0x36,0x3f,0xf7,0xcc,0x34,0xa5,0xe5,0xf1,0x71,0xd8,0x31,0x15,
+  0x04,0xc7,0x23,0xc3,0x18,0x96,0x05,0x9a,0x07,0x12,0x80,0xe2,0xeb,0x27,0xb2,0x75,
+  0x09,0x83,0x2c,0x1a,0x1b,0x6e,0x5a,0xa0,0x52,0x3b,0xd6,0xb3,0x29,0xe3,0x2f,0x84,
+  0x53,0xd1,0x00,0xed,0x20,0xfc,0xb1,0x5b,0x6a,0xcb,0xbe,0x39,0x4a,0x4c,0x58,0xcf,
+  0xd0,0xef,0xaa,0xfb,0x43,0x4d,0x33,0x85,0x45,0xf9,0x02,0x7f,0x50,0x3c,0x9f,0xa8,
+  0x51,0xa3,0x40,0x8f,0x92,0x9d,0x38,0xf5,0xbc,0xb6,0xda,0x21,0x10,0xff,0xf3,0xd2,
+  0xcd,0x0c,0x13,0xec,0x5f,0x97,0x44,0x17,0xc4,0xa7,0x7e,0x3d,0x64,0x5d,0x19,0x73,
+  0x60,0x81,0x4f,0xdc,0x22,0x2a,0x90,0x88,0x46,0xee,0xb8,0x14,0xde,0x5e,0x0b,0xdb,
+  0xe0,0x32,0x3a,0x0a,0x49,0x06,0x24,0x5c,0xc2,0xd3,0xac,0x62,0x91,0x95,0xe4,0x79,
+  0xe7,0xc8,0x37,0x6d,0x8d,0xd5,0x4e,0xa9,0x6c,0x56,0xf4,0xea,0x65,0x7a,0xae,0x08,
+  0xba,0x78,0x25,0x2e,0x1c,0xa6,0xb4,0xc6,0xe8,0xdd,0x74,0x1f,0x4b,0xbd,0x8b,0x8a,
+  0x70,0x3e,0xb5,0x66,0x48,0x03,0xf6,0x0e,0x61,0x35,0x57,0xb9,0x86,0xc1,0x1d,0x9e,
+  0xe1,0xf8,0x98,0x11,0x69,0xd9,0x8e,0x94,0x9b,0x1e,0x87,0xe9,0xce,0x55,0x28,0xdf,
+  0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16
+};
+
+static uint8_t xtime(uint8_t x) { return (uint8_t)((x<<1) ^ ((x>>7) * 0x1b)); }
+static uint8_t mul(uint8_t x, uint8_t y) {
+  return (uint8_t)(((y & 1) * x) ^
+                   ((y>>1 & 1) * xtime(x)) ^
+                   ((y>>2 & 1) * xtime(xtime(x))) ^
+                   ((y>>3 & 1) * xtime(xtime(xtime(x)))) ^
+                   ((y>>4 & 1) * xtime(xtime(xtime(xtime(x))))));
+}
+
+static void SubBytes(uint8_t* state) { for (int i=0;i<16;i++) state[i]=sbox[state[i]]; }
+static void ShiftRows(uint8_t* s) {
+  uint8_t t;
+  t = s[1]; s[1]=s[5]; s[5]=s[9]; s[9]=s[13]; s[13]=t;
+  t = s[2]; s[2]=s[10]; s[10]=t; t=s[6]; s[6]=s[14]; s[14]=t;
+  t = s[3]; s[3]=s[15]; s[15]=s[11]; s[11]=s[7]; s[7]=t;
+}
+static void MixColumns(uint8_t* s) {
+  for (int c=0;c<4;c++) {
+    int i = c*4;
+    uint8_t a0=s[i],a1=s[i+1],a2=s[i+2],a3=s[i+3];
+    uint8_t r0 = mul(a0,2)^mul(a1,3)^a2^a3;
+    uint8_t r1 = a0^mul(a1,2)^mul(a2,3)^a3;
+    uint8_t r2 = a0^a1^mul(a2,2)^mul(a3,3);
+    uint8_t r3 = mul(a0,3)^a1^a2^mul(a3,2);
+    s[i]=r0; s[i+1]=r1; s[i+2]=r2; s[i+3]=r3;
+  }
+}
+
+static void AddRoundKey(uint8_t* state, const uint8_t* roundKey) {
+  for (int i=0;i<16;i++) state[i] ^= roundKey[i];
+}
+
+static void KeyExpansion(const uint8_t* key, uint8_t* roundKeys) {
+  // roundKeys must be 176 bytes (11 round keys)
+  static const uint8_t Rcon[11] = {0x00,0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1B,0x36};
+  memcpy(roundKeys, key, 16);
+  uint8_t temp[4];
+  int bytesGen = 16;
+  int rconIter = 1;
+  while (bytesGen < 176) {
+    for (int i=0;i<4;i++) temp[i] = roundKeys[bytesGen - 4 + i];
+    if (bytesGen % 16 == 0) {
+      // rotate
+      uint8_t t = temp[0]; temp[0]=temp[1]; temp[1]=temp[2]; temp[2]=temp[3]; temp[3]=t;
+      // sub
+      for (int i=0;i<4;i++) temp[i] = sbox[temp[i]];
+      temp[0] ^= Rcon[rconIter++];
+    }
+    for (int i=0;i<4;i++) {
+      roundKeys[bytesGen] = roundKeys[bytesGen - 16] ^ temp[i];
+      bytesGen++;
+    }
+  }
+}
+
+static void aes128_encrypt_block(uint8_t* block, const uint8_t* roundKeys) {
+  AddRoundKey(block, roundKeys);
+  for (int r=1;r<=9;r++) {
+    SubBytes(block);
+    ShiftRows(block);
+    MixColumns(block);
+    AddRoundKey(block, roundKeys + 16*r);
+  }
+  SubBytes(block);
+  ShiftRows(block);
+  AddRoundKey(block, roundKeys + 160);
+}
+
+static void aes128_cbc_encrypt(uint8_t* data, size_t len, const uint8_t* key, const uint8_t* iv) {
+  uint8_t rk[176];
+  KeyExpansion(key, rk);
+  uint8_t prev[16];
+  memcpy(prev, iv, 16);
+  for (size_t offset=0; offset < len; offset += 16) {
+    uint8_t* blk = data + offset;
+    for (int i=0;i<16;i++) blk[i] ^= prev[i];
+    aes128_encrypt_block(blk, rk);
+    memcpy(prev, blk, 16);
+  }
+}
 // ------------------------- PACKING HELPERS -------------------------
 
 static inline uint8_t pack_src(AmpSource2b l1, AmpSource2b l2) {
@@ -281,6 +387,208 @@ static bool modbusReadRegisters(uint8_t slave, uint16_t reg, uint16_t words, uin
     out_buf[i] = (uint16_t)((hi << 8) | lo);
   }
   return true;
+}
+
+// Modbus RTU write single register (function 0x06)
+static bool modbusWriteRegister(uint8_t slave, uint16_t reg, uint16_t value);
+static bool modbusWriteRegisters(uint8_t slave, uint16_t reg, const uint8_t* data_bytes, uint16_t byte_len);
+
+// Try plain write; if GEN_EVO2 is true or plain fails, fall back to Evo2 encapsulated write.
+static bool modbusWriteRegisterAuto(uint8_t slave, uint16_t reg, uint16_t value);
+
+// Controller type detection
+enum GenCtrlType : uint8_t { GEN_TYPE_UNKNOWN=0, GEN_TYPE_PLAIN=1, GEN_TYPE_EVO2=2 };
+static GenCtrlType g_gen_type = GEN_TYPE_UNKNOWN;
+
+static void detect_controller_type() {
+  // Try plain read of reg 0x0000
+  uint16_t regbuf[1] = {0};
+  bool plain_ok = modbusReadRegisters(GEN_MODBUS_ID, 0x0000, 1, regbuf, 1);
+  if (plain_ok) {
+    g_gen_type = GEN_TYPE_PLAIN;
+    return;
+  }
+  // Try Evo2 unlock + read via encapsulated write (use a harmless write to 0x0000)
+  uint8_t pkt[8];
+  size_t plen = buildWriteSingleFrame(GEN_MODBUS_ID, 0x0000, 0x0000, pkt);
+  if (evo2_unlock_and_send(pkt, plen)) {
+    g_gen_type = GEN_TYPE_EVO2;
+    return;
+  }
+  g_gen_type = GEN_TYPE_UNKNOWN;
+}
+
+static bool modbusWriteRegister(uint8_t slave, uint16_t reg, uint16_t value) {
+  uint8_t req[8];
+  req[0] = slave;
+  req[1] = 0x06; // Write Single Register
+  req[2] = (uint8_t)(reg >> 8);
+  req[3] = (uint8_t)(reg & 0xFF);
+  req[4] = (uint8_t)(value >> 8);
+  req[5] = (uint8_t)(value & 0xFF);
+  uint16_t crc = modbus_crc16(req, 6);
+  req[6] = (uint8_t)(crc & 0xFF); // CRC low
+  req[7] = (uint8_t)(crc >> 8);   // CRC high
+
+  while (GEN_SERIAL.available()) GEN_SERIAL.read();
+  GEN_SERIAL.write(req, sizeof(req));
+  GEN_SERIAL.flush();
+
+  const uint32_t start_ms = millis();
+  uint8_t resp[8] = {0};
+  size_t idx = 0;
+  while ((millis() - start_ms) < GEN_MODBUS_RX_TIMEOUT_MS) {
+    while (GEN_SERIAL.available()) {
+      resp[idx++] = (uint8_t)GEN_SERIAL.read();
+      if (idx >= sizeof(resp)) break;
+    }
+    if (idx >= sizeof(resp)) break;
+    delayMicroseconds(300);
+  }
+  if (idx < sizeof(resp)) return false;
+  // Validate echo
+  uint16_t rcrc = (uint16_t)resp[7] << 8 | resp[6];
+  uint16_t ccrc = modbus_crc16(resp, 6);
+  if (rcrc != ccrc) return false;
+  if (resp[0] != slave || resp[1] != 0x06) return false;
+  if (resp[2] != req[2] || resp[3] != req[3]) return false;
+  return true;
+}
+
+// Evo2 encapsulation constants (from GenMon)
+static const uint8_t EVO2_IV[16] = {0xC0,0x94,0xFB,0xEB,0xF5,0x96,0x43,0x7F,0xA2,0x2E,0xFA,0x84,0xFC,0xC5,0x21,0x52};
+static const uint8_t EVO2_KEYS[16][16] = {
+ {0x4A,0x2A,0xA3,0xE4,0x7E,0xE0,0x42,0x2C,0xA4,0xBC,0x8D,0x1D,0x52,0xDE,0xD9,0x69},
+ {0xEE,0xFA,0x10,0x27,0x80,0xE7,0x4F,0x03,0xB7,0xD0,0x32,0x58,0xC4,0xD7,0xF8,0xE5},
+ {0xFD,0x79,0xA9,0xCF,0xCF,0x94,0x40,0x1D,0x9A,0x65,0xA4,0x7C,0x97,0xB3,0x0C,0xC2},
+ {0x55,0x99,0xF2,0xFB,0x0D,0x70,0x49,0x1A,0xBC,0x85,0xF4,0x58,0x9E,0xC1,0x11,0x48},
+ {0xDB,0xCF,0x82,0x6F,0x42,0xE8,0x41,0xDE,0xBD,0x64,0xBB,0xAC,0x16,0xFB,0xB4,0xD3},
+ {0x84,0xA1,0xA5,0xF7,0x26,0xA3,0x47,0xFE,0x8A,0x0F,0xB5,0xF1,0xC1,0x9E,0xA3,0xCF},
+ {0x20,0x9C,0xD8,0xDF,0xAB,0x2E,0x47,0x3E,0xA2,0xBF,0xFE,0xEA,0xC1,0xD4,0x87,0x8E},
+ {0xEF,0xA6,0x7A,0xD0,0x81,0xBC,0x42,0xEB,0xB4,0xDE,0x51,0xAE,0x1A,0x04,0x73,0xA7},
+ {0x17,0x3E,0x13,0x55,0x77,0xC3,0x4D,0x46,0xAB,0x2C,0x5A,0xD7,0x95,0x25,0xE7,0x62},
+ {0xCC,0x8D,0x8F,0x2A,0x3B,0x1B,0x44,0x96,0xBD,0x8B,0x78,0x78,0xF8,0xB2,0xAF,0x43},
+ {0xA8,0x50,0x14,0xDD,0xE5,0x38,0x42,0xDD,0xA5,0xE9,0xA9,0xAD,0xB1,0xD4,0x84,0xAE},
+ {0x24,0x43,0xCE,0xF9,0x55,0xCC,0x42,0xDA,0x95,0x77,0xF9,0xED,0xEA,0xE4,0x1A,0xA1},
+ {0x3A,0xC2,0x6F,0x6A,0xFE,0x08,0x40,0xC1,0x80,0x46,0x39,0x95,0x69,0x1D,0x85,0x2E},
+ {0xA2,0x42,0x7B,0x25,0x57,0x05,0x43,0x35,0xB4,0x79,0x0A,0x64,0x66,0x00,0x07,0xF6},
+ {0xFD,0xB5,0xCF,0x6C,0x7D,0xE6,0x42,0xA7,0x92,0xB4,0x3C,0xC9,0xC7,0x7B,0x92,0x57},
+ {0xC7,0x39,0x70,0xD5,0xFC,0xCA,0x43,0x0C,0x8E,0xCD,0xEA,0x54,0xAF,0x88,0xA3,0x67}
+};
+
+static void nybble_swap(uint8_t* buf, size_t len) {
+  for (size_t i=0;i<len;i++) buf[i] = (uint8_t)(((buf[i] & 0x0F) << 4) | ((buf[i] & 0xF0) >> 4));
+}
+
+// Build raw Modbus write-single packet (address, func, reg, val, crc) for encapsulation
+static size_t buildWriteSingleFrame(uint8_t slave, uint16_t reg, uint16_t value, uint8_t* out) {
+  out[0] = slave;
+  out[1] = 0x06;
+  out[2] = (uint8_t)(reg >> 8);
+  out[3] = (uint8_t)(reg & 0xFF);
+  out[4] = (uint8_t)(value >> 8);
+  out[5] = (uint8_t)(value & 0xFF);
+  uint16_t crc = modbus_crc16(out, 6);
+  out[6] = (uint8_t)(crc & 0xFF);
+  out[7] = (uint8_t)(crc >> 8);
+  return 8;
+}
+
+static bool evo2_unlock_and_send(const uint8_t* master_pkt, size_t master_len) {
+  // Pad master packet to minimum 32 bytes and block multiple
+  uint8_t mp[64] = {0};
+  size_t padded = master_len;
+  if (padded < 32) padded = 32;
+  if (padded % 16) padded = (padded + 15) & ~((size_t)15);
+  if (padded > sizeof(mp)) padded = sizeof(mp);
+  memcpy(mp, master_pkt, master_len);
+
+  // Encrypt MP
+  aes128_cbc_encrypt(mp, padded, EVO2_KEYS[0], EVO2_IV);
+
+  // Frame A (SN + encrypted master) with prefix 0xF1 0x01
+  uint8_t sn[16] = {0x00,0x00,0x00,0x05,0x06,0x02,0x04,0x04,0x01,0xE3,0x00,0x00,0x00,0x00,0x00,0x00};
+  uint8_t frameA[2 + 16 + 64] = {0};
+  frameA[0] = 0xF1; frameA[1] = 0x01;
+  memcpy(frameA + 2, sn, 16);
+  size_t fa_len = 2 + 16 + padded;
+  memcpy(frameA + 18, mp, padded);
+  nybble_swap(frameA, fa_len);
+  if (!modbusWriteRegisters(GEN_MODBUS_ID, 0xEA60, frameA, (uint16_t)fa_len)) return false;
+
+  // Frame B (encrypted master only) with prefix 0xF1 0x02
+  uint8_t frameB[2 + 64] = {0};
+  frameB[0] = 0xF1; frameB[1] = 0x02;
+  memcpy(frameB + 2, mp, padded);
+  size_t fb_len = 2 + padded;
+  nybble_swap(frameB, fb_len);
+  if (!modbusWriteRegisters(GEN_MODBUS_ID, 0xEA60, frameB, (uint16_t)fb_len)) return false;
+
+  return true;
+}
+
+static bool modbusWriteRegisterAuto(uint8_t slave, uint16_t reg, uint16_t value) {
+  // Try plain first unless GEN_EVO2 is forced
+  if (!GEN_EVO2) {
+    return modbusWriteRegister(slave, reg, value);
+  }
+  // Build master packet
+  uint8_t pkt[8];
+  size_t plen = buildWriteSingleFrame(slave, reg, value, pkt);
+  if (evo2_unlock_and_send(pkt, plen)) return true;
+  // Fallback: try plain
+  return modbusWriteRegister(slave, reg, value);
+}
+// Modbus RTU write multiple registers (function 0x10)
+static bool modbusWriteRegisters(uint8_t slave, uint16_t reg, const uint8_t* data_bytes, uint16_t byte_len) {
+  if (byte_len == 0 || (byte_len % 2) != 0) return false;
+  uint16_t qty = byte_len / 2;
+  uint8_t hdr_len = 7;
+  uint8_t buf[7 + 2 + 252]; // addr func reg(2) qty(2) bytecnt + data + crc(2)
+  buf[0] = slave;
+  buf[1] = 0x10;
+  buf[2] = (uint8_t)(reg >> 8);
+  buf[3] = (uint8_t)(reg & 0xFF);
+  buf[4] = (uint8_t)(qty >> 8);
+  buf[5] = (uint8_t)(qty & 0xFF);
+  buf[6] = (uint8_t)byte_len;
+  memcpy(buf + 7, data_bytes, byte_len);
+  uint16_t crc = modbus_crc16(buf, 7 + byte_len);
+  buf[7 + byte_len] = (uint8_t)(crc & 0xFF);
+  buf[7 + byte_len + 1] = (uint8_t)(crc >> 8);
+
+  while (GEN_SERIAL.available()) GEN_SERIAL.read();
+  GEN_SERIAL.write(buf, 7 + byte_len + 2);
+  GEN_SERIAL.flush();
+
+  const uint32_t start_ms = millis();
+  // Response echo is 8 bytes: addr func reg qty crc
+  uint8_t resp[8] = {0};
+  size_t idx = 0;
+  while ((millis() - start_ms) < GEN_MODBUS_RX_TIMEOUT_MS) {
+    while (GEN_SERIAL.available()) {
+      resp[idx++] = (uint8_t)GEN_SERIAL.read();
+      if (idx >= sizeof(resp)) break;
+    }
+    if (idx >= sizeof(resp)) break;
+    delayMicroseconds(300);
+  }
+  if (idx < sizeof(resp)) return false;
+  uint16_t rcrc = (uint16_t)resp[7] << 8 | resp[6];
+  uint16_t ccrc = modbus_crc16(resp, 6);
+  if (rcrc != ccrc) return false;
+  if (resp[0] != slave || resp[1] != 0x10) return false;
+  if (resp[2] != buf[2] || resp[3] != buf[3]) return false;
+  return true;
+}
+
+// Generac indexed write helper (mirrors GenMon WriteIndexedRegister)
+static bool genIndexedCommand(uint16_t reg, bool hasValue, uint16_t value) {
+  // If value present, write it to register 0x0004, then write target register to 0x0003
+  if (hasValue) {
+    if (!modbusWriteRegisterAuto(GEN_MODBUS_ID, 0x0004, value)) return false;
+  }
+  return modbusWriteRegisterAuto(GEN_MODBUS_ID, 0x0003, reg);
 }
 
 // ------------------------- CT RMS SAMPLING -------------------------
@@ -703,26 +1011,30 @@ static void maybeRotateGenBaud(uint32_t now_ms) {
 // For now they just return false to indicate not implemented.
 
 bool genCommandStart() {
-  // TODO send "start" command over GEN_SERIAL and confirm
-  return false;
+  // remote start -> indexed register 0x0001
+  return genIndexedCommand(0x0001, false, 0);
 }
 bool genCommandStop() {
-  // TODO
-  return false;
+  // remote stop -> indexed register 0x0000
+  return genIndexedCommand(0x0000, false, 0);
 }
 bool genCommandExercise(bool withTransfer) {
-  (void)withTransfer;
-  // TODO
-  return false;
+  // 0x0003 = exercise (quiet), 0x0002 = start + transfer
+  uint16_t reg = withTransfer ? 0x0002 : 0x0003;
+  return genIndexedCommand(reg, false, 0);
 }
 bool genCommandClearAlarm() {
-  // TODO
-  return false;
+  // reset alarm -> indexed register 0x000D
+  return genIndexedCommand(0x000D, false, 0);
 }
 bool genCommandSetMode(uint16_t mode) {
-  (void)mode;
-  // TODO
-  return false;
+  // 1=OFF -> 0x0010, 2=AUTO -> 0x000F, 3=MANUAL -> 0x000E
+  uint16_t reg = 0;
+  if (mode == 1) reg = 0x0010;
+  else if (mode == 2) reg = 0x000F;
+  else if (mode == 3) reg = 0x000E;
+  else return false;
+  return genIndexedCommand(reg, false, 0);
 }
 
 // ------------------------- TELEMETRY BUILD + SEND -------------------------
@@ -739,6 +1051,11 @@ static void updateTelemetryBase(uint32_t now_ms) {
   // basic counters
   g_t.good_frames = g_good_frames;
   g_t.bad_frames  = g_bad_frames;
+  // expose controller type in flags (bit0=plain, bit1=evo2)
+  uint16_t f = g_t.flags & ~0x3;
+  if (g_gen_type == GEN_TYPE_PLAIN) f |= 0x1;
+  else if (g_gen_type == GEN_TYPE_EVO2) f |= 0x2;
+  g_t.flags = f;
 }
 
 static void sendTelemetry() {
@@ -768,6 +1085,8 @@ void setup() {
   g_t.flags = 0;
 
   g_last_ctrl_good_ms = 0;
+
+  detect_controller_type();
 }
 
 void loop() {
