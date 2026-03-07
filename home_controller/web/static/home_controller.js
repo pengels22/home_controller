@@ -86,6 +86,30 @@ function ensureIoChannelPopup() {
   return popup;
 }
 
+// Dedicated Generator detail popup (used by module card "Load more")
+async function showGenmonDetailPopup(moduleId) {
+  const popup = ensureIoChannelPopup();
+  const overlay = ensureIoChannelPopupOverlay();
+  const controls = popup.querySelector('.popup-controls');
+  popup.querySelector('.popup-title').textContent = 'Generator Details';
+  popup.querySelector('.popup-status').textContent = '';
+  controls.innerHTML = `
+    <iframe src="/modules/genmon/${encodeURIComponent(moduleId)}/detail"
+            style="width:520px;height:420px;border:0;background:#fff;"></iframe>
+  `;
+  popup.querySelectorAll('.popup-close').forEach((btn) => btn.remove());
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'popup-close global';
+  closeBtn.textContent = 'Close';
+  closeBtn.onclick = hideIoChannelPopup;
+  popup.appendChild(closeBtn);
+  popup.classList.add('active');
+  overlay.style.display = 'block';
+  overlay.onclick = (e) => { if (e.target === overlay) hideIoChannelPopup(); };
+  document.body.classList.add('modal-open');
+}
+window.showGenmonDetailPopup = showGenmonDetailPopup;
+
 // Ensure a single top-left remove button; removed when no module_id is present
 function ensureRemoveButton(popup, ctx) {
   let btn = popup.querySelector('.popup-remove-top');
@@ -999,29 +1023,6 @@ async function showIoChannelPopup(name, status) {
     loadRs485Labels();
     activatePopup();
     return;
-  }
-
-  // ---------------- Generator detail popup helper ----------------
-  async function showGenmonDetailPopup(moduleId) {
-    const popup = ensureIoChannelPopup();
-    const overlay = ensureIoChannelPopupOverlay();
-    const controls = popup.querySelector('.popup-controls');
-    popup.querySelector('.popup-title').textContent = 'Generator Details';
-    popup.querySelector('.popup-status').textContent = '';
-    controls.innerHTML = `
-      <iframe src="/modules/genmon/${encodeURIComponent(moduleId)}/detail"
-              style="width:520px;height:420px;border:0;background:#fff;"></iframe>
-    `;
-    popup.querySelectorAll('.popup-close').forEach((btn) => btn.remove());
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'popup-close global';
-    closeBtn.textContent = 'Close';
-    closeBtn.onclick = hideIoChannelPopup;
-    popup.appendChild(closeBtn);
-    popup.classList.add('active');
-    overlay.style.display = 'block';
-    overlay.onclick = (e) => { if (e.target === overlay) hideIoChannelPopup(); };
-    document.body.classList.add('modal-open');
   }
 
   // ---------------- Generator global config ----------------
