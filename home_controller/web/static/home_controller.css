@@ -65,6 +65,37 @@
 .io-channel-popup .popup-close:hover {
   background: #2c313a;
 }
+.io-channel-popup .popup-remove-top {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  background: #ff4a4a;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+.io-channel-popup .popup-remove-top:hover { background: #e33a3a; }
+.io-channel-popup .popup-remove-top:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.io-channel-popup .popup-controls {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+}
+.io-channel-popup .popup-controls form {
+  width: 100%;
+}
+.io-channel-popup .popup-controls .global-save {
+  align-self: center;
+  margin-top: 12px;
+}
 #modules,
 #modules:parent,
 .modules-outer {

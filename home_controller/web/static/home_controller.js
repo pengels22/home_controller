@@ -86,6 +86,45 @@ function ensureIoChannelPopup() {
   return popup;
 }
 
+// Ensure a single top-left remove button; removed when no module_id is present
+function ensureRemoveButton(popup, ctx) {
+  let btn = popup.querySelector('.popup-remove-top');
+  if (!ctx || !ctx.module_id) {
+    if (btn) btn.remove();
+    return null;
+  }
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.className = 'popup-remove-top danger';
+    btn.textContent = 'Remove';
+    popup.appendChild(btn);
+  }
+  btn.onclick = async () => {
+    if (!confirm('Remove this module? This cannot be undone.')) return;
+    btn.disabled = true;
+    try {
+      const res = await fetch('/modules/remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ctx.module_id }),
+      });
+      const data = await res.json();
+      if (data && data.ok) {
+        alert('Module removed.');
+        hideIoChannelPopup();
+        if (typeof loadModules === 'function') loadModules();
+      } else {
+        alert('Failed to remove module: ' + (data && data.error ? data.error : 'Unknown error'));
+      }
+    } catch (e) {
+      alert('Network error removing module: ' + e);
+    } finally {
+      btn.disabled = false;
+    }
+  };
+  return btn;
+}
+
 // Global state holders
 const MODULE_SVGS = new Map();
 let MODAL_CTX = { id: null, type: null, address: null, name: null };
@@ -143,6 +182,7 @@ async function showIoChannelPopup(name, status) {
   if (!controls) return;
 
   let ctx = typeof name === 'object' ? name : { name, status };
+  ensureRemoveButton(popup, ctx);
 
   // Reset base UI
   popup.querySelectorAll('.popup-close').forEach((btn) => btn.remove());
@@ -361,6 +401,7 @@ async function showIoChannelPopup(name, status) {
       }
     }
   }
+  ensureRemoveButton(popup, ctx);
 
   const type = (ctx.type || '').toLowerCase();
   popup.querySelector('.popup-title').textContent = ctx.name || name || `${type.toUpperCase()} MODULE`;
@@ -1058,34 +1099,6 @@ async function showIoChannelPopup(name, status) {
       hideIoChannelPopup();
     };
 
-    // Remove button
-    if (ctx.module_id) {
-      let removeBtn = controls.querySelector('.popup-remove');
-      if (!removeBtn) {
-        removeBtn = document.createElement('button');
-        removeBtn.className = 'popup-remove danger';
-        removeBtn.textContent = 'Remove This Module';
-        removeBtn.style.marginTop = '16px';
-        removeBtn.onclick = async function() {
-          if (!confirm('Are you sure you want to remove this module? This cannot be undone.')) return;
-          const res = await fetch('/modules/remove', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: ctx.module_id }),
-          });
-          const data = await res.json();
-          if (data.ok) {
-            alert('Module removed.');
-            hideIoChannelPopup();
-            if (typeof loadModules === 'function') loadModules();
-          } else {
-            alert('Failed to remove module: ' + (data.error || 'Unknown error'));
-          }
-        };
-        controls.appendChild(removeBtn);
-      }
-    }
-
     activatePopup();
     return;
   }
@@ -1100,6 +1113,8 @@ function hideIoChannelPopup() {
   const overlay = document.querySelector('.io-channel-popup-overlay');
   if (popup) {
     popup.classList.remove('active');
+    const removeBtn = popup.querySelector('.popup-remove-top');
+    if (removeBtn) removeBtn.remove();
     // Remove all close buttons
     popup.querySelectorAll('.popup-close').forEach(btn => btn.remove());
     // Clear controls and content
@@ -2391,6 +2406,7 @@ async function onExtClick(event) {
 async function showExpanderSettingsPopup() {
   const popup = ensureIoChannelPopup();
   const overlay = ensureIoChannelPopupOverlay();
+  ensureRemoveButton(popup, null);
   popup.querySelector('.popup-title').textContent = "Expansion Card Settings";
   popup.querySelector('.popup-status').textContent = "";
   const controls = popup.querySelector('.popup-controls');
