@@ -1,8 +1,0 @@
-{
-  "id": "i2c1-0x22",
-  "type": "do",
-  "address_hex": "0x22",
-  "name": "",
-  "invert": {},
-  "override": {}
-}
