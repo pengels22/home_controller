@@ -8,7 +8,7 @@
     </div>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
       <label style="min-width:110px">Module ID (1-10):</label>
-      <select name="module_num" style="min-width:120px">
+      <select class="module-num-select" name="module_num" disabled style="min-width:120px">
         <option value="">(none)</option>
         {% for i in range(1,11) %}
         <option value="{{ i }}">{{ i }}</option>

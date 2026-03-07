@@ -585,16 +585,6 @@ async function showIoChannelPopup(name, status) {
           }),
         });
 
-        // Save module id (1-10 unique)
-        if (modNumSel) {
-          const numVal = modNumSel.value;
-          const resNum = await _saveModuleNum(ctx.module_id, numVal);
-          if (!resNum.ok) {
-            alert(resNum.error || 'Failed to save Module ID');
-            return;
-          }
-        }
-
         window._lastModuleConfigPopupReload = Date.now();
         if (typeof loadModules === 'function') loadModules();
         hideIoChannelPopup();
@@ -746,16 +736,6 @@ async function showIoChannelPopup(name, status) {
           if (addrInput) addrInput.value = data.module.address;
         } catch (e) {
           alert('Network error changing address');
-          return false;
-        }
-      }
-
-      // Save module number
-      if (modNumSel) {
-        const numVal = modNumSel.value;
-        const rnum = await _saveModuleNum(currentModuleId, numVal);
-        if (!rnum.ok) {
-          alert(rnum.error || 'Failed to save Module ID');
           return false;
         }
       }
@@ -955,14 +935,6 @@ async function showIoChannelPopup(name, status) {
         }),
       });
 
-      if (modNumSel) {
-        const resNum = await _saveModuleNum(ctx.module_id, modNumSel.value);
-        if (!resNum.ok) {
-          alert(resNum.error || 'Failed to save Module ID');
-          return;
-        }
-      }
-
       window._lastModuleConfigPopupReload = Date.now();
       if (typeof loadModules === 'function') loadModules();
       hideIoChannelPopup();
@@ -1034,14 +1006,6 @@ async function showIoChannelPopup(name, status) {
             ctx.address = newAddr;
           }
         } catch (e) { /* ignore address errors */ }
-      }
-
-      if (modNumSel) {
-        const resNum = await _saveModuleNum(ctx.module_id, modNumSel.value);
-        if (!resNum.ok) {
-          alert(resNum.error || 'Failed to save Module ID');
-          return;
-        }
       }
 
       window._lastModuleConfigPopupReload = Date.now();

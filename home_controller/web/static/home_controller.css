@@ -243,6 +243,15 @@ h2 { margin: 0 0 10px 0; font-size: 16px; }
   color: #5c7cfa;
 }
 
+.module-num-select[disabled] {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-weight: 700;
+  padding: 2px 0;
+}
+
 .module-card.dragging {
   opacity: 0.6 !important;
   border-color: #5c7cfa;
