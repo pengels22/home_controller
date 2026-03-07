@@ -401,13 +401,6 @@ async function showIoChannelPopup(name, status) {
     return;
   }
 
-  // Always add a close button (outside form so it is not a submit)
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'popup-close global';
-  closeBtn.textContent = 'Close';
-  closeBtn.onclick = hideIoChannelPopup;
-  popup.appendChild(closeBtn);
-
   // ---------------- DI/DO global config ----------------
   if (type === 'di' || type === 'do') {
     const nameInput = form.querySelector('input[name="module_name"]');
