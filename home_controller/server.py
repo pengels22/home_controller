@@ -279,7 +279,7 @@ def api_expansion_config():
     return jsonify({"ok": True, "exp": exp})
 
 # ------------------------------------------------------------
-# Module config popup routes (DI, DO, AIO, I2C)
+# Module config popup routes (DI, DO, AIO, RS485-to-I2C)
 # ------------------------------------------------------------
 @app.route("/di_config_popup")
 def di_config_popup():
@@ -292,11 +292,6 @@ def do_config_popup():
 @app.route("/aio_config_popup")
 def aio_config_popup():
     return render_template("aio_config.html")
-
-@app.route("/i2c_config_popup")
-def i2c_config_popup():
-    i2c_sensors = i2c_catalog.load_catalog()
-    return render_template("i2c_config.html", i2c_sensors=i2c_sensors)
 
 # RS485 config popup (uses same sensor list, 40 channels)
 @app.route("/rs485_config_popup")
@@ -314,17 +309,6 @@ def genmon_config_popup():
 def api_i2c_supported():
     return jsonify({"ok": True, "sensors": i2c_catalog.load_catalog()})
 
-# I2C module settings page
-@app.route("/i2c_config")
-def i2c_config():
-    # You may want to load actual config data here
-    return render_template("i2c_config.html")
-# TEST ROUTE FOR DEBUGGING
-
-import os
-@app.route("/test123")
-def test123():
-    return "Test route is working!"
 @app.route("/expansion_config", methods=["GET", "POST"])
 def expansion_config():
     print("[DEBUG] /expansion_config route accessed, method:", request.method)

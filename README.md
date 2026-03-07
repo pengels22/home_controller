@@ -23,6 +23,15 @@ Python/Flask application and RS485 backend for monitoring and controlling Home C
   - `aio_max_voltage.py` AIO scaling helpers.
 - `web/static`, `web/templates` – front-end assets.
 - `modules/` – SVGs for module artwork.
+- `hardware/schematics/` – PDFs for each board:
+  - `Head Module.pdf`
+  - `DI Module.pdf`
+  - `DO Module.pdf`
+  - `AIO Module.pdf`
+  - `485 Module.pdf`
+  - `i2c Module.pdf`
+  - `Generator Module.pdf`
+  - `GREM Module.pdf`
 
 ## Requirements
 Python 3.10+ recommended. Install Python deps:

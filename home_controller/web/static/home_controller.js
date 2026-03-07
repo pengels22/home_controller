@@ -437,8 +437,8 @@ async function showIoChannelPopup(name, status) {
     di: '/di_config_popup',
     do: '/do_config_popup',
     aio: '/aio_config_popup',
-    ext: '/i2c_config_popup',
-    i2c: '/i2c_config_popup',
+    ext: '/rs485_config_popup',
+    i2c: '/rs485_config_popup',
     rs485: '/rs485_config_popup',
     genmon: '/genmon_config_popup',
   };
