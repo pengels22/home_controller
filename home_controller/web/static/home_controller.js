@@ -564,7 +564,7 @@ async function showIoChannelPopup(name, status) {
     if (!saveBtn) {
       saveBtn = document.createElement('button');
       saveBtn.className = 'aio-global-save';
-      saveBtn.textContent = 'Save & Close';
+      saveBtn.textContent = 'Save';
       controls.appendChild(saveBtn);
     }
 
@@ -748,7 +748,7 @@ async function showIoChannelPopup(name, status) {
     if (!saveBtn) {
       saveBtn = document.createElement('button');
       saveBtn.className = 'ext-global-save';
-      saveBtn.textContent = 'Save & Close';
+      saveBtn.textContent = 'Save';
       controls.appendChild(saveBtn);
     }
 
@@ -860,7 +860,7 @@ async function showIoChannelPopup(name, status) {
     if (!saveBtn) {
       saveBtn = document.createElement('button');
       saveBtn.className = 'rs485-global-save';
-      saveBtn.textContent = 'Save & Close';
+      saveBtn.textContent = 'Save';
       controls.appendChild(saveBtn);
     }
 
@@ -996,7 +996,7 @@ async function showIoChannelPopup(name, status) {
     if (!saveBtn) {
       saveBtn = document.createElement('button');
       saveBtn.className = 'genmon-global-save';
-      saveBtn.textContent = 'Save & Close';
+      saveBtn.textContent = 'Save';
       controls.appendChild(saveBtn);
     }
 
