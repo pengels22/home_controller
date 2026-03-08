@@ -1908,6 +1908,23 @@ async function loadModules() {
   const orderedModules = normalModules.concat(extModules).concat(extSubsystem);
   let expansionCfg = null;
 
+  // If any module lacks a module_num, assign sequentially (front-end bootstrap) and persist once.
+  const needsNumSave = [];
+  orderedModules.forEach((m, idx) => {
+    if (m.module_num == null) {
+      m.module_num = idx + 1;
+      needsNumSave.push({ id: m.id, num: m.module_num });
+    }
+  });
+  // Fire-and-forget persist of missing numbers to backend
+  if (needsNumSave.length) {
+    (async () => {
+      for (const entry of needsNumSave) {
+        try { await _saveModuleNum(entry.id, entry.num); } catch (e) { /* ignore */ }
+      }
+    })();
+  }
+
   for (const m of orderedModules) {
     const card = document.createElement("div");
     card.className = "module-card";
