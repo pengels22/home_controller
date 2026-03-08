@@ -14,7 +14,7 @@
   border: 2px solid var(--border);
   border-radius: 14px;
   box-shadow: 0 8px 32px #000a;
-  z-index: 10001;
+  z-index: 12001; /* ensure above overlay and cards */
   min-width: 220px;
   max-width: 90vw;
   padding: 38px 28px 18px 28px;
@@ -60,7 +60,6 @@
   background: #222;
   color: #fff;
   position: static;
-}
 }
 .io-channel-popup .popup-close:hover {
   background: #2c313a;
