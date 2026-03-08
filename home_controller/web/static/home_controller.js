@@ -1577,14 +1577,21 @@ async function runTestLoop() {
       _setStatusLed(root, ["status_pwr", "status_pwrA"], "green");
       _setStatusLed(root, ["status_link", "status_pwrB"], "green");
 
-      // Light all channel LEDs on this module
-      const circles = root.querySelectorAll("g[id^='ch'] circle.led, g[id^='ch'] circle.led-off, g[id^='ch'] circle.led-on");
-      circles.forEach((el) => {
-        el.classList.remove("led-off");
-        el.classList.add("led-on");
-      });
-
-      await _sleep(400);
+      // Light one channel LED at a time for this module
+      const circles = Array.from(root.querySelectorAll("g[id^='ch'] circle.led, g[id^='ch'] circle.led-off, g[id^='ch'] circle.led-on"));
+      if (circles.length === 0) {
+        await _sleep(350);
+      } else {
+        for (const c of circles) {
+          if (!TEST_RUNNING) break;
+          // turn all off
+          circles.forEach((el) => { el.classList.remove("led-on"); el.classList.add("led-off"); });
+          // light current
+          c.classList.remove("led-off");
+          c.classList.add("led-on");
+          await _sleep(120);
+        }
+      }
     }
   }
 
