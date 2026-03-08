@@ -625,13 +625,10 @@ class HomeControllerBackend:
         if module_num is not None:
             if not (1 <= module_num <= 10):
                 raise ValueError("module_num must be 1..10")
+            # If another module already uses this number, clear it (allow reorder swaps)
             for i, m in enumerate(self.cfg.modules):
                 if i != idx and m.module_num == module_num:
-                    friendly = m.name or f"{m.type.upper()} @ {m.address_hex}"
-                    raise ValueError(
-                        f"Module ID {module_num} is already used by {friendly} "
-                        f"({m.type.upper()} @ {m.address_hex})"
-                    )
+                    self.cfg.modules[i].module_num = None
         self.cfg.modules[idx].module_num = module_num
         self.save_config()
         return self.cfg.modules[idx]
