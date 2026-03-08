@@ -57,8 +57,8 @@ function ensureIoChannelPopupOverlay() {
     overlay.className = 'io-channel-popup-overlay';
     overlay.style.position = 'fixed';
     overlay.style.inset = '0';
-    overlay.style.background = 'rgba(0,0,0,0.35)';
-    overlay.style.zIndex = '12000';
+    overlay.style.background = 'rgba(0,0,0,0.6)';
+    overlay.style.zIndex = '20000';
     overlay.style.display = 'none';
     document.body.appendChild(overlay);
     overlay.onclick = (e) => {
