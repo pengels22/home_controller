@@ -5,21 +5,21 @@
     {
       "address_hex": "0x21",
       "id": "i2c1-0x21",
-      "module_num": null,
+      "module_num": 1,
       "name": "",
       "type": "di"
     },
     {
       "address_hex": "0x22",
       "id": "i2c1-0x22",
-      "module_num": null,
+      "module_num": 2,
       "name": "",
       "type": "do"
     },
     {
       "address_hex": "0x44",
       "id": "i2c1-0x44",
-      "module_num": null,
+      "module_num": 3,
       "name": "",
       "type": "aio"
     },
@@ -32,5 +32,5 @@
     }
   ],
   "notes": "",
-  "saved_at": 1772934169
+  "saved_at": 1772965824
 }

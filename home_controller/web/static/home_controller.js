@@ -1760,15 +1760,14 @@ function enableModuleDragAndDrop(rowEl) {
     handle.addEventListener("drop", async (e) => {
       e.preventDefault();
       const ordered = Array.from(rowEl.querySelectorAll(".module-card")).filter((c) => c.dataset.moduleId);
+      // Persist new order sequentially, then refresh after save completes
+      const saves = [];
       for (let i = 0; i < ordered.length; i++) {
         const id = ordered[i].dataset.moduleId;
-        try {
-          await _saveModuleNum(id, i + 1);
-        } catch (err) {
-          console.error("Failed to persist module order", err);
-        }
+        saves.push(_saveModuleNum(id, i + 1));
       }
-      // Refresh to reflect new numbering/order
+      try { await Promise.all(saves); } catch (err) { console.error("Failed to persist module order", err); }
+      await _sleep(150);
       loadModules();
     });
   });

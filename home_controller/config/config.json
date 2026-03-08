@@ -5,32 +5,32 @@
     {
       "address_hex": "0x21",
       "id": "i2c1-0x21",
-      "module_num": null,
+      "module_num": 1,
       "name": "",
       "type": "di"
     },
     {
       "address_hex": "0x22",
       "id": "i2c1-0x22",
-      "module_num": null,
+      "module_num": 2,
       "name": "",
       "type": "do"
     },
     {
       "address_hex": "0x44",
       "id": "i2c1-0x44",
-      "module_num": null,
+      "module_num": 3,
       "name": "",
       "type": "aio"
     },
     {
       "address_hex": "0x50",
       "id": "rs485-0x50",
-      "module_num": null,
+      "module_num": 4,
       "name": "RS485 HUB",
       "type": "rs485"
     }
   ],
   "notes": "",
-  "saved_at": 1772934955
+  "saved_at": 1772965824
 }
