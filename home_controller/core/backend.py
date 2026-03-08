@@ -938,6 +938,51 @@ class HomeControllerBackend:
                         "samples": samples,
                         "scan_found": scan_found,
                     }
+                elif m.type == "rs485":
+                    res = self.rs485.read_rs485_stats(addr_int)
+                    if res.get("ok"):
+                        cfg = self.load_module_config("rs485", m.address_hex)
+                        bus_enable_cfg = cfg.get("bus_enable", {})
+
+                        bus_errors = []
+                        any_err = False
+                        for be in res.get("bus_errors", []):
+                            bus_idx = str(be.get("bus"))
+                            enabled = bus_enable_cfg.get(bus_idx, True)
+                            be = dict(be)
+                            be["enabled"] = bool(enabled)
+                            if not enabled:
+                                be["errors"] = 0
+                                be["last_status"] = 0
+                            else:
+                                if (be.get("errors", 0) > 0) or (be.get("last_status", 0) != 0):
+                                    any_err = True
+                            bus_errors.append(be)
+
+                        if any_err:
+                            bad = [
+                                f"bus{be.get('bus')} {self._rs485_status_name(be.get('last_status', 0))}"
+                                for be in bus_errors
+                                if be.get("enabled") and ((be.get("errors", 0) > 0) or (be.get("last_status", 0) != 0))
+                            ]
+                            msg = ", ".join(bad)
+                            self._set_last_error(module_id, msg or "RS485 bus error")
+                        else:
+                            self._set_last_error(module_id, None)
+
+                        return {
+                            "ok": True,
+                            "comms_ok": True,
+                            "module_id": m.id,
+                            "type": m.type,
+                            "address": m.address_hex,
+                            "bus_errors": bus_errors,
+                            "bus_enable": bus_enable_cfg,
+                            "raw": res.get("raw"),
+                        }
+                    else:
+                        self._set_last_error(module_id, res.get("error") or "RS485 hub read failed")
+                        return {"ok": False, "error": res.get("error", "RS485 hub read failed")}
             except Exception as e:
                 # fall through to legacy I2C path on any RS485 issue
                 self._set_last_error(module_id, str(e))
@@ -1460,49 +1505,3 @@ if __name__ == "__main__":
     print("Modules:")
     for m in b.list_modules():
         print(" -", m)
-                elif m.type == "rs485":
-                    res = self.rs485.read_rs485_stats(addr_int)
-                    if res.get("ok"):
-                        cfg = self.load_module_config("rs485", m.address_hex)
-                        bus_enable_cfg = cfg.get("bus_enable", {})
-
-                        bus_errors = []
-                        any_err = False
-                        for be in res.get("bus_errors", []):
-                            bus_idx = str(be.get("bus"))
-                            enabled = bus_enable_cfg.get(bus_idx, True)
-                            be = dict(be)
-                            be["enabled"] = bool(enabled)
-                            if not enabled:
-                                be["errors"] = 0
-                                be["last_status"] = 0
-                            else:
-                                if (be.get("errors", 0) > 0) or (be.get("last_status", 0) != 0):
-                                    any_err = True
-                            bus_errors.append(be)
-
-                        if any_err:
-                            bad = [
-                                f"bus{be.get('bus')} {self._rs485_status_name(be.get('last_status', 0))}"
-                                for be in bus_errors
-                                if be.get("enabled") and ((be.get("errors", 0) > 0) or (be.get("last_status", 0) != 0))
-                            ]
-                            msg = ", ".join(bad)
-                            self._set_last_error(module_id, msg or "RS485 bus error")
-                        else:
-                            self._set_last_error(module_id, None)
-
-                        payload = {
-                            "ok": True,
-                            "comms_ok": True,
-                            "module_id": m.id,
-                            "type": m.type,
-                            "address": m.address_hex,
-                            "bus_errors": bus_errors,
-                            "bus_enable": bus_enable_cfg,
-                            "raw": res.get("raw"),
-                        }
-                        return payload
-                    else:
-                        self._set_last_error(module_id, res.get("error") or "RS485 hub read failed")
-                        return {"ok": False, "error": res.get("error", "RS485 hub read failed")}
