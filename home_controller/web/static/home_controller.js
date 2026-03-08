@@ -1970,12 +1970,15 @@ header.className = "module-header";
         header.appendChild(handle);
         header.appendChild(gear);
 
-        const svgHolder = document.createElement("div");
+    const svgHolder = document.createElement("div");
     svgHolder.className = "module-svg";
     svgHolder.textContent = "Loading…";
 
-  card.appendChild(header);
-  card.appendChild(svgHolder);
+    // Determine module type once for the rest of this rendering block
+    const svgType = String(m.type || "").toLowerCase();
+
+    card.appendChild(header);
+    card.appendChild(svgHolder);
     // AIO channel panel
     let aioPanel = null;
     if (svgType === "aio") {
@@ -2021,7 +2024,6 @@ header.className = "module-header";
 
     try {
       // Use i2c expander SVG for ext modules (fixes SVG path)
-      const svgType = String(m.type || "").toLowerCase();
       let fetchType = svgType;
       if (svgType === "ext") fetchType = "i2c";
       if (svgType === "rs485") fetchType = "rs485";
