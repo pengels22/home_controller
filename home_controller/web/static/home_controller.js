@@ -57,8 +57,8 @@ function ensureIoChannelPopupOverlay() {
     overlay.className = 'io-channel-popup-overlay';
     overlay.style.position = 'fixed';
     overlay.style.inset = '0';
-    overlay.style.background = 'rgba(0,0,0,0.6)';
-    overlay.style.zIndex = '20000';
+    overlay.style.background = 'rgba(0,0,0,0.65)';
+    overlay.style.zIndex = '99990';
     overlay.style.display = 'none';
     document.body.appendChild(overlay);
     overlay.onclick = (e) => {
@@ -230,7 +230,7 @@ async function showIoChannelPopup(name, status) {
 
     // I2C module: show live sensor replies instead of override/invert controls
     if (ctx.type === 'i2c') {
-      controls.innerHTML = `<div style="min-width:280px">Loading sensor data…</div>`;
+      controls.innerHTML = `<div style="min-width:280px">Loading sensor data...</div>`;
       try {
         const r = await fetch(`/api/module_read/${encodeURIComponent(ctx.module_id)}`);
         const data = await r.json();

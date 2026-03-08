@@ -14,7 +14,7 @@
   border: 2px solid var(--border);
   border-radius: 14px;
   box-shadow: 0 8px 32px #000a;
-  z-index: 20001; /* ensure above overlay and cards */
+  z-index: 99991; /* ensure above overlay and cards */
   min-width: 220px;
   max-width: 90vw;
   padding: 38px 28px 18px 28px;
@@ -224,10 +224,18 @@ body.modal-open {
 .io-channel-popup-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.6);
-  z-index: 20000;
+  background: rgba(0,0,0,0.65);
+  z-index: 99990;
   display: none;
   pointer-events: auto;
+}
+
+/* While modal open, block interaction with module rail */
+body.modal-open #modules,
+body.modal-open .modules-outer,
+body.modal-open .modules-row {
+  pointer-events: none;
+  filter: blur(1px);
 }
 
 /* ------------------ MODULE CARD ------------------ */
