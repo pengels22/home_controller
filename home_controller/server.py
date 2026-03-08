@@ -190,6 +190,31 @@ def get_lan_ip() -> str:
     except Exception:
         pass
 
+    # Quaternary: parse `ip -4 route get` (works even without internet by using default route)
+    try:
+        out = subprocess.check_output(["ip", "-4", "route", "get", "1.1.1.1"], text=True, timeout=1.0)
+        parts = out.split()
+        if "src" in parts:
+            idx = parts.index("src")
+            if idx + 1 < len(parts):
+                cand = parts[idx + 1]
+                if cand and not cand.startswith("127."):
+                    return cand
+    except Exception:
+        pass
+
+    # Final fallback: first non-loopback IPv4 from `ip -4 addr show`
+    try:
+        out = subprocess.check_output(["ip", "-4", "addr", "show"], text=True, timeout=1.0)
+        for line in out.splitlines():
+            line = line.strip()
+            if line.startswith("inet "):
+                cand = line.split()[1].split("/")[0]
+                if cand and not cand.startswith("127."):
+                    return cand
+    except Exception:
+        pass
+
     return "0.0.0.0"
 
 
