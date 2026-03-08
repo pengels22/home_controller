@@ -2550,5 +2550,4 @@ refreshModuleValues();
 
 // Polling intervals (tuned to avoid UI thrash)
 setInterval(loadStatus, 2000);           // Head/IP/health
-setInterval(loadModules, 5000);          // Rebuild module cards less often
 setInterval(refreshModuleValues, 1000);  // Live channel values at 1 Hz
