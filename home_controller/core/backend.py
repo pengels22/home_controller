@@ -19,6 +19,7 @@ ASSUMPTIONS:
 
 import json
 import os
+import shutil
 import time
 from dataclasses import dataclass, asdict
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -272,34 +273,56 @@ class HomeControllerBackend:
     # --------
 
     def load_config(self) -> ControllerConfig:
-        if not os.path.exists(self._config_path):
-            return ControllerConfig()
+        """
+        Load config; fall back to .bak if the primary is missing/corrupt.
+        """
+        def _load(path: str) -> ControllerConfig:
+            with open(path, "r", encoding="utf-8") as f:
+                raw = json.load(f) or {}
 
-        with open(self._config_path, "r", encoding="utf-8") as f:
-            raw = json.load(f) or {}
+            modules: List[ModuleEntry] = []
+            for m in raw.get("modules", []):
+                try:
+                    modules.append(ModuleEntry(
+                        id=str(m["id"]),
+                        type=str(m["type"]).lower(),
+                        address_hex=str(m["address_hex"]).lower(),
+                        name=str(m.get("name", "")),
+                        module_num=int(m["module_num"]) if "module_num" in m and m["module_num"] is not None else None,
+                    ))
+                except Exception:
+                    continue  # skip malformed entries
 
-        modules: List[ModuleEntry] = []
-        for m in raw.get("modules", []):
+            return ControllerConfig(
+                controller_name=str(raw.get("controller_name", "Home Controller")),
+                notes=str(raw.get("notes", "")),
+                i2c_bus_num=int(raw.get("i2c_bus_num", DEFAULT_I2C_BUS_NUM)),
+                modules=modules,
+            )
+
+        primary = self._config_path
+        backup = self._config_path + ".bak"
+
+        if os.path.exists(primary):
             try:
-                modules.append(ModuleEntry(
-                    id=str(m["id"]),
-                    type=str(m["type"]).lower(),
-                    address_hex=str(m["address_hex"]).lower(),
-                    name=str(m.get("name", "")),
-                    module_num=int(m["module_num"]) if "module_num" in m and m["module_num"] is not None else None,
-                ))
+                return _load(primary)
             except Exception:
-                # skip malformed entries
-                continue
-
-        return ControllerConfig(
-            controller_name=str(raw.get("controller_name", "Home Controller")),
-            notes=str(raw.get("notes", "")),
-            i2c_bus_num=int(raw.get("i2c_bus_num", DEFAULT_I2C_BUS_NUM)),
-            modules=modules,
-        )
+                pass
+        if os.path.exists(backup):
+            try:
+                return _load(backup)
+            except Exception:
+                pass
+        return ControllerConfig()
 
     def save_config(self) -> None:
+        """
+        Persist config atomically to avoid losing modules after a crash.
+
+        1) Write JSON to <config>.tmp and fsync.
+        2) Copy current file to .bak (keeps primary intact).
+        3) Replace primary with tmp (atomic on POSIX).
+        """
         os.makedirs(os.path.dirname(self._config_path), exist_ok=True)
         raw: Dict[str, Any] = {
             "controller_name": self.cfg.controller_name,
@@ -308,8 +331,18 @@ class HomeControllerBackend:
             "modules": [asdict(m) for m in self.cfg.modules],
             "saved_at": int(time.time()),
         }
-        with open(self._config_path, "w", encoding="utf-8") as f:
+        tmp = self._config_path + ".tmp"
+        bak = self._config_path + ".bak"
+        with open(tmp, "w", encoding="utf-8") as f:
             json.dump(raw, f, indent=2, sort_keys=True)
+            f.flush()
+            os.fsync(f.fileno())
+        if os.path.exists(self._config_path):
+            try:
+                shutil.copy2(self._config_path, bak)
+            except Exception:
+                pass
+        os.replace(tmp, self._config_path)
 
     # --------
     # Helpers

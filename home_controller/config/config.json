@@ -22,8 +22,15 @@
       "module_num": null,
       "name": "",
       "type": "aio"
+    },
+    {
+      "address_hex": "0x50",
+      "id": "rs485-0x50",
+      "module_num": null,
+      "name": "RS485 HUB",
+      "type": "rs485"
     }
   ],
   "notes": "",
-  "saved_at": 1772934224
+  "saved_at": 1772934955
 }
