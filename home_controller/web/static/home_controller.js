@@ -87,7 +87,7 @@ function ensureIoChannelPopup() {
 }
 
 // Dedicated Generator detail popup (used by module card "Load more")
-async function showGenmonDetailPopup(moduleId) {
+async function showGeneratorDetailPopup(moduleId) {
   const popup = ensureIoChannelPopup();
   const overlay = ensureIoChannelPopupOverlay();
   const controls = popup.querySelector('.popup-controls');
@@ -108,7 +108,7 @@ async function showGenmonDetailPopup(moduleId) {
   overlay.onclick = (e) => { if (e.target === overlay) hideIoChannelPopup(); };
   document.body.classList.add('modal-open');
 }
-window.showGenmonDetailPopup = showGenmonDetailPopup;
+window.showGeneratorDetailPopup = showGeneratorDetailPopup;
 
 // Ensure a single top-left remove button; removed when no module_id is present
 function ensureRemoveButton(popup, ctx) {
@@ -2105,7 +2105,7 @@ header.className = "module-header";
             more.style.cursor = "pointer";
             more.onclick = (e) => {
               e.stopPropagation();
-              showGenmonDetailPopup(m.id);
+              showGeneratorDetailPopup(m.id);
             };
           }
         }
