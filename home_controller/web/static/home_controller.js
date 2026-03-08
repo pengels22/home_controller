@@ -2069,6 +2069,7 @@ header.className = "module-header";
       let fetchType = svgType;
       if (svgType === "ext") fetchType = "i2c";
       if (svgType === "rs485") fetchType = "rs485";
+      if (svgType === "genmon") fetchType = "generator";
       const svgRes = await fetch(`/modules/svg/${fetchType}`);
       if (!svgRes.ok) throw new Error("SVG not found");
       const svgText = await svgRes.text();
