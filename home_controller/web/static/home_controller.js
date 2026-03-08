@@ -1936,7 +1936,7 @@ header.className = "module-header";
     const left = document.createElement("div");
 
     const isGenerator = String(m.type || "").toLowerCase() === "genmon";
-    const typeLabel = isGenerator ? "GENERATOR" : String(m.type || "").toUpperCase();
+    const typeLabel = isGenerator ? "GEN" : String(m.type || "").toUpperCase();
     // Force RS485 module name
     const forcedName = String(m.type || "").toLowerCase() === "rs485" ? "RS485 HUB" : null;
     const fallbackTitle = isGenerator ? "GENERATOR" : `${String(m.type || "").toUpperCase()} MODULE`;
