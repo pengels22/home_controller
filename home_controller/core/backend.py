@@ -311,6 +311,11 @@ class HomeControllerBackend:
         )
 
     def save_config(self) -> None:
+        """
+        Persist config atomically to avoid corruption after crashes.
+
+        Writes to <config>.tmp then renames into place, keeping a .bak of the last good file.
+        """
         os.makedirs(os.path.dirname(self._config_path), exist_ok=True)
         raw: Dict[str, Any] = {
             "controller_name": self.cfg.controller_name,
@@ -319,8 +324,19 @@ class HomeControllerBackend:
             "modules": [asdict(m) for m in self.cfg.modules],
             "saved_at": int(time.time()),
         }
-        with open(self._config_path, "w", encoding="utf-8") as f:
+        tmp = self._config_path + ".tmp"
+        bak = self._config_path + ".bak"
+        with open(tmp, "w", encoding="utf-8") as f:
             json.dump(raw, f, indent=2, sort_keys=True)
+            f.flush()
+            os.fsync(f.fileno())
+        # rotate backup then replace
+        if os.path.exists(self._config_path):
+            try:
+                os.replace(self._config_path, bak)
+            except Exception:
+                pass
+        os.replace(tmp, self._config_path)
 
     # --------
     # Helpers
