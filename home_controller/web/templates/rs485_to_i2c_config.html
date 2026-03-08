@@ -59,6 +59,17 @@
         {% endfor %}
       </div>
     </div>
+    <div class="channels" style="margin-top:16px;">
+      <h3>Bus Enable</h3>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        {% for i in range(1,5) %}
+        <label style="display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" id="bus{{i}}_enable" checked />
+          Enable Bus {{i}}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
     <div class="form-actions" style="display:flex;justify-content:center;margin-top:18px;">
       <button type="button" class="global-save rs485-global-save" style="background:#2d8cff;color:#fff;padding:8px 22px;border-radius:6px;border:none;min-width:120px;">Save</button>
     </div>

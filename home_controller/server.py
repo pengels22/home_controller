@@ -199,14 +199,17 @@ def api_module_config_get():
     if idx < 0:
         return jsonify({"ok": False, "error": "module not found"}), 404
     m = backend.cfg.modules[idx]
-    # Only DI/DO for now
-    if m.type not in ("di", "do"):
-        return jsonify({"ok": False, "error": "not a DI/DO module"}), 400
+    # DI/DO (invert/override) and RS485 (bus_enable)
+    if m.type not in ("di", "do", "rs485"):
+        return jsonify({"ok": False, "error": "not a DI/DO/RS485 module"}), 400
     cfg = backend.load_module_config(m.type, m.address_hex)
-    # Always return dicts for invert/override
-    invert = cfg.get("invert", {})
-    override = cfg.get("override", {})
-    return jsonify({"ok": True, "invert": invert, "override": override})
+    if m.type in ("di", "do"):
+        invert = cfg.get("invert", {})
+        override = cfg.get("override", {})
+        return jsonify({"ok": True, "invert": invert, "override": override})
+    else:
+        bus_enable = cfg.get("bus_enable", {})
+        return jsonify({"ok": True, "bus_enable": bus_enable})
 
 @app.post("/api/module_config_set")
 def api_module_config_set():
@@ -219,27 +222,37 @@ def api_module_config_set():
     if idx < 0:
         return jsonify({"ok": False, "error": "module not found"}), 404
     m = backend.cfg.modules[idx]
-    if m.type not in ("di", "do"):
-        return jsonify({"ok": False, "error": "not a DI/DO module"}), 400
-    cfg = backend.load_module_config(m.type, m.address_hex)
-    # Update invert/override dicts
-    invert = cfg.get("invert", {})
-    override = cfg.get("override", {})
-    # Accept full dicts or single channel update
-    if "invert" in data:
-        if isinstance(data["invert"], dict):
-            invert.update({str(k): bool(v) for k, v in data["invert"].items()})
-        elif "channel" in data and isinstance(data["invert"], bool):
-            invert[str(data["channel"])] = data["invert"]
-    if "override" in data:
-        if isinstance(data["override"], dict):
-            override.update({str(k): str(v) for k, v in data["override"].items()})
-        elif "channel" in data and data["override"] in ("on", "off", "none"):
-            override[str(data["channel"])] = str(data["override"])
-    cfg["invert"] = invert
-    cfg["override"] = override
-    backend.save_module_config(m.type, m.address_hex, cfg)
-    return jsonify({"ok": True, "invert": invert, "override": override})
+    if m.type in ("di", "do"):
+        cfg = backend.load_module_config(m.type, m.address_hex)
+        # Update invert/override dicts
+        invert = cfg.get("invert", {})
+        override = cfg.get("override", {})
+        # Accept full dicts or single channel update
+        if "invert" in data:
+            if isinstance(data["invert"], dict):
+                invert.update({str(k): bool(v) for k, v in data["invert"].items()})
+            elif "channel" in data and isinstance(data["invert"], bool):
+                invert[str(data["channel"])] = data["invert"]
+        if "override" in data:
+            if isinstance(data["override"], dict):
+                override.update({str(k): str(v) for k, v in data["override"].items()})
+            elif "channel" in data and data["override"] in ("on", "off", "none"):
+                override[str(data["channel"])] = str(data["override"])
+        cfg["invert"] = invert
+        cfg["override"] = override
+        backend.save_module_config(m.type, m.address_hex, cfg)
+        return jsonify({"ok": True, "invert": invert, "override": override})
+    else:
+        cfg = backend.load_module_config(m.type, m.address_hex)
+        bus_enable = cfg.get("bus_enable", {})
+        if "bus_enable" in data and isinstance(data["bus_enable"], dict):
+            for k, v in data["bus_enable"].items():
+                bus_enable[str(k)] = bool(v)
+        elif "bus" in data and "enabled" in data:
+            bus_enable[str(data["bus"])] = bool(data["enabled"])
+        cfg["bus_enable"] = bus_enable
+        backend.save_module_config(m.type, m.address_hex, cfg)
+        return jsonify({"ok": True, "bus_enable": bus_enable})
 
 # ------------------------------------------------------------
 # all apis below
