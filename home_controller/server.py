@@ -162,6 +162,7 @@ def get_lan_ip() -> str:
     This uses a UDP "connect" trick (no packets required) to learn the outbound interface IP.
     Falls back to hostname lookup.
     """
+    # Primary: UDP connect trick (no packets sent)
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -169,10 +170,27 @@ def get_lan_ip() -> str:
         s.close()
         return ip
     except Exception:
-        try:
-            return socket.gethostbyname(socket.gethostname())
-        except Exception:
-            return "0.0.0.0"
+        pass
+
+    # Secondary: non-loopback addresses from hostname resolution
+    try:
+        host, aliases, addrs = socket.gethostbyname_ex(socket.gethostname())
+        for cand in addrs:
+            if cand and not cand.startswith("127."):
+                return cand
+    except Exception:
+        pass
+
+    # Tertiary: parse `hostname -I` if available (no internet needed)
+    try:
+        out = subprocess.check_output(["hostname", "-I"], text=True, timeout=1.0)
+        tokens = [t for t in out.strip().split() if t and not t.startswith("127.")]
+        if tokens:
+            return tokens[0]
+    except Exception:
+        pass
+
+    return "0.0.0.0"
 
 
 def internet_ok_tcp() -> bool:
