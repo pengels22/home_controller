@@ -1561,17 +1561,31 @@ async function runTestLoop() {
   _setTestBtn(true);
   _allLedOff();
 
+  // Cycle each module one at a time (DI/DO/AIO/I2C/RS485)
+  const cycleTypes = new Set(["di", "do", "aio", "i2c", "rs485", "ext"]);
+  const cycleList = Array.from(MODULE_SVGS.entries())
+    .filter(([, info]) => cycleTypes.has(String(info.type || "").toLowerCase()));
+
   while (TEST_RUNNING) {
-    _setAllIndicators(true);
-    // swing battery level through full range smoothly
-    _TEST_BAT_PCT += _TEST_BAT_PCT_DIR;
-    if (_TEST_BAT_PCT >= 100) { _TEST_BAT_PCT = 100; _TEST_BAT_PCT_DIR = -1; }
-    if (_TEST_BAT_PCT <= 5) { _TEST_BAT_PCT = 5; _TEST_BAT_PCT_DIR = 1; }
-    _TEST_PWR_ALT = !_TEST_PWR_ALT;
-    _TEST_LINK_ALT = !_TEST_LINK_ALT;
-    await _sleep(600);
-    _setAllIndicators(false);
-    await _sleep(200);
+    for (const [_mid, info] of cycleList) {
+      if (!TEST_RUNNING) break;
+      _allLedOff();
+      const root = info.svgRoot;
+      if (!root) continue;
+
+      // Turn on status LEDs for this module
+      _setStatusLed(root, ["status_pwr", "status_pwrA"], "green");
+      _setStatusLed(root, ["status_link", "status_pwrB"], "green");
+
+      // Light all channel LEDs on this module
+      const circles = root.querySelectorAll("g[id^='ch'] circle.led, g[id^='ch'] circle.led-off, g[id^='ch'] circle.led-on");
+      circles.forEach((el) => {
+        el.classList.remove("led-off");
+        el.classList.add("led-on");
+      });
+
+      await _sleep(400);
+    }
   }
 
   _allLedOff();
@@ -1616,15 +1630,14 @@ async function toggleTest() {
     }
     return;
   }
-  // New behavior: use Test to trigger head-module error without running
-  // the indicator flash loop.
   TEST_RUNNING = true;
   _setTestBtn(true);
   await _injectHeadTestError(true);
-  // Also refresh head status so the red slot appears promptly.
   if (typeof _refreshHeadStatusOnce === "function") {
     _refreshHeadStatusOnce();
   }
+  // start cycling indicators
+  runTestLoop();
 }
 window.toggleTest = toggleTest;
 
