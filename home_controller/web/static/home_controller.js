@@ -49,112 +49,6 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 // DOM helper for getElementById (used throughout)
 function $(id) { return document.getElementById(id); }
-
-// RS485 per-bus cached health info { moduleId -> [{bus, errors, last_status}] }
-const RS485_STATUS = new Map();
-const RS485_ENABLE = new Map();
-
-function _rs485StatusName(code) {
-  const names = {
-    0x00: "ok",
-    0x01: "bad_bus",
-    0x02: "timeout",
-    0x03: "bad_crc",
-    0x04: "too_long",
-  };
-  return names[Number(code) & 0xFF] || `err${code}`;
-}
-
-async function showRs485BusInfo(moduleId, busNum, label) {
-  let busInfo = null;
-  const cached = RS485_STATUS.get(moduleId);
-  if (Array.isArray(cached)) {
-    busInfo = cached.find((b) => String(b.bus) === String(busNum));
-  }
-  if (!busInfo) {
-    try {
-      const res = await fetch(`/api/module_read/${encodeURIComponent(moduleId)}`, { cache: "no-store" });
-      const j = await res.json();
-      if (res.ok && j && j.ok && Array.isArray(j.bus_errors)) {
-        RS485_STATUS.set(moduleId, j.bus_errors);
-        busInfo = j.bus_errors.find((b) => String(b.bus) === String(busNum));
-      }
-    } catch (e) { /* ignore */ }
-  }
-  busInfo = busInfo || { bus: busNum, errors: 0, last_status: 0 };
-  const name = (label && label.trim()) ? label : `Bus ${busNum}`;
-  const statusName = _rs485StatusName(busInfo.last_status);
-  const msg = [
-    `${name}`,
-    `Status: ${statusName} (code ${busInfo.last_status || 0})`,
-    `Errors: ${busInfo.errors || 0}`
-  ].join("\\n");
-  alert(msg);
-}
-
-async function showRs485BusPopup(moduleId, busNum, label) {
-  let busInfo = null;
-  const cached = RS485_STATUS.get(moduleId);
-  if (Array.isArray(cached)) busInfo = cached.find((b) => String(b.bus) === String(busNum));
-  if (!busInfo) {
-    try {
-      const res = await fetch(`/api/module_read/${encodeURIComponent(moduleId)}`, { cache: "no-store" });
-      const j = await res.json();
-      if (res.ok && j.ok && Array.isArray(j.bus_errors)) {
-        RS485_STATUS.set(moduleId, j.bus_errors);
-        if (j.bus_enable) RS485_ENABLE.set(moduleId, j.bus_enable);
-        busInfo = j.bus_errors.find((b) => String(b.bus) === String(busNum)) || null;
-      }
-    } catch (e) { /* ignore */ }
-  }
-  const enableMap = RS485_ENABLE.get(moduleId) || {};
-  const enabled = enableMap[String(busNum)] !== false;
-  busInfo = busInfo || { bus: busNum, errors: 0, last_status: 0, enabled };
-
-  const popup = ensureIoChannelPopup();
-  const overlay = ensureIoChannelPopupOverlay();
-  popup.querySelector(".popup-title").textContent = label || `RS485 Bus ${busNum}`;
-  const statusName = _rs485StatusName(busInfo.last_status);
-  popup.querySelector(".popup-status").textContent = `Status: ${statusName} • Errors: ${busInfo.errors || 0}`;
-  const controls = popup.querySelector(".popup-controls");
-  controls.innerHTML = `
-    <div style="padding:8px 4px;">
-      <label style="display:flex;align-items:center;gap:8px;font-weight:600;">
-        <input type="checkbox" id="rs485_bus_enable" ${enabled ? "checked" : ""}/> Enable bus ${busNum}
-      </label>
-      <div class="muted" style="margin-top:6px;font-size:12px;">Disable to ignore errors when no module is attached.</div>
-      <div style="margin-top:12px; display:flex; gap:8px;">
-        <button id="rs485_bus_save">Save</button>
-        <button id="rs485_bus_close">Close</button>
-      </div>
-    </div>
-  `;
-  const saveBtn = controls.querySelector("#rs485_bus_save");
-  const closeBtn = controls.querySelector("#rs485_bus_close");
-  if (closeBtn) closeBtn.onclick = hideIoChannelPopup;
-  if (saveBtn) {
-    saveBtn.onclick = async () => {
-      const en = !!controls.querySelector("#rs485_bus_enable")?.checked;
-      try {
-        await fetch("/api/module_config_set", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ module_id: moduleId, bus: busNum, enabled: en }),
-        });
-        const m = RS485_ENABLE.get(moduleId) || {};
-        m[String(busNum)] = en;
-        RS485_ENABLE.set(moduleId, m);
-        hideIoChannelPopup();
-        await refreshModuleValues();
-      } catch (e) {
-        alert("Save failed: " + e);
-      }
-    };
-  }
-  popup.classList.add("active");
-  overlay.style.display = "block";
-  document.body.classList.add("modal-open");
-}
 // Ensures a single overlay for popup dismissal
 function ensureIoChannelPopupOverlay() {
   let overlay = document.querySelector('.io-channel-popup-overlay');
@@ -718,68 +612,6 @@ async function showIoChannelPopup(name, status) {
     }
 
     loadConfig();
-    activatePopup();
-    return;
-  }
-
-  // ---------------- RS485 hub global config ----------------
-  if (type === 'rs485') {
-    const nameInput = form.querySelector('input[name=\"module_name\"]');
-    if (nameInput && ctx.name) nameInput.value = ctx.name;
-    const busToggles = [];
-    for (let i = 1; i <= 4; i++) {
-      const chk = form.querySelector(`#bus${i}_enable`);
-      if (chk) busToggles.push({ bus: i, el: chk });
-    }
-
-    async function loadBusEnable() {
-      if (!ctx.module_id) return;
-      try {
-        const r = await fetch(`/api/module_config_get?module_id=${encodeURIComponent(ctx.module_id)}`);
-        const j = await r.json();
-        if (r.ok && j.ok && j.bus_enable) {
-          busToggles.forEach(({ bus, el }) => {
-            if (j.bus_enable.hasOwnProperty(String(bus))) {
-              el.checked = !!j.bus_enable[String(bus)];
-            }
-          });
-        }
-      } catch (e) { /* ignore */ }
-    }
-
-    let saveBtn = controls.querySelector('.rs485-global-save');
-    if (!saveBtn) {
-      saveBtn = document.createElement('button');
-      saveBtn.className = 'global-save rs485-global-save';
-      saveBtn.textContent = 'Save';
-      controls.appendChild(saveBtn);
-    }
-    saveBtn.onclick = async () => {
-      if (!ctx.module_id) return;
-      // rename
-      const newName = nameInput ? (nameInput.value || '').trim() : '';
-      if (newName && newName !== (ctx.name || '')) {
-        try {
-          await fetch('/modules/rename', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: ctx.module_id, name: newName }),
-          });
-          ctx.name = newName;
-        } catch (e) { /* ignore */ }
-      }
-      const bus_enable = {};
-      busToggles.forEach(({ bus, el }) => { bus_enable[bus] = !!el.checked; });
-      await fetch('/api/module_config_set', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ module_id: ctx.module_id, bus_enable }),
-      });
-      await refreshModuleValues();
-      hideIoChannelPopup();
-    };
-
-    loadBusEnable();
     activatePopup();
     return;
   }
@@ -1719,46 +1551,6 @@ async function _refreshModuleStatus(m) {
   } else if (["rs485", "ext", "i2c"].includes(mt)) {
     power = m.present ? "green" : "off";
     link = m.present ? "green" : "off";
-
-    if (mt === "rs485") {
-      try {
-        const res = await fetch(`/api/module_read/${encodeURIComponent(m.id)}`, { cache: "no-store" });
-        const data = await res.json();
-        if (res.ok && data && data.ok) {
-          if (data.bus_enable) RS485_ENABLE.set(m.id, data.bus_enable);
-          const info = MODULE_SVGS.get(m.id);
-          const errs = Array.isArray(data.bus_errors) ? data.bus_errors : [];
-          const enMap = data.bus_enable || {};
-          let anyErr = false;
-          if (info && info.svgRoot) {
-            for (let i = 0; i < 4; i++) {
-              const be = errs[i] || { bus: i + 1, errors: 0, last_status: 0 };
-              const circle = info.svgRoot.querySelector(`#ch0${i + 1}`);
-              if (!circle) continue;
-              const enabled = enMap[String(i + 1)] !== false;
-              const bad = enabled && ((be.errors || 0) > 0 || (be.last_status || 0) !== 0);
-              anyErr = anyErr || bad;
-              circle.style.fill = enabled ? (bad ? "#ff4a4a" : "#39d353") : "#777";
-              const msg = bad
-                ? `Bus ${be.bus || i + 1} error (${be.errors || 0}x, status ${(be.last_status || 0)})`
-                : "";
-              if (msg) {
-                circle.setAttribute("data-error", msg);
-                circle.style.cursor = "pointer";
-                circle.onclick = (e) => { e.stopPropagation(); showRs485BusPopup(m.id, i + 1, `Bus ${i + 1}`); };
-              } else {
-                circle.removeAttribute("data-error");
-                circle.style.cursor = "pointer";
-                circle.onclick = (e) => { e.stopPropagation(); showRs485BusPopup(m.id, i + 1, `Bus ${i + 1}`); };
-              }
-            }
-          }
-          link = anyErr ? "off" : "green";
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
   }
 
   _applyStatusIndicators(m.id, power, link);
@@ -1987,7 +1779,7 @@ async function refreshModuleValues() {
   await Promise.all(Array.from(cards).map(async (card) => {
     const mid = card.dataset.moduleId;
     const mtype = (card.dataset.moduleType || '').toLowerCase();
-    if (!mid || !mtype || !['di','do','aio','rs485'].includes(mtype)) return;
+    if (!mid || !mtype || !['di','do','aio'].includes(mtype)) return;
     try {
       const res = await fetch(`/api/module_read/${encodeURIComponent(mid)}`, { cache: 'no-store' });
       const j = await res.json();
@@ -2007,34 +1799,6 @@ async function refreshModuleValues() {
       }
       if ((mtype === 'di' || mtype === 'do') && j.channels) {
         // Optionally update SVG LEDs if desired in future; placeholder here
-      }
-      if (mtype === 'rs485' && Array.isArray(j.bus_errors)) {
-        RS485_STATUS.set(mid, j.bus_errors);
-        if (j.bus_enable) RS485_ENABLE.set(mid, j.bus_enable);
-        const info = MODULE_SVGS.get(mid);
-        if (info && info.svgRoot) {
-          j.bus_errors.forEach((be, idx) => {
-            const circle = info.svgRoot.querySelector(`#ch0${idx + 1}`);
-            if (!circle) return;
-            const busEnableMap = RS485_ENABLE.get(mid) || {};
-            const enabled = busEnableMap[String(idx + 1)] !== false;
-            const bad = enabled && ((be.errors || 0) > 0 || (be.last_status || 0) !== 0);
-            circle.style.fill = enabled ? (bad ? '#ff4a4a' : '#39d353') : '#777';
-            const msg = bad ? `Bus ${be.bus || idx + 1} error (${be.errors || 0}x, status ${(be.last_status || 0)})` : '';
-            if (msg) {
-              circle.setAttribute('data-error', msg);
-              circle.style.cursor = 'pointer';
-              circle.onclick = (e) => { e.stopPropagation(); alert(msg); };
-            } else {
-              circle.removeAttribute('data-error');
-              circle.style.cursor = 'pointer';
-              circle.onclick = (e) => { e.stopPropagation(); showRs485BusInfo(mid, idx + 1, `Bus ${idx + 1}`); };
-            }
-          });
-        }
-      } else if (mtype === 'rs485') {
-        RS485_STATUS.delete(mid);
-        RS485_ENABLE.delete(mid);
       }
     } catch (e) {
       /* ignore per-card errors */
@@ -2304,12 +2068,12 @@ header.className = "module-header";
 
         // Add onclick to IO bubbles (circles/dots) for popup
         const mt = String(m.type).toLowerCase();
-        if (["di", "do", "aio", "ext", "i2c", "rs485"].includes(mt)) {
-          const channelGroups = svgRoot.querySelectorAll("g[id^='ch'], circle[id^='ch']");
-          channelGroups.forEach((g, idx) => {
-            // Support both circle as group child or the circle itself
-            const circle = g.tagName.toLowerCase() === 'circle' ? g : g.querySelector("circle");
-            if (!circle) return;
+        if (["di", "do", "aio", "ext", "i2c"].includes(mt)) {
+        const channelGroups = svgRoot.querySelectorAll("g[id^='ch'], circle[id^='ch']");
+        channelGroups.forEach((g, idx) => {
+          // Support both circle as group child or the circle itself
+          const circle = g.tagName.toLowerCase() === 'circle' ? g : g.querySelector("circle");
+          if (!circle) return;
 
             const idStr = (circle.id || g.id || "").toLowerCase();
             let chNum = idx + 1;
@@ -2327,10 +2091,6 @@ header.className = "module-header";
                 chName = m.labels.channels[String(chNum)];
               }
               const status = circle.classList.contains("led-on") ? "ON" : "OFF";
-              if (mt === "rs485") {
-                showRs485BusPopup(m.id, chNum, chName);
-                return;
-              }
               showIoChannelPopup({
                 name: chName,
                 status,
