@@ -19,7 +19,6 @@ ASSUMPTIONS:
 
 import json
 import os
-import shutil
 import time
 from dataclasses import dataclass, asdict
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -284,61 +283,34 @@ class HomeControllerBackend:
     # --------
 
     def load_config(self) -> ControllerConfig:
-        """
-        Load config, falling back to .bak if the primary file is missing
-        or corrupted (e.g., crash during write).
-        """
-        def _load(path: str) -> ControllerConfig:
-            with open(path, "r", encoding="utf-8") as f:
-                raw = json.load(f) or {}
+        if not os.path.exists(self._config_path):
+            return ControllerConfig()
 
-            modules: List[ModuleEntry] = []
-            for m in raw.get("modules", []):
-                try:
-                    modules.append(ModuleEntry(
-                        id=str(m["id"]),
-                        type=str(m["type"]).lower(),
-                        address_hex=str(m["address_hex"]).lower(),
-                        name=str(m.get("name", "")),
-                        module_num=int(m["module_num"]) if "module_num" in m and m["module_num"] is not None else None,
-                    ))
-                except Exception:
-                    # skip malformed entries
-                    continue
+        with open(self._config_path, "r", encoding="utf-8") as f:
+            raw = json.load(f) or {}
 
-            return ControllerConfig(
-                controller_name=str(raw.get("controller_name", "Home Controller")),
-                notes=str(raw.get("notes", "")),
-                i2c_bus_num=int(raw.get("i2c_bus_num", DEFAULT_I2C_BUS_NUM)),
-                modules=modules,
-            )
-
-        primary = self._config_path
-        backup = self._config_path + ".bak"
-
-        if os.path.exists(primary):
+        modules: List[ModuleEntry] = []
+        for m in raw.get("modules", []):
             try:
-                return _load(primary)
+                modules.append(ModuleEntry(
+                    id=str(m["id"]),
+                    type=str(m["type"]).lower(),
+                    address_hex=str(m["address_hex"]).lower(),
+                    name=str(m.get("name", "")),
+                    module_num=int(m["module_num"]) if "module_num" in m and m["module_num"] is not None else None,
+                ))
             except Exception:
-                pass  # fall through to backup
+                # skip malformed entries
+                continue
 
-        if os.path.exists(backup):
-            try:
-                return _load(backup)
-            except Exception:
-                pass
-
-        return ControllerConfig()
+        return ControllerConfig(
+            controller_name=str(raw.get("controller_name", "Home Controller")),
+            notes=str(raw.get("notes", "")),
+            i2c_bus_num=int(raw.get("i2c_bus_num", DEFAULT_I2C_BUS_NUM)),
+            modules=modules,
+        )
 
     def save_config(self) -> None:
-        """
-        Persist config atomically to avoid corruption after crashes.
-
-        Steps:
-          1. Write JSON to <config>.tmp and fsync.
-          2. If a current config exists, copy it to .bak (keeps primary in place).
-          3. Replace primary with tmp (atomic on POSIX).
-        """
         os.makedirs(os.path.dirname(self._config_path), exist_ok=True)
         raw: Dict[str, Any] = {
             "controller_name": self.cfg.controller_name,
@@ -347,18 +319,8 @@ class HomeControllerBackend:
             "modules": [asdict(m) for m in self.cfg.modules],
             "saved_at": int(time.time()),
         }
-        tmp = self._config_path + ".tmp"
-        bak = self._config_path + ".bak"
-        with open(tmp, "w", encoding="utf-8") as f:
+        with open(self._config_path, "w", encoding="utf-8") as f:
             json.dump(raw, f, indent=2, sort_keys=True)
-            f.flush()
-            os.fsync(f.fileno())
-        if os.path.exists(self._config_path):
-            try:
-                shutil.copy2(self._config_path, bak)
-            except Exception:
-                pass
-        os.replace(tmp, self._config_path)
 
     # --------
     # Helpers
@@ -976,51 +938,6 @@ class HomeControllerBackend:
                         "samples": samples,
                         "scan_found": scan_found,
                     }
-                elif m.type == "rs485":
-                    res = self.rs485.read_rs485_stats(addr_int)
-                    if res.get("ok"):
-                        cfg = self.load_module_config("rs485", m.address_hex)
-                        bus_enable_cfg = cfg.get("bus_enable", {})
-
-                        bus_errors = []
-                        any_err = False
-                        for be in res.get("bus_errors", []):
-                            bus_idx = str(be.get("bus"))
-                            enabled = bus_enable_cfg.get(bus_idx, True)
-                            be = dict(be)
-                            be["enabled"] = bool(enabled)
-                            if not enabled:
-                                be["errors"] = 0
-                                be["last_status"] = 0
-                            else:
-                                if (be.get("errors", 0) > 0) or (be.get("last_status", 0) != 0):
-                                    any_err = True
-                            bus_errors.append(be)
-
-                        if any_err:
-                            bad = [
-                                f"bus{be.get('bus')} {self._rs485_status_name(be.get('last_status', 0))}"
-                                for be in bus_errors
-                                if be.get("enabled") and ((be.get("errors", 0) > 0) or (be.get("last_status", 0) != 0))
-                            ]
-                            msg = ", ".join(bad)
-                            self._set_last_error(module_id, msg or "RS485 bus error")
-                        else:
-                            self._set_last_error(module_id, None)
-
-                        return {
-                            "ok": True,
-                            "comms_ok": True,
-                            "module_id": m.id,
-                            "type": m.type,
-                            "address": m.address_hex,
-                            "bus_errors": bus_errors,
-                            "bus_enable": bus_enable_cfg,
-                            "raw": res.get("raw"),
-                        }
-                    else:
-                        self._set_last_error(module_id, res.get("error") or "RS485 hub read failed")
-                        return {"ok": False, "error": res.get("error", "RS485 hub read failed")}
             except Exception as e:
                 # fall through to legacy I2C path on any RS485 issue
                 self._set_last_error(module_id, str(e))
@@ -1543,3 +1460,28 @@ if __name__ == "__main__":
     print("Modules:")
     for m in b.list_modules():
         print(" -", m)
+                elif m.type == "rs485":
+                    res = self.rs485.read_rs485_stats(addr_int)
+                    if res.get("ok"):
+                        self._set_last_error(module_id, None)
+                        # promote bus errors
+                        bus_errors = res.get("bus_errors", [])
+                        any_err = any((be.get("errors", 0) > 0 or be.get("last_status", 0) != 0) for be in bus_errors)
+                        if any_err:
+                            # build concise message for head indicator
+                            bad = [f"bus{be['bus']} {self._rs485_status_name(be.get('last_status', 0))}" for be in bus_errors if (be.get('errors', 0) > 0 or be.get('last_status', 0) != 0)]
+                            msg = ", ".join(bad)
+                            self._set_last_error(module_id, msg or "RS485 bus error")
+                        payload = {
+                            "ok": True,
+                            "comms_ok": True,
+                            "module_id": m.id,
+                            "type": m.type,
+                            "address": m.address_hex,
+                            "bus_errors": bus_errors,
+                            "raw": res.get("raw"),
+                        }
+                        return payload
+                    else:
+                        self._set_last_error(module_id, res.get("error") or "RS485 hub read failed")
+                        return {"ok": False, "error": res.get("error", "RS485 hub read failed")}
