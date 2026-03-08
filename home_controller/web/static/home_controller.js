@@ -1953,8 +1953,8 @@ header.className = "module-header";
     // Generator: show type only once; others show type + address
     if (isGenerator) {
       left.innerHTML = `
-        <div class="module-title">${typeLabel}</div>
-        <div class="module-sub" style="display:none;"></div>
+        <div class="module-title">${displayName}</div>
+        <div class="module-sub">${typeLabel} • ${m.address}</div>
       `;
     } else {
       left.innerHTML = `
