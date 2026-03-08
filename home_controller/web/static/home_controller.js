@@ -1551,6 +1551,43 @@ async function _refreshModuleStatus(m) {
   } else if (["rs485", "ext", "i2c"].includes(mt)) {
     power = m.present ? "green" : "off";
     link = m.present ? "green" : "off";
+
+    if (mt === "rs485") {
+      try {
+        const res = await fetch(`/api/module_read/${encodeURIComponent(m.id)}`, { cache: "no-store" });
+        const data = await res.json();
+        if (res.ok && data && data.ok) {
+          const info = MODULE_SVGS.get(m.id);
+          const errs = Array.isArray(data.bus_errors) ? data.bus_errors : [];
+          let anyErr = false;
+          if (info && info.svgRoot) {
+            for (let i = 0; i < 4; i++) {
+              const be = errs[i] || { bus: i + 1, errors: 0, last_status: 0 };
+              const circle = info.svgRoot.querySelector(`#ch0${i + 1}`);
+              if (!circle) continue;
+              const bad = (be.errors || 0) > 0 || (be.last_status || 0) !== 0;
+              anyErr = anyErr || bad;
+              circle.style.fill = bad ? "#ff4a4a" : "#39d353";
+              const msg = bad
+                ? `Bus ${be.bus || i + 1} error (${be.errors || 0}x, status ${(be.last_status || 0)})`
+                : "";
+              if (msg) {
+                circle.setAttribute("data-error", msg);
+                circle.style.cursor = "pointer";
+                circle.onclick = (e) => { e.stopPropagation(); alert(msg); };
+              } else {
+                circle.removeAttribute("data-error");
+                circle.style.cursor = "default";
+                circle.onclick = null;
+              }
+            }
+          }
+          link = anyErr ? "off" : "green";
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
   }
 
   _applyStatusIndicators(m.id, power, link);
@@ -1779,7 +1816,7 @@ async function refreshModuleValues() {
   await Promise.all(Array.from(cards).map(async (card) => {
     const mid = card.dataset.moduleId;
     const mtype = (card.dataset.moduleType || '').toLowerCase();
-    if (!mid || !mtype || !['di','do','aio'].includes(mtype)) return;
+    if (!mid || !mtype || !['di','do','aio','rs485'].includes(mtype)) return;
     try {
       const res = await fetch(`/api/module_read/${encodeURIComponent(mid)}`, { cache: 'no-store' });
       const j = await res.json();
@@ -1799,6 +1836,27 @@ async function refreshModuleValues() {
       }
       if ((mtype === 'di' || mtype === 'do') && j.channels) {
         // Optionally update SVG LEDs if desired in future; placeholder here
+      }
+      if (mtype === 'rs485' && Array.isArray(j.bus_errors)) {
+        const info = MODULE_SVGS.get(mid);
+        if (info && info.svgRoot) {
+          j.bus_errors.forEach((be, idx) => {
+            const circle = info.svgRoot.querySelector(`#ch0${idx + 1}`);
+            if (!circle) return;
+            const bad = (be.errors || 0) > 0 || (be.last_status || 0) !== 0;
+            circle.style.fill = bad ? '#ff4a4a' : '#39d353';
+            const msg = bad ? `Bus ${be.bus || idx + 1} error (${be.errors || 0}x, status ${(be.last_status || 0)})` : '';
+            if (msg) {
+              circle.setAttribute('data-error', msg);
+              circle.style.cursor = 'pointer';
+              circle.onclick = (e) => { e.stopPropagation(); alert(msg); };
+            } else {
+              circle.removeAttribute('data-error');
+              circle.style.cursor = 'default';
+              circle.onclick = null;
+            }
+          });
+        }
       }
     } catch (e) {
       /* ignore per-card errors */

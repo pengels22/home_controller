@@ -148,6 +148,10 @@ static uint8_t rxLen = 0;
 static uint8_t rxPayload[MAX_PAYLOAD];
 static uint8_t rxIndex = 0;
 
+// Bus error tracking
+static uint16_t g_bus_err[4] = {0, 0, 0, 0};
+static uint8_t g_bus_last_status[4] = {ST_OK, ST_OK, ST_OK, ST_OK};
+
 // ============================================================
 // Helpers
 // ============================================================
@@ -367,12 +371,49 @@ static void sendReply(uint8_t busNum, const uint8_t *payload, uint8_t len, uint8
 // ============================================================
 
 static void handleRequest(uint8_t busNum, const uint8_t *payload, uint8_t len) {
+  // Control channel: busNum = 0xFF reserved for hub diagnostics
+  if (busNum == 0xFF) {
+    if (len == 0) {
+      sendReply(busNum, nullptr, 0, ST_BAD_BUS);
+      return;
+    }
+
+    uint8_t cmd = payload[0];
+    if (cmd == 0x01) {
+      // Return per-bus error counters + last status (4x uint16 + 4x uint8)
+      uint8_t out[12];
+      for (uint8_t i = 0; i < 4; i++) {
+        out[i * 2]     = (uint8_t)(g_bus_err[i] & 0xFF);
+        out[i * 2 + 1] = (uint8_t)((g_bus_err[i] >> 8) & 0xFF);
+      }
+      out[8]  = g_bus_last_status[0];
+      out[9]  = g_bus_last_status[1];
+      out[10] = g_bus_last_status[2];
+      out[11] = g_bus_last_status[3];
+      sendReply(busNum, out, 12, ST_OK);
+      return;
+    } else if (cmd == 0x02) {
+      for (uint8_t i = 0; i < 4; i++) {
+        g_bus_err[i] = 0;
+        g_bus_last_status[i] = ST_OK;
+      }
+      sendReply(busNum, nullptr, 0, ST_OK);
+      return;
+    }
+
+    // Unknown control command
+    sendReply(busNum, nullptr, 0, ST_BAD_BUS);
+    return;
+  }
+
   if (busNum >= 4) {
     sendReply(busNum, nullptr, 0, ST_BAD_BUS);
     return;
   }
 
   if (!busWrite(busNum, payload, len)) {
+    g_bus_err[busNum]++;
+    g_bus_last_status[busNum] = ST_BAD_BUS;
     sendReply(busNum, nullptr, 0, ST_BAD_BUS);
     return;
   }
@@ -381,10 +422,14 @@ static void handleRequest(uint8_t busNum, const uint8_t *payload, uint8_t len) {
   size_t replyLen = busRead(busNum, replyBuf, sizeof(replyBuf), DOWNSTREAM_REPLY_TIMEOUT_MS);
 
   if (replyLen == 0) {
+    g_bus_err[busNum]++;
+    g_bus_last_status[busNum] = ST_TIMEOUT;
     sendReply(busNum, nullptr, 0, ST_TIMEOUT);
     return;
   }
 
+  // success
+  g_bus_last_status[busNum] = ST_OK;
   sendReply(busNum, replyBuf, (uint8_t)replyLen, ST_OK);
 }
 

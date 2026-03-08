@@ -136,7 +136,50 @@ class RS485Backend:
                 if time.time() > end_at:
                     # capture any partial buffer for diagnostics
                     raise TimeoutError(f"RS485 timeout waiting for {expect_len}B reply (got {len(buf)})", request, buf)
-            return buf
+        return buf
+
+    # -------------------------------------------------
+    # RS485 hub diagnostics (RS485_core.ino control channel)
+    # -------------------------------------------------
+    def read_rs485_stats(self, addr: int) -> Dict[str, Any]:
+        """
+        Query the RS485 hub (RP2040 expander) for per-bus error counters and last status.
+
+        Control frame:
+          Request : [0xAA][addr][0xFF][len=1][cmd=0x01][crc]
+          Reply   : [0x55][addr][0xFF][len][payload...][status][crc]
+          Payload : 4x uint16 error counts (bus0..3), 4x uint8 last_status codes
+        """
+        req = bytes([0xAA, addr & 0xFF, 0xFF, 0x01, 0x01])
+        crc = _xor_crc(req)
+        req += bytes([crc])
+
+        # expect preamble(1)+addr(1)+bus(1)+len(1)+payload(12)+status(1)+crc(1) = 18
+        reply = self._write_and_read(req, expect_len=18)
+        if len(reply) != 18 or reply[0] != 0x55 or reply[2] != 0xFF:
+            return {"ok": False, "error": "bad preamble/len", "raw": reply}
+        if reply[-1] != _xor_crc(reply[:-1]):
+            return {"ok": False, "error": "bad crc", "raw": reply}
+
+        plen = reply[3]
+        if plen != 12:
+            return {"ok": False, "error": f"unexpected payload len {plen}", "raw": reply}
+
+        payload = reply[4:4+plen]
+        bus_errors = []
+        for i in range(4):
+            err = payload[i*2] | (payload[i*2+1] << 8)
+            status = payload[8 + i]
+            bus_errors.append({"bus": i+1, "errors": err, "last_status": status})
+
+        return {
+            "ok": True,
+            "addr": reply[1],
+            "bus": reply[2],
+            "bus_errors": bus_errors,
+            "status": reply[-2],
+            "raw": reply,
+        }
 
     # -------------------------------------------------
     # DI

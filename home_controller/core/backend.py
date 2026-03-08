@@ -210,6 +210,17 @@ class HomeControllerBackend:
             elif RS485Backend is None or not getattr(RS485Backend, "available", lambda: False)():
                 self._rs485_err = "pyserial not installed"
 
+    @staticmethod
+    def _rs485_status_name(code: int) -> str:
+        names = {
+            0x00: "ok",
+            0x01: "bad_bus",
+            0x02: "timeout",
+            0x03: "bad_crc",
+            0x04: "too_long",
+        }
+        return names.get(int(code) & 0xFF, f"err{code}")
+
     def enable_dev_mode(self, dev_file: Optional[str] = None) -> None:
         """Enable developer simulation mode and load data from `dev_file`.
 
@@ -1449,3 +1460,28 @@ if __name__ == "__main__":
     print("Modules:")
     for m in b.list_modules():
         print(" -", m)
+                elif m.type == "rs485":
+                    res = self.rs485.read_rs485_stats(addr_int)
+                    if res.get("ok"):
+                        self._set_last_error(module_id, None)
+                        # promote bus errors
+                        bus_errors = res.get("bus_errors", [])
+                        any_err = any((be.get("errors", 0) > 0 or be.get("last_status", 0) != 0) for be in bus_errors)
+                        if any_err:
+                            # build concise message for head indicator
+                            bad = [f"bus{be['bus']} {self._rs485_status_name(be.get('last_status', 0))}" for be in bus_errors if (be.get('errors', 0) > 0 or be.get('last_status', 0) != 0)]
+                            msg = ", ".join(bad)
+                            self._set_last_error(module_id, msg or "RS485 bus error")
+                        payload = {
+                            "ok": True,
+                            "comms_ok": True,
+                            "module_id": m.id,
+                            "type": m.type,
+                            "address": m.address_hex,
+                            "bus_errors": bus_errors,
+                            "raw": res.get("raw"),
+                        }
+                        return payload
+                    else:
+                        self._set_last_error(module_id, res.get("error") or "RS485 hub read failed")
+                        return {"ok": False, "error": res.get("error", "RS485 hub read failed")}
