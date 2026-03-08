@@ -275,6 +275,8 @@ class HomeControllerBackend:
     def load_config(self) -> ControllerConfig:
         """
         Load config; fall back to .bak if the primary is missing/corrupt.
+        If the backup is used successfully, restore it to the primary path so
+        subsequent saves do not discard it.
         """
         def _load(path: str) -> ControllerConfig:
             with open(path, "r", encoding="utf-8") as f:
@@ -303,6 +305,16 @@ class HomeControllerBackend:
         primary = self._config_path
         backup = self._config_path + ".bak"
 
+        # If a stale tmp exists from a crash, delete it (never trusted)
+        tmp = self._config_path + ".tmp"
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except Exception:
+            pass
+
+        # Try primary, then backup
+        used_backup = False
         if os.path.exists(primary):
             try:
                 return _load(primary)
@@ -310,9 +322,17 @@ class HomeControllerBackend:
                 pass
         if os.path.exists(backup):
             try:
-                return _load(backup)
+                cfg = _load(backup)
+                used_backup = True
+                # restore backup to primary so future saves start from it
+                try:
+                    shutil.copy2(backup, primary)
+                except Exception:
+                    pass
+                return cfg
             except Exception:
                 pass
+
         return ControllerConfig()
 
     def save_config(self) -> None:
