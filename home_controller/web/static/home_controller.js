@@ -1749,7 +1749,8 @@ function enableModuleDragAndDrop(rowEl) {
       if (!dragEl || dragEl === card) return;
       if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
       const rect = card.getBoundingClientRect();
-      const before = (e.clientY - rect.top) < rect.height / 2;
+      // Use horizontal midpoint (modules are arranged left-to-right)
+      const before = (e.clientX - rect.left) < rect.width / 2;
       if (before) {
         rowEl.insertBefore(dragEl, card);
       } else {
