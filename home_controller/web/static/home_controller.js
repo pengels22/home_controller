@@ -428,7 +428,8 @@ async function showIoChannelPopup(name, status) {
   ensureRemoveButton(popup, ctx);
 
   const type = (ctx.type || '').toLowerCase();
-  const typeLabel = type === 'Generator' ? 'GENERATOR' : type.toUpperCase();
+  const isGeneratorType = type.startsWith('gen');
+  const typeLabel = isGeneratorType ? 'GENERATOR' : type.toUpperCase();
   popup.querySelector('.popup-title').textContent = ctx.name || name || `${typeLabel} MODULE`;
   popup.querySelector('.popup-status').textContent = ctx.status ? `Status: ${ctx.status}` : '';
   controls.innerHTML = '<div>Loading…</div>';
@@ -440,7 +441,8 @@ async function showIoChannelPopup(name, status) {
     ext: '/rs485_config_popup',
     i2c: '/rs485_config_popup',
     rs485: '/rs485_config_popup',
-    Generator: '/Generator_config_popup',
+    genmon: '/genmon_config_popup',
+    generator: '/genmon_config_popup',
   };
   const url = urlMap[type];
   if (!url) {
