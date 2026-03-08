@@ -1960,7 +1960,7 @@ header.className = "module-header";
 
     const left = document.createElement("div");
 
-    const isGenerator = String(m.type || "").toLowerCase() === "Generator";
+    const isGenerator = String(m.type || "").toLowerCase().startsWith("gen");
     const typeLabel = isGenerator ? "GEN" : String(m.type || "").toUpperCase();
     // Force RS485 module name
     const forcedName = String(m.type || "").toLowerCase() === "rs485" ? "RS485 HUB" : null;
@@ -2066,10 +2066,10 @@ header.className = "module-header";
 
     try {
       // Use i2c expander SVG for ext modules (fixes SVG path)
-      let fetchType = svgType;
-      if (svgType === "ext") fetchType = "i2c";
-      if (svgType === "rs485") fetchType = "rs485";
-      if (svgType === "genmon") fetchType = "generator";
+      const isGeneratorType = svgType.startsWith("gen");
+      let fetchType = isGeneratorType ? "generator" : svgType;
+      if (fetchType === "ext") fetchType = "i2c";
+      if (fetchType === "rs485") fetchType = "rs485";
       const svgRes = await fetch(`/modules/svg/${fetchType}`);
       if (!svgRes.ok) throw new Error("SVG not found");
       const svgText = await svgRes.text();
@@ -2100,7 +2100,7 @@ header.className = "module-header";
         }
 
     // Generator: add load-more link click to detail popup
-    if (svgType === "Generator") {
+    if (svgType.startsWith("gen")) {
           const more = svgRoot.querySelector("#Generator_load_more");
           if (more) {
             more.style.cursor = "pointer";
