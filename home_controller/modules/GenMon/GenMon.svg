@@ -101,6 +101,6 @@
   <text id="temp_value" class="tiny" x="84" y="224" text-anchor="end">—</text>
 
   <!-- Load more link -->
-  <text id="genmon_load_more" class="tiny" x="50" y="234" text-anchor="middle" fill="#2a6de8" style="text-decoration: underline;">Load more »</text>
+  <text id="Generator_load_more" class="tiny" x="50" y="234" text-anchor="middle" fill="#2a6de8" style="text-decoration: underline;">Load more »</text>
 
 </svg>

@@ -48,7 +48,7 @@ except Exception:
 
 DEFAULT_I2C_BUS_NUM = 1  # fixed bus (Pi SDA/SCL)
 
-VALID_TYPES = ("di", "do", "aio", "i2c", "rs485", "genmon")  # 'i2c' is I2C Module
+VALID_TYPES = ("di", "do", "aio", "i2c", "rs485", "Generator")  # 'i2c' is I2C Module
 
 # Typical MCP23017 A0..A2 range.
 # We can expand later if you add other chips.
@@ -448,10 +448,10 @@ class HomeControllerBackend:
 
         - I2C-based modules (di/do/aio/i2c/ext) keep the historical
           `i2c<bus>-0xNN` format.
-        - RS485-based modules (rs485 hub, genmon) use `rs485-0xNN`
+        - RS485-based modules (rs485 hub, Generator) use `rs485-0xNN`
           so they no longer collide with I2C addresses.
         """
-        if (mtype or "").lower() in ("rs485", "genmon"):
+        if (mtype or "").lower() in ("rs485", "Generator"):
             return f"rs485-{address_hex.lower()}"
         return f"i2c{DEFAULT_I2C_BUS_NUM}-{address_hex.lower()}"
 
@@ -836,7 +836,7 @@ class HomeControllerBackend:
                         self._set_last_error(module_id, res.get("error", "DO RS485 read failed"))
                         self._log_module_error(m.type, m.id, m.address_hex, res.get("error", "DO RS485 read failed"), res.get("raw"))
                         return res
-                elif m.type == "genmon":
+                elif m.type == "Generator":
                     snap = self.rs485.gen_snapshot(addr_int, trace_logger=self._log_gen_serial)
                     if not snap.get("ok"):
                         self._set_last_error(module_id, snap.get("error", "Gen RS485 read failed"))

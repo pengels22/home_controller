@@ -13,7 +13,7 @@ Python/Flask application and RS485 backend for monitoring and controlling Home C
 - `server.py` – Flask app and routes.
 - `core/backend.py` – high-level module logic (RS485, dev-mode, config I/O).
 - `core/backend_core.py` – low-level RS485 framing helpers.
-- `Generator Pi/generator_backend.py` – RS485 generator helper intended for the Generator Pi (replaces the old GenMon TCP helper). Head communicates to generator via the RS485 trunk, not HTTP.
+- `Generator Pi/generator_backend.py` – RS485 generator helper intended for the Generator Pi (replaces the old Generator TCP helper). Head communicates to generator via the RS485 trunk, not HTTP.
 - `core/i2c_catalog.py` + `i2c_sensors.csv` – I2C sensor metadata (used by the RS485-to-I2C bridge UI).
 - `config/` – runtime configuration:
   - `config.json` main controller/modules list.
@@ -57,7 +57,7 @@ Environment options:
 - `HC_DEBUG=1` to enable Flask debug
 - `HC_RS485_ENABLE` (default `1`) – keep enabled; I2C fallback is disabled in code.
 - `HC_DEV=1` and optional `HC_DEV_FILE=/path/to/dev_i2c.json` to enable simulation mode.
-- (GenMon TCP helper removed; generator control is RS485-only now.)
+- (Generator TCP helper removed; generator control is RS485-only now.)
 
 ## Notable API routes
 - `/api/module_read/<module_id>` – read a module via RS485.
@@ -65,7 +65,7 @@ Environment options:
 - `/api/expansion_config` – get/set expander config.
 - `/api/aio_max_voltage/<module_id>` – get/set per-channel max voltages.
 - `/api/hat_status` – power/sense summary derived from module RS485 responses.
-- `/api/genmon/<id>/status` and `/api/genmon/<id>/contacts` – generator status/contacts via RS485 trunk to Generator Pi.
+- `/api/Generator/<id>/status` and `/api/Generator/<id>/contacts` – generator status/contacts via RS485 trunk to Generator Pi.
 - `/ui` – main web UI.
 - `/ui/add` – add module page.
 - `/ui/gui` – simplified GUI panel.

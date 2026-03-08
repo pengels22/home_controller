@@ -3,7 +3,7 @@
 <h1>Generator Details</h1>
 
 <div class="card">
-  <div><b>Module:</b> {{ module.id }} ({{ 'GENERATOR' if module.type|lower == 'genmon' else module.type|upper }})</div>
+  <div><b>Module:</b> {{ module.id }} ({{ 'GENERATOR' if module.type|lower == 'Generator' else module.type|upper }})</div>
   <div><b>Address:</b> {{ module.address_hex }}</div>
   <div><b>Name:</b> {{ module.name or "—" }}</div>
   <div><b>Generator link:</b> <span id="gm_host">GenBus</span>:<span id="gm_port">485</span></div>
@@ -72,7 +72,7 @@
 
   async function loadStatus() {
     try {
-      const res = await fetch(`/api/genmon/${encodeURIComponent(moduleId)}/status`, { cache: "no-store" });
+      const res = await fetch(`/api/Generator/${encodeURIComponent(moduleId)}/status`, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
@@ -100,7 +100,7 @@
 
   async function loadContacts() {
     try {
-      const res = await fetch(`/api/genmon/${encodeURIComponent(moduleId)}/contacts`, { cache: "no-store" });
+      const res = await fetch(`/api/Generator/${encodeURIComponent(moduleId)}/contacts`, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       const body = document.getElementById("contacts_body");
@@ -130,7 +130,7 @@
 
   async function setContact(id, state) {
     try {
-      const res = await fetch(`/api/genmon/${encodeURIComponent(moduleId)}/contacts/${id}`, {
+      const res = await fetch(`/api/Generator/${encodeURIComponent(moduleId)}/contacts/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ state }),

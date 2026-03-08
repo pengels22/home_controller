@@ -30,12 +30,12 @@ BASE_DIR = Path(__file__).resolve().parent  # .../home_controller/
 TEMPLATES_DIR = BASE_DIR / "web" / "templates"
 STATIC_DIR = BASE_DIR / "web" / "static"
 
-# GenMon defaults (hostname provided by user) — retained for compatibility; not used now.
-GENMON_HOST = os.getenv("GENMON_HOST", "GenMon_PI")
-GENMON_PORT = int(os.getenv("GENMON_PORT", "9082"))
-GENMON_TIMEOUT = float(os.getenv("GENMON_TIMEOUT", "3.0"))
-GENMON_CONTACTS_FILE = BASE_DIR / "config" / "genmon_contacts.json"
-GENMON_CONTACT_COUNT = 4
+# Generator defaults (hostname provided by user) — retained for compatibility; not used now.
+Generator_HOST = os.getenv("Generator_HOST", "Generator_PI")
+Generator_PORT = int(os.getenv("Generator_PORT", "9082"))
+Generator_TIMEOUT = float(os.getenv("Generator_TIMEOUT", "3.0"))
+Generator_CONTACTS_FILE = BASE_DIR / "config" / "Generator_contacts.json"
+Generator_CONTACT_COUNT = 4
 RS485_ONLY = True  # disable direct I2C bus access; only RS485 bridge I2C paths remain
 # ------------------------------------------------------------
 # Flask app
@@ -68,9 +68,9 @@ def _parse_i2c_address(addr_str: str) -> int:
     return v
 
 
-def _parse_genmon_address(addr_str: str) -> int:
+def _parse_Generator_address(addr_str: str) -> int:
     """
-    Parse the GenMon RS485 address (allows values as low as 0x01).
+    Parse the Generator RS485 address (allows values as low as 0x01).
     Accepts hex strings (0x01) or plain integers.
     """
     s = (addr_str or "").strip().lower()
@@ -323,10 +323,10 @@ def rs485_config_popup():
     i2c_sensors = i2c_catalog.load_catalog()
     return render_template("rs485_to_i2c_config.html", i2c_sensors=i2c_sensors)
 
-# GenMon config popup (simple name/address)
-@app.route("/genmon_config_popup")
-def genmon_config_popup():
-    return render_template("genmon_config.html")
+# Generator config popup (simple name/address)
+@app.route("/Generator_config_popup")
+def Generator_config_popup():
+    return render_template("Generator_config.html")
 
 
 @app.get("/api/i2c/supported")
@@ -409,10 +409,10 @@ def _save_labels(data: dict) -> None:
 
 
 # ------------------------------------------------------------
-# GenMon helpers
+# Generator helpers
 # ------------------------------------------------------------
 
-def _default_genmon_contacts() -> Dict[str, Any]:
+def _default_Generator_contacts() -> Dict[str, Any]:
     return {
         "contacts": [
             {
@@ -422,33 +422,33 @@ def _default_genmon_contacts() -> Dict[str, Any]:
                 "cmd_off": f"set_button_command=contact{i}:off",
                 "state": "unknown",
             }
-            for i in range(1, GENMON_CONTACT_COUNT + 1)
+            for i in range(1, Generator_CONTACT_COUNT + 1)
         ]
     }
 
 
-def _load_genmon_contacts() -> Dict[str, Any]:
+def _load_Generator_contacts() -> Dict[str, Any]:
     try:
-        if not GENMON_CONTACTS_FILE.exists():
-            return _default_genmon_contacts()
-        with open(GENMON_CONTACTS_FILE, "r", encoding="utf-8") as f:
+        if not Generator_CONTACTS_FILE.exists():
+            return _default_Generator_contacts()
+        with open(Generator_CONTACTS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
         if not isinstance(data, dict):
-            return _default_genmon_contacts()
+            return _default_Generator_contacts()
         if "contacts" not in data or not isinstance(data["contacts"], list):
-            data["contacts"] = _default_genmon_contacts()["contacts"]
+            data["contacts"] = _default_Generator_contacts()["contacts"]
         return data
     except Exception:
-        return _default_genmon_contacts()
+        return _default_Generator_contacts()
 
 
-def _save_genmon_contacts(data: Dict[str, Any]) -> None:
+def _save_Generator_contacts(data: Dict[str, Any]) -> None:
     try:
-        GENMON_CONTACTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        tmp = GENMON_CONTACTS_FILE.with_suffix(".tmp")
+        Generator_CONTACTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = Generator_CONTACTS_FILE.with_suffix(".tmp")
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, sort_keys=True)
-        tmp.replace(GENMON_CONTACTS_FILE)
+        tmp.replace(Generator_CONTACTS_FILE)
     except Exception:
         pass
 
@@ -530,7 +530,7 @@ def _find_numeric(obj, key_predicate):
     return None
 
 
-def _parse_genmon_status(raw: Dict[str, Any]) -> Dict[str, Any]:
+def _parse_Generator_status(raw: Dict[str, Any]) -> Dict[str, Any]:
     out: Dict[str, Any] = {}
 
     rpm = _find_numeric(raw, lambda k, _v: isinstance(k, str) and "rpm" in k.lower())
@@ -591,8 +591,8 @@ def _startup_module_check():
     present_hex = {f"0x{a:02x}" for a in addrs}
     missing = []
     for m in backend.list_modules():
-        # GenMon is not on the I2C bus; skip presence check
-        if m.type == "genmon":
+        # Generator is not on the I2C bus; skip presence check
+        if m.type == "Generator":
             continue
         if m.address_hex.lower() not in present_hex:
             missing.append(m)
@@ -687,22 +687,22 @@ def modules_list():
     return jsonify(out)
 
 
-@app.get("/modules/genmon/<module_id>/detail")
-def genmon_detail(module_id: str):
+@app.get("/modules/Generator/<module_id>/detail")
+def Generator_detail(module_id: str):
     # Find module by id
     mod = next((m for m in backend.list_modules() if m.id == module_id), None)
     if not mod:
         abort(404)
-    return render_template("genmon_detail.html", module=mod, hide_nav=True)
+    return render_template("Generator_detail.html", module=mod, hide_nav=True)
 
 
 # ------------------------------------------------------------
-# GenMon API
+# Generator API
 # ------------------------------------------------------------
-@app.get("/api/genmon/<module_id>/status")
-def api_genmon_status(module_id: str):
+@app.get("/api/Generator/<module_id>/status")
+def api_Generator_status(module_id: str):
     mod = next((m for m in backend.list_modules() if m.id == module_id), None)
-    if not mod or mod.type != "genmon":
+    if not mod or mod.type != "Generator":
         return jsonify({"ok": False, "error": "module not found"}), 404
 
     try:
@@ -719,23 +719,23 @@ def api_genmon_status(module_id: str):
         return jsonify({"ok": False, "error": str(e), "trace": tb}), 502
 
 
-@app.get("/api/genmon/<module_id>/contacts")
-def api_genmon_contacts(module_id: str):
+@app.get("/api/Generator/<module_id>/contacts")
+def api_Generator_contacts(module_id: str):
     mod = next((m for m in backend.list_modules() if m.id == module_id), None)
-    if not mod or mod.type != "genmon":
+    if not mod or mod.type != "Generator":
         return jsonify({"ok": False, "error": "module not found"}), 404
-    cfg = _load_genmon_contacts()
+    cfg = _load_Generator_contacts()
     return jsonify({"ok": True, "module_id": module_id, "contacts": cfg.get("contacts", [])})
 
 
-@app.post("/api/genmon/<module_id>/contacts/<int:contact_id>")
-def api_genmon_set_contact(module_id: str, contact_id: int):
+@app.post("/api/Generator/<module_id>/contacts/<int:contact_id>")
+def api_Generator_set_contact(module_id: str, contact_id: int):
     mod = next((m for m in backend.list_modules() if m.id == module_id), None)
-    if not mod or mod.type != "genmon":
+    if not mod or mod.type != "Generator":
         return jsonify({"ok": False, "error": "module not found"}), 404
 
-    if contact_id < 1 or contact_id > GENMON_CONTACT_COUNT:
-        return jsonify({"ok": False, "error": f"contact must be 1-{GENMON_CONTACT_COUNT}"}), 400
+    if contact_id < 1 or contact_id > Generator_CONTACT_COUNT:
+        return jsonify({"ok": False, "error": f"contact must be 1-{Generator_CONTACT_COUNT}"}), 400
 
     data = request.get_json(force=True, silent=True) or {}
     raw_state = data.get("state")
@@ -753,7 +753,7 @@ def api_genmon_set_contact(module_id: str, contact_id: int):
     if state not in ("on", "off"):
         return jsonify({"ok": False, "error": "state must be on/off"}), 400
 
-    cfg = _load_genmon_contacts()
+    cfg = _load_Generator_contacts()
     entry = None
     for c in cfg.get("contacts", []):
         try:
@@ -769,7 +769,7 @@ def api_genmon_set_contact(module_id: str, contact_id: int):
 
     # RS485 generator modules do not expose dry-contact writes yet; just persist desired state.
     _update_contact_state(cfg, contact_id, state)
-    _save_genmon_contacts(cfg)
+    _save_Generator_contacts(cfg)
 
     return jsonify(
         {
@@ -789,8 +789,8 @@ def modules_add():
     try:
         mtype = str(data.get("type", "")).strip().lower()
         addr_str = str(data.get("address", "")).strip()
-        if mtype == "genmon":
-            addr_val = _parse_genmon_address(addr_str)
+        if mtype == "Generator":
+            addr_val = _parse_Generator_address(addr_str)
         else:
             addr_val = _parse_i2c_address(addr_str)
         addr_hex = f"0x{addr_val:02x}"
@@ -946,7 +946,7 @@ def module_svg(module_type: str):
         "i2c_expander": ("i2c", "I2C_EXPANDER.svg"),
         "i2c": ("i2c", "I2C_EXPANDER.svg"),
         "rs485": ("rs485", "RS485_MODULE.svg"),
-        "genmon": ("GenMon", "GenMon.svg"),
+        "Generator": ("Generator", "Generator.svg"),
     }
 
     if module_type not in svg_map:

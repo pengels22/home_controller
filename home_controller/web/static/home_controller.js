@@ -31,10 +31,10 @@ function updateDipAddressDisplay() {
   else if (type === "aio") base = 0x40;
   else if (type === "rs485") base = 0x50;
   else if (type === "ext") base = 0x60; // I2C Module
-  else if (type === "genmon") base = 0x01; // Generac default RS485 addr starts at 1
+  else if (type === "Generator") base = 0x01; // Generac default RS485 addr starts at 1
   // Address mapping: DIP1*1 + DIP2*2 + DIP3*4
   const addrNum = base + dip1*1 + dip2*2 + dip3*4;
-  const addr = type === "genmon"
+  const addr = type === "Generator"
     ? `${addrNum}`
     : "0x" + addrNum.toString(16).toUpperCase();
   const display = document.getElementById("address_display");
@@ -94,7 +94,7 @@ async function showGeneratorDetailPopup(moduleId) {
   popup.querySelector('.popup-title').textContent = 'Generator Details';
   popup.querySelector('.popup-status').textContent = '';
   controls.innerHTML = `
-    <iframe src="/modules/genmon/${encodeURIComponent(moduleId)}/detail"
+    <iframe src="/modules/Generator/${encodeURIComponent(moduleId)}/detail"
             style="width:520px;height:420px;border:0;background:#fff;"></iframe>
   `;
   popup.querySelectorAll('.popup-close').forEach((btn) => btn.remove());
@@ -428,7 +428,7 @@ async function showIoChannelPopup(name, status) {
   ensureRemoveButton(popup, ctx);
 
   const type = (ctx.type || '').toLowerCase();
-  const typeLabel = type === 'genmon' ? 'GENERATOR' : type.toUpperCase();
+  const typeLabel = type === 'Generator' ? 'GENERATOR' : type.toUpperCase();
   popup.querySelector('.popup-title').textContent = ctx.name || name || `${typeLabel} MODULE`;
   popup.querySelector('.popup-status').textContent = ctx.status ? `Status: ${ctx.status}` : '';
   controls.innerHTML = '<div>Loading…</div>';
@@ -440,7 +440,7 @@ async function showIoChannelPopup(name, status) {
     ext: '/rs485_config_popup',
     i2c: '/rs485_config_popup',
     rs485: '/rs485_config_popup',
-    genmon: '/genmon_config_popup',
+    Generator: '/Generator_config_popup',
   };
   const url = urlMap[type];
   if (!url) {
@@ -966,7 +966,7 @@ async function showIoChannelPopup(name, status) {
   }
 
   // ---------------- Generator global config ----------------
-  if (type === 'genmon') {
+  if (type === 'Generator') {
     form.querySelectorAll('button[type="submit"], button[type="button"]').forEach((btn) => btn.remove());
     const nameInput = form.querySelector('input[name="module_name"]');
     const addrInput = form.querySelector('input[name="i2c_address"]');
@@ -984,14 +984,14 @@ async function showIoChannelPopup(name, status) {
       onChange: (addr) => { targetAddr = addr; if (addrInput) addrInput.value = addr; if (addrSpan) addrSpan.textContent = addr; },
     });
 
-    let saveBtn = controls.querySelector('.genmon-global-save');
+    let saveBtn = controls.querySelector('.Generator-global-save');
     if (!saveBtn) {
       saveBtn = document.createElement('button');
-      saveBtn.className = 'global-save genmon-global-save';
+      saveBtn.className = 'global-save Generator-global-save';
       saveBtn.textContent = 'Save';
       controls.appendChild(saveBtn);
     } else {
-      saveBtn.className = 'global-save genmon-global-save';
+      saveBtn.className = 'global-save Generator-global-save';
       saveBtn.textContent = 'Save';
     }
 
@@ -1377,7 +1377,7 @@ function _setAllIndicators(on = true) {
       _setStatusLed(root, ["status_link", "status_pwrB"], "off");
     }
 
-    if (mt === "genmon") {
+    if (mt === "Generator") {
       const sys = root.querySelector("#sys_led");
       const run = root.querySelector("#run_led");
       if (sys) {
@@ -1388,7 +1388,7 @@ function _setAllIndicators(on = true) {
         run.classList.remove("led-on", "led-warn", "led-err", "led-off", "led-run");
         run.classList.add(on ? "led-run" : "led-off");
       }
-      _setGenmonBattery(root, on ? _TEST_BAT_PCT : 0);
+      _setGeneratorBattery(root, on ? _TEST_BAT_PCT : 0);
       continue; // no channel circles on generator card
     }
 
@@ -1461,7 +1461,7 @@ function _setStatusLed(root, ids, state) {
   });
 }
 
-function _setGenmonBattery(root, percent) {
+function _setGeneratorBattery(root, percent) {
   const p = Math.max(0, Math.min(100, percent));
   const fill = root.querySelector("#bat_fill");
   const vText = root.querySelector("#bat_voltage");
@@ -1960,7 +1960,7 @@ header.className = "module-header";
 
     const left = document.createElement("div");
 
-    const isGenerator = String(m.type || "").toLowerCase() === "genmon";
+    const isGenerator = String(m.type || "").toLowerCase() === "Generator";
     const typeLabel = isGenerator ? "GEN" : String(m.type || "").toUpperCase();
     // Force RS485 module name
     const forcedName = String(m.type || "").toLowerCase() === "rs485" ? "RS485 HUB" : null;
@@ -2099,8 +2099,8 @@ header.className = "module-header";
         }
 
     // Generator: add load-more link click to detail popup
-    if (svgType === "genmon") {
-          const more = svgRoot.querySelector("#genmon_load_more");
+    if (svgType === "Generator") {
+          const more = svgRoot.querySelector("#Generator_load_more");
           if (more) {
             more.style.cursor = "pointer";
             more.onclick = (e) => {
@@ -2191,9 +2191,9 @@ async function addModuleThenGoBack() {
   else if (type === "aio") base = 0x40;
   else if (type === "rs485") base = 0x50;
   else if (type === "ext") base = 0x60; // I2C Module
-  else if (type === "genmon") base = 0x01; // Generac default RS485 address base
+  else if (type === "Generator") base = 0x01; // Generac default RS485 address base
   const addrNum = base + dip1*1 + dip2*2 + dip3*4;
-  const addr = type === "genmon"
+  const addr = type === "Generator"
     ? `${addrNum}`
     : "0x" + addrNum.toString(16).toUpperCase();
   const errBox = $("add_error");

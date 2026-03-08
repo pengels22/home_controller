@@ -43,7 +43,7 @@ static const uint32_t TELEMETRY_PERIOD_MS = 1000;
 // Controller timeout to mark controller-derived values invalid
 static const uint32_t CTRL_GOOD_TIMEOUT_MS = 3000;
 
-// Generac maintenance-port (Modbus RTU) defaults (pulled from GenMon project)
+// Generac maintenance-port (Modbus RTU) defaults (pulled from Generator project)
 static const uint8_t  GEN_MODBUS_ID    = 0x9D;   // Evolution/Nexus default slave ID
 static const uint32_t GEN_MODBUS_BAUD  = 9600;   // maintenance port speed
 static const uint32_t GEN_MODBUS_RX_TIMEOUT_MS = 120; // wait per transaction
@@ -331,8 +331,8 @@ static inline uint16_t avg_u16_round(uint16_t a, uint16_t b) {
 
 // ------------------------- GENERAC MODBUS HELPERS -------------------------
 // Minimal Modbus RTU read (function 0x03) to pull base registers exposed by Generac
-// Evolution/Nexus controllers. Derived from the public GenMon project:
-//   https://github.com/jgyates/genmon (GNU GPLv2)
+// Evolution/Nexus controllers. Derived from the public Generator project:
+//   https://github.com/jgyates/Generator (GNU GPLv2)
 // Notes:
 //   - This does NOT implement the encrypted "encapsulated" EVO2 unlock sequence; it
 //     targets the common unencapsulated register set. Many controllers still answer
@@ -455,7 +455,7 @@ static bool modbusWriteRegister(uint8_t slave, uint16_t reg, uint16_t value) {
   return true;
 }
 
-// Evo2 encapsulation constants (from GenMon)
+// Evo2 encapsulation constants (from Generator)
 static const uint8_t EVO2_IV[16] = {0xC0,0x94,0xFB,0xEB,0xF5,0x96,0x43,0x7F,0xA2,0x2E,0xFA,0x84,0xFC,0xC5,0x21,0x52};
 static const uint8_t EVO2_KEYS[16][16] = {
  {0x4A,0x2A,0xA3,0xE4,0x7E,0xE0,0x42,0x2C,0xA4,0xBC,0x8D,0x1D,0x52,0xDE,0xD9,0x69},
@@ -582,7 +582,7 @@ static bool modbusWriteRegisters(uint8_t slave, uint16_t reg, const uint8_t* dat
   return true;
 }
 
-// Generac indexed write helper (mirrors GenMon WriteIndexedRegister)
+// Generac indexed write helper (mirrors Generator WriteIndexedRegister)
 static bool genIndexedCommand(uint16_t reg, bool hasValue, uint16_t value) {
   // If value present, write it to register 0x0004, then write target register to 0x0003
   if (hasValue) {
@@ -915,7 +915,7 @@ static bool rxTryParseOne() {
 }
 
 // ------------------------- GENERAC POLL -------------------------
-// Minimal Modbus RTU poll of core registers using GenMon register map.
+// Minimal Modbus RTU poll of core registers using Generator register map.
 // This is intentionally lean but provides real telemetry for the RS485 bridge.
 
 static uint32_t g_last_gen_poll_ms = 0;
@@ -934,7 +934,7 @@ static bool parseGeneracFrame(const uint8_t* buf, size_t len) {
   return false;
 }
 
-// Read a handful of base registers defined in GenMon's Evolution map.
+// Read a handful of base registers defined in Generator's Evolution map.
 static void pollGenerac() {
   // Registers:
   // 0x0007 RPM
