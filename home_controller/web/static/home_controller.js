@@ -1773,13 +1773,70 @@ function enableModuleDragAndDrop(rowEl) {
   });
 }
 
+async function refreshModuleValues() {
+  // fetch per-module state for DI/DO/AIO to populate card values and alerts
+  const cards = document.querySelectorAll('.module-card');
+  await Promise.all(Array.from(cards).map(async (card) => {
+    const mid = card.dataset.moduleId;
+    const mtype = (card.dataset.moduleType || '').toLowerCase();
+    if (!mid || !mtype || !['di','do','aio'].includes(mtype)) return;
+    try {
+      const res = await fetch(`/api/module_read/${encodeURIComponent(mid)}`, { cache: 'no-store' });
+      const j = await res.json();
+      if (!res.ok || !j.ok) return;
+      if (mtype === 'aio' && j.channels) {
+        const panel = card.querySelector('.aio-panel');
+        if (panel) {
+          for (let i = 1; i <= 8; i++) {
+            const valEl = panel.querySelector(`.aio-val[data-ch='${i}']`);
+            if (valEl) valEl.textContent = j.channels[String(i)] !== undefined ? j.channels[String(i)] : '--';
+          }
+        }
+        if (Array.isArray(j.alerts) && j.alerts.length > 0) {
+          const msgs = j.alerts.map(a => `AIO ${mid} CH${a.channel} ${a.measured_voltage}V > ${a.max_voltage}V`).join('\n');
+          showToast(msgs);
+        }
+      }
+      if ((mtype === 'di' || mtype === 'do') && j.channels) {
+        // Optionally update SVG LEDs if desired in future; placeholder here
+      }
+    } catch (e) {
+      /* ignore per-card errors */
+    }
+  }));
+}
+
+function showToast(msg) {
+  let toast = document.getElementById('alert_toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'alert_toast';
+    toast.style.position = 'fixed';
+    toast.style.top = '16px';
+    toast.style.left = '50%';
+    toast.style.transform = 'translateX(-50%)';
+    toast.style.zIndex = '12000';
+    toast.style.background = '#b00020';
+    toast.style.color = '#fff';
+    toast.style.padding = '10px 16px';
+    toast.style.borderRadius = '8px';
+    toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+    toast.style.fontSize = '14px';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.display = 'block';
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => { toast.style.display = 'none'; }, 5000);
+}
+
 async function loadModules() {
   _clearAnyDimState();
 
   const row = $("modules");
   if (!row) return;
 
-  const res = await fetch("/modules");
+  const res = await fetch("/modules", { cache: "no-store" });
   const data = await res.json();
   const modules = Array.isArray(data) ? data.slice() : [];
   modules.sort((a, b) => {
@@ -1856,8 +1913,8 @@ async function loadModules() {
     card.dataset.moduleId = m.id || "";
     card.dataset.moduleType = m.type || "";
 
-    const header = document.createElement("div");
-    header.className = "module-header";
+const header = document.createElement("div");
+header.className = "module-header";
 
     const left = document.createElement("div");
 
@@ -1917,8 +1974,49 @@ async function loadModules() {
     svgHolder.className = "module-svg";
     svgHolder.textContent = "Loading…";
 
-    card.appendChild(header);
-    card.appendChild(svgHolder);
+  card.appendChild(header);
+  card.appendChild(svgHolder);
+    // AIO channel panel
+    let aioPanel = null;
+    if (svgType === "aio") {
+      aioPanel = document.createElement("div");
+      aioPanel.className = "aio-panel";
+      const list = document.createElement("div");
+      list.className = "aio-list";
+      for (let i = 1; i <= 8; i++) {
+        const row = document.createElement("div");
+        row.className = "aio-row";
+        row.innerHTML = `
+          <div class="aio-label">CH ${i}</div>
+          <div class="aio-val" data-ch="${i}">--</div>
+          <div class="aio-set">
+            <input type="number" step="0.01" class="aio-input" data-ch="${i}" placeholder="Set V" />
+            <button class="aio-btn" data-ch="${i}">Set</button>
+          </div>
+        `;
+        list.appendChild(row);
+      }
+      aioPanel.appendChild(list);
+      card.appendChild(aioPanel);
+
+      aioPanel.querySelectorAll('.aio-btn').forEach((btn) => {
+        btn.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          const ch = Number(btn.getAttribute('data-ch')) || 0;
+          const inp = aioPanel.querySelector(`.aio-input[data-ch='${ch}']`);
+          const v = inp ? parseFloat(inp.value) : NaN;
+          if (!Number.isFinite(v)) return;
+          try {
+            await fetch('/api/module_write', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ module_id: m.id, channel: ch, value: v }),
+            });
+            refreshModuleValues();
+          } catch (e) { /* ignore */ }
+        });
+      });
+    }
     row.appendChild(card);
 
     try {
@@ -1937,7 +2035,7 @@ async function loadModules() {
         const scopeClass = `svgscope-${m.id || fetchType || Math.random().toString(36).slice(2, 8)}`;
         scopeSvgStyles(svgRoot, scopeClass);
         ensureSvgVisible(svgRoot);
-        MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
+    MODULE_SVGS.set(m.id, { type: String(m.type).toLowerCase(), svgRoot });
 
         // Expansion module deprecated; no label population.
         if (svgType === "ext" || svgType === "i2c") {
@@ -1956,8 +2054,8 @@ async function loadModules() {
           }
         }
 
-        // Generator: add load-more link click to detail popup
-        if (svgType === "genmon") {
+    // Generator: add load-more link click to detail popup
+    if (svgType === "genmon") {
           const more = svgRoot.querySelector("#genmon_load_more");
           if (more) {
             more.style.cursor = "pointer";
@@ -2013,10 +2111,13 @@ async function loadModules() {
     }
   }
 
-  // (Ext row removed: all modules rendered together)
+    // (Ext row removed: all modules rendered together)
 
   enableModuleDragAndDrop(row);
   _clearAnyDimState();
+
+  // Kick off AIO/DO/DI refresh for live values
+  refreshModuleValues();
 
   // NOTE: opacity/filters are now handled directly in CSS and ensureSvgVisible
 }
@@ -2443,4 +2544,7 @@ window.onExpanderBackClick = onExpanderBackClick;
 _clearAnyDimState();
 loadStatus();
 loadModules();
-setInterval(loadStatus, 4000);
+setInterval(loadStatus, 1000);
+setInterval(loadModules, 1000);
+setInterval(refreshModuleValues, 1000);
+setInterval(loadModules, 1000);

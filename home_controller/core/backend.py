@@ -714,6 +714,7 @@ class HomeControllerBackend:
                     channels: Dict[str, float] = {}
                     raw_frames: Dict[str, str] = {}
                     sense_mask = None
+                    alerts = []
                     # Read AI channels 0..7 (presented as 1..8 to UI)
                     for ch in range(8):
                         r = self.rs485.read_aio_channel(addr_int, ch)
@@ -725,7 +726,25 @@ class HomeControllerBackend:
                         if sense_mask is None:
                             sense_mask = r.get("sense_mask")
                         raw_frames[str(ch + 1)] = r.get("raw", b"").hex() if isinstance(r.get("raw"), (bytes, bytearray)) else ""
-                        channels[str(ch + 1)] = self._counts_to_voltage(v12, m.id, ch + 1, direction="in")
+                        v = self._counts_to_voltage(v12, m.id, ch + 1, direction="in")
+                        channels[str(ch + 1)] = v
+                        # over-voltage alert
+                        max_cfg = aio_max_voltage.load_aio_max_voltage(m.id)
+                        maxv = None
+                        if max_cfg and "in" in max_cfg and str(ch + 1) in max_cfg["in"]:
+                            try:
+                                maxv = float(max_cfg["in"][str(ch + 1)])
+                            except Exception:
+                                maxv = None
+                        if maxv is not None and v is not None and v > maxv:
+                            alerts.append({
+                                "module": m.id,
+                                "address": m.address_hex,
+                                "channel": ch + 1,
+                                "max_voltage": maxv,
+                                "measured_voltage": v,
+                                "timestamp": int(time.time()),
+                            })
                     return {
                         "ok": True,
                         "comms_ok": True,
@@ -736,8 +755,9 @@ class HomeControllerBackend:
                         "sense_mask": sense_mask,
                         "power": self._sense_info(sense_mask, two_lines=True),
                         "comms_led": "green",
-                            "raw_frames": raw_frames,
-                        }
+                        "raw_frames": raw_frames,
+                        "alerts": alerts,
+                    }
                 elif m.type == "do":
                     res = self.rs485.read_do_bitmap(addr_int)
                     if res.get("ok"):
