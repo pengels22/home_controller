@@ -1573,9 +1573,14 @@ async function runTestLoop() {
       const root = info.svgRoot;
       if (!root) continue;
 
-      // Turn on status LEDs for this module
-      _setStatusLed(root, ["status_pwr", "status_pwrA"], "green");
-      _setStatusLed(root, ["status_link", "status_pwrB"], "green");
+      // Tri-state power indicator: cycle off -> yellow -> green quickly
+      const triStates = ["off", "yellow", "green"];
+      for (const state of triStates) {
+        if (!TEST_RUNNING) break;
+        _setStatusLed(root, ["status_pwr", "status_pwrA"], state);
+        _setStatusLed(root, ["status_link", "status_pwrB"], "green");
+        await _sleep(120);
+      }
 
       // Light one channel LED at a time for this module
       const circles = Array.from(root.querySelectorAll("g[id^='ch'] circle.led, g[id^='ch'] circle.led-off, g[id^='ch'] circle.led-on"));
