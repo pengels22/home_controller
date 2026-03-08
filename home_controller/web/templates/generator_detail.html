@@ -72,7 +72,7 @@
 
   async function loadStatus() {
     try {
-      const res = await fetch(`/api/Generator/${encodeURIComponent(moduleId)}/status`, { cache: "no-store" });
+      const res = await fetch(`/api/generator/${encodeURIComponent(moduleId)}/status`, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
@@ -100,7 +100,7 @@
 
   async function loadContacts() {
     try {
-      const res = await fetch(`/api/Generator/${encodeURIComponent(moduleId)}/contacts`, { cache: "no-store" });
+      const res = await fetch(`/api/generator/${encodeURIComponent(moduleId)}/contacts`, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       const body = document.getElementById("contacts_body");
@@ -130,7 +130,7 @@
 
   async function setContact(id, state) {
     try {
-      const res = await fetch(`/api/Generator/${encodeURIComponent(moduleId)}/contacts/${id}`, {
+          const res = await fetch(`/api/generator/${encodeURIComponent(moduleId)}/contacts/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ state }),

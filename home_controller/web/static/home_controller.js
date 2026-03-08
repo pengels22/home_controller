@@ -94,7 +94,7 @@ async function showGeneratorDetailPopup(moduleId) {
   popup.querySelector('.popup-title').textContent = 'Generator Details';
   popup.querySelector('.popup-status').textContent = '';
   controls.innerHTML = `
-    <iframe src="/modules/Generator/${encodeURIComponent(moduleId)}/detail"
+    <iframe src="/modules/generator/${encodeURIComponent(moduleId)}/detail"
             style="width:520px;height:420px;border:0;background:#fff;"></iframe>
   `;
   popup.querySelectorAll('.popup-close').forEach((btn) => btn.remove());
@@ -441,8 +441,7 @@ async function showIoChannelPopup(name, status) {
     ext: '/rs485_config_popup',
     i2c: '/rs485_config_popup',
     rs485: '/rs485_config_popup',
-    genmon: '/genmon_config_popup',
-    generator: '/genmon_config_popup',
+    generator: '/generator_config_popup',
   };
   const url = urlMap[type];
   if (!url) {

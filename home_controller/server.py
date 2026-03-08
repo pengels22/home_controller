@@ -324,9 +324,10 @@ def rs485_config_popup():
     return render_template("rs485_to_i2c_config.html", i2c_sensors=i2c_sensors)
 
 # Generator config popup (simple name/address)
-@app.route("/Generator_config_popup")
-def Generator_config_popup():
-    return render_template("Generator_config.html")
+@app.route("/generator_config_popup")
+@app.route("/Generator_config_popup")  # backward compatibility
+def generator_config_popup():
+    return render_template("generator_config.html")
 
 
 @app.get("/api/i2c/supported")
@@ -688,19 +689,21 @@ def modules_list():
 
 
 @app.get("/modules/Generator/<module_id>/detail")
-def Generator_detail(module_id: str):
+@app.get("/modules/generator/<module_id>/detail")
+def generator_detail(module_id: str):
     # Find module by id
     mod = next((m for m in backend.list_modules() if m.id == module_id), None)
     if not mod:
         abort(404)
-    return render_template("Generator_detail.html", module=mod, hide_nav=True)
+    return render_template("generator_detail.html", module=mod, hide_nav=True)
 
 
 # ------------------------------------------------------------
 # Generator API
 # ------------------------------------------------------------
 @app.get("/api/Generator/<module_id>/status")
-def api_Generator_status(module_id: str):
+@app.get("/api/generator/<module_id>/status")
+def api_generator_status(module_id: str):
     mod = next((m for m in backend.list_modules() if m.id == module_id), None)
     if not mod or mod.type != "Generator":
         return jsonify({"ok": False, "error": "module not found"}), 404
@@ -720,7 +723,8 @@ def api_Generator_status(module_id: str):
 
 
 @app.get("/api/Generator/<module_id>/contacts")
-def api_Generator_contacts(module_id: str):
+@app.get("/api/generator/<module_id>/contacts")
+def api_generator_contacts(module_id: str):
     mod = next((m for m in backend.list_modules() if m.id == module_id), None)
     if not mod or mod.type != "Generator":
         return jsonify({"ok": False, "error": "module not found"}), 404
@@ -729,7 +733,8 @@ def api_Generator_contacts(module_id: str):
 
 
 @app.post("/api/Generator/<module_id>/contacts/<int:contact_id>")
-def api_Generator_set_contact(module_id: str, contact_id: int):
+@app.post("/api/generator/<module_id>/contacts/<int:contact_id>")
+def api_generator_set_contact(module_id: str, contact_id: int):
     mod = next((m for m in backend.list_modules() if m.id == module_id), None)
     if not mod or mod.type != "Generator":
         return jsonify({"ok": False, "error": "module not found"}), 404
