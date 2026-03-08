@@ -279,6 +279,11 @@ body.modal-open .modules-row {
   border-color: #5c7cfa;
 }
 
+/* Hide inline AIO per-channel set panel (use popup instead) */
+.aio-panel {
+  display: none !important;
+}
+
 
 .module-header {
   display: flex;
